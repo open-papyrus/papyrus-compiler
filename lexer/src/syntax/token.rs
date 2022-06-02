@@ -113,6 +113,7 @@ pub enum Token<'a> {
     DocumentationComment(&'a str),
 
     #[error]
+    #[token(r"\", logos::skip)]
     Error,
 }
 
@@ -415,5 +416,11 @@ mod test {
         ];
 
         test_data(data, |x| x);
+    }
+
+    #[test]
+    fn test_line_terminator() {
+        let mut lexer = Token::lexer(r"\");
+        assert_eq!(lexer.next(), None);
     }
 }
