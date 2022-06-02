@@ -2,7 +2,7 @@ use crate::syntax::keyword_kind::KeywordKind;
 use crate::syntax::operator_kind::OperatorKind;
 use logos::Logos;
 
-#[derive(Logos, Debug, PartialEq)]
+#[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token {
     #[token("(", callback = |_| OperatorKind::ParenthesisOpen)]
     #[token(")", callback = |_| OperatorKind::ParenthesisClose)]
@@ -35,50 +35,57 @@ pub enum Token {
     #[token("is", callback = |_| OperatorKind::CastIs)]
     Operator(OperatorKind),
 
-    #[token("Auto", callback = |_| KeywordKind::Auto)]
-    #[token("AutoReadOnly", callback = |_| KeywordKind::AutoReadOnly)]
-    #[token("BetaOnly", callback = |_| KeywordKind::BetaOnly)]
-    #[token("bool", callback = |_| KeywordKind::Bool)]
-    #[token("Const", callback = |_| KeywordKind::Const)]
-    #[token("CustomEvent", callback = |_| KeywordKind::CustomEvent)]
-    #[token("CustomEventName", callback = |_| KeywordKind::CustomEventName)]
-    #[token("DebugOnly", callback = |_| KeywordKind::DebugOnly)]
-    #[token("Else", callback = |_| KeywordKind::Else)]
-    #[token("ElseIf", callback = |_| KeywordKind::ElseIf)]
-    #[token("EndEvent", callback = |_| KeywordKind::EndEvent)]
-    #[token("EndFunction", callback = |_| KeywordKind::EndFunction)]
-    #[token("EndGroup", callback = |_| KeywordKind::EndGroup)]
-    #[token("EndIf", callback = |_| KeywordKind::EndIf)]
-    #[token("EndProperty", callback = |_| KeywordKind::EndProperty)]
-    #[token("EndState", callback = |_| KeywordKind::EndState)]
-    #[token("EndStruct", callback = |_| KeywordKind::EndStruct)]
-    #[token("EndWhile", callback = |_| KeywordKind::EndWhile)]
-    #[token("Event", callback = |_| KeywordKind::Event)]
-    #[token("Extends", callback = |_| KeywordKind::Extends)]
-    #[token("False", callback = |_| KeywordKind::False)]
-    #[token("float", callback = |_| KeywordKind::Float)]
-    #[token("Function", callback = |_| KeywordKind::Function)]
-    #[token("Global", callback = |_| KeywordKind::Global)]
-    #[token("Group", callback = |_| KeywordKind::Group)]
-    #[token("If", callback = |_| KeywordKind::If)]
-    #[token("Import", callback = |_| KeywordKind::Import)]
-    #[token("int", callback = |_| KeywordKind::Int)]
-    #[token("Length", callback = |_| KeywordKind::Length)]
-    #[token("Native", callback = |_| KeywordKind::Native)]
-    #[token("new", callback = |_| KeywordKind::New)]
-    #[token("none", callback = |_| KeywordKind::None)]
-    #[token("Property", callback = |_| KeywordKind::Property)]
-    #[token("return", callback = |_| KeywordKind::Return)]
-    #[token("ScriptName", callback = |_| KeywordKind::ScriptName)]
-    #[token("ScriptEventName", callback = |_| KeywordKind::ScriptEventName)]
-    #[token("State", callback = |_| KeywordKind::State)]
-    #[token("string", callback = |_| KeywordKind::String)]
-    #[token("Struct", callback = |_| KeywordKind::Struct)]
-    #[token("StructVarName", callback = |_| KeywordKind::StructVarName)]
-    #[token("true", callback = |_| KeywordKind::True)]
-    #[token("var", callback = |_| KeywordKind::Var)]
-    #[token("While", callback = |_| KeywordKind::While)]
+    #[token("Auto", callback = |_| KeywordKind::Auto, ignore(ascii_case))]
+    #[token("AutoReadOnly", callback = |_| KeywordKind::AutoReadOnly, ignore(ascii_case))]
+    #[token("BetaOnly", callback = |_| KeywordKind::BetaOnly, ignore(ascii_case))]
+    #[token("bool", callback = |_| KeywordKind::Bool, ignore(ascii_case))]
+    #[token("Const", callback = |_| KeywordKind::Const, ignore(ascii_case))]
+    #[token("CustomEvent", callback = |_| KeywordKind::CustomEvent, ignore(ascii_case))]
+    #[token("CustomEventName", callback = |_| KeywordKind::CustomEventName, ignore(ascii_case))]
+    #[token("DebugOnly", callback = |_| KeywordKind::DebugOnly, ignore(ascii_case))]
+    #[token("Else", callback = |_| KeywordKind::Else, ignore(ascii_case))]
+    #[token("ElseIf", callback = |_| KeywordKind::ElseIf, ignore(ascii_case))]
+    #[token("EndEvent", callback = |_| KeywordKind::EndEvent, ignore(ascii_case))]
+    #[token("EndFunction", callback = |_| KeywordKind::EndFunction, ignore(ascii_case))]
+    #[token("EndGroup", callback = |_| KeywordKind::EndGroup, ignore(ascii_case))]
+    #[token("EndIf", callback = |_| KeywordKind::EndIf, ignore(ascii_case))]
+    #[token("EndProperty", callback = |_| KeywordKind::EndProperty, ignore(ascii_case))]
+    #[token("EndState", callback = |_| KeywordKind::EndState, ignore(ascii_case))]
+    #[token("EndStruct", callback = |_| KeywordKind::EndStruct, ignore(ascii_case))]
+    #[token("EndWhile", callback = |_| KeywordKind::EndWhile, ignore(ascii_case))]
+    #[token("Event", callback = |_| KeywordKind::Event, ignore(ascii_case))]
+    #[token("Extends", callback = |_| KeywordKind::Extends, ignore(ascii_case))]
+    #[token("False", callback = |_| KeywordKind::False, ignore(ascii_case))]
+    #[token("float", callback = |_| KeywordKind::Float, ignore(ascii_case))]
+    #[token("Function", callback = |_| KeywordKind::Function, ignore(ascii_case))]
+    #[token("Global", callback = |_| KeywordKind::Global, ignore(ascii_case))]
+    #[token("Group", callback = |_| KeywordKind::Group, ignore(ascii_case))]
+    #[token("If", callback = |_| KeywordKind::If, ignore(ascii_case))]
+    #[token("Import", callback = |_| KeywordKind::Import, ignore(ascii_case))]
+    #[token("int", callback = |_| KeywordKind::Int, ignore(ascii_case))]
+    #[token("Length", callback = |_| KeywordKind::Length, ignore(ascii_case))]
+    #[token("Native", callback = |_| KeywordKind::Native, ignore(ascii_case))]
+    #[token("new", callback = |_| KeywordKind::New, ignore(ascii_case))]
+    #[token("none", callback = |_| KeywordKind::None, ignore(ascii_case))]
+    #[token("Property", callback = |_| KeywordKind::Property, ignore(ascii_case))]
+    #[token("return", callback = |_| KeywordKind::Return, ignore(ascii_case))]
+    #[token("ScriptName", callback = |_| KeywordKind::ScriptName, ignore(ascii_case))]
+    #[token("ScriptEventName", callback = |_| KeywordKind::ScriptEventName, ignore(ascii_case))]
+    #[token("State", callback = |_| KeywordKind::State, ignore(ascii_case))]
+    #[token("string", callback = |_| KeywordKind::String, ignore(ascii_case))]
+    #[token("Struct", callback = |_| KeywordKind::Struct, ignore(ascii_case))]
+    #[token("StructVarName", callback = |_| KeywordKind::StructVarName, ignore(ascii_case))]
+    #[token("true", callback = |_| KeywordKind::True, ignore(ascii_case))]
+    #[token("var", callback = |_| KeywordKind::Var, ignore(ascii_case))]
+    #[token("While", callback = |_| KeywordKind::While, ignore(ascii_case))]
     Keyword(KeywordKind),
+
+    #[regex(r"[ \t\n\r]+")]
+    Whitespace,
+
+    // example: https://regex101.com/r/DBrRC0/1
+    #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*")]
+    Identifier,
 
     #[error]
     Error,
@@ -89,7 +96,7 @@ mod test {
     use crate::syntax::keyword_kind::KeywordKind;
     use crate::syntax::operator_kind::OperatorKind;
     use crate::syntax::token::Token;
-    use logos::Logos;
+    use logos::{Lexer, Logos};
 
     #[test]
     fn test_operators() {
@@ -126,7 +133,7 @@ mod test {
         ];
 
         for (input, expected) in data {
-            let mut lex = Token::lexer(input);
+            let mut lex: Lexer<Token> = Token::lexer(input);
             assert_eq!(lex.next(), Some(Token::Operator(expected)));
         }
     }
@@ -180,8 +187,43 @@ mod test {
         ];
 
         for (input, expected) in data {
-            let mut lex = Token::lexer(input);
-            assert_eq!(lex.next(), Some(Token::Keyword(expected)));
+            let variants = vec![input.to_ascii_lowercase(), input.to_ascii_uppercase()];
+
+            for variant in variants {
+                let mut lex: Lexer<Token> = Token::lexer(variant.as_str());
+                assert_eq!(lex.next(), Some(Token::Keyword(expected)));
+            }
         }
+    }
+
+    fn test_data(data: Vec<(&str, Token)>) {
+        for (input, expected) in data {
+            let mut lex: Lexer<Token> = Token::lexer(input);
+            assert_eq!(lex.next(), Some(expected));
+        }
+    }
+
+    #[test]
+    fn test_whitespaces() {
+        let data = vec![
+            (" ", Token::Whitespace),
+            ("\t", Token::Whitespace),
+            ("\n", Token::Whitespace),
+            ("\r", Token::Whitespace),
+        ];
+
+        test_data(data);
+    }
+
+    #[test]
+    fn test_identifiers() {
+        let data = vec![
+            ("HelloWorld", Token::Identifier),
+            ("_IAmCool", Token::Identifier),
+            ("_4You", Token::Identifier),
+            ("i", Token::Identifier),
+        ];
+
+        test_data(data);
     }
 }
