@@ -5,7 +5,7 @@ use std::num::{ParseFloatError, ParseIntError};
 use std::str::FromStr;
 
 #[derive(Logos, Debug, PartialEq, Copy, Clone)]
-pub enum Token {
+pub enum Token<'a> {
     #[token("(", callback = |_| OperatorKind::ParenthesisOpen)]
     #[token(")", callback = |_| OperatorKind::ParenthesisClose)]
     #[token("[", callback = |_| OperatorKind::SquareBracketsOpen)]
@@ -90,8 +90,8 @@ pub enum Token {
     #[regex(r"-?\d+\.\d+", callback = parse_float)]
     FloatLiteral(f32),
 
-    #[regex(r#""([^"\\]|\\t|\\u|\\n|\\")*""#)]
-    StringLiteral,
+    #[regex(r#""([^"\\]|\\t|\\u|\\n|\\")*""#, callback = parse_string)]
+    StringLiteral(&'a str),
 
     #[token("none", ignore(ascii_case))]
     NoneLiteral,
@@ -107,20 +107,27 @@ pub enum Token {
     Error,
 }
 
-fn parse_integer(lex: &mut logos::Lexer<Token>) -> Result<i32, ParseIntError> {
-    let slice = lex.slice();
+fn parse_integer<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> Result<i32, ParseIntError> {
+    let slice: &'a str = lex.slice();
     i32::from_str(slice)
 }
 
-fn parse_hex_integer(lex: &mut logos::Lexer<Token>) -> Result<i32, ParseIntError> {
-    let slice = lex.slice();
+fn parse_hex_integer<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> Result<i32, ParseIntError> {
+    let slice: &'a str = lex.slice();
     // slice without the leading '0x'
     i32::from_str_radix(&slice[2..], 16)
 }
 
-fn parse_float(lex: &mut logos::Lexer<Token>) -> Result<f32, ParseFloatError> {
-    let slice = lex.slice();
+fn parse_float<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> Result<f32, ParseFloatError> {
+    let slice: &'a str = lex.slice();
     f32::from_str(slice)
+}
+
+fn parse_string<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> &'a str {
+    let slice: &'a str = lex.slice();
+    let length = slice.len();
+    // slice without the leading and trailing double quotes
+    &slice[1..length - 1]
 }
 
 #[cfg(test)]
@@ -130,9 +137,9 @@ mod test {
     use crate::syntax::token::Token;
     use logos::{Lexer, Logos};
 
-    fn test_data<T, F>(data: Vec<(&str, T)>, transform: F)
+    fn test_data<'a, T, F>(data: Vec<(&'a str, T)>, transform: F)
     where
-        F: Fn(T) -> Token,
+        F: Fn(T) -> Token<'a>,
     {
         for (input, expected) in data {
             let expected = transform(expected);
@@ -142,9 +149,9 @@ mod test {
         }
     }
 
-    fn test_data_with_variants<T, F>(data: Vec<(&str, T)>, transform: F)
+    fn test_data_with_variants<'a, T, F>(data: Vec<(&'a str, T)>, transform: F)
     where
-        F: Fn(T) -> Token,
+        F: Fn(T) -> Token<'a>,
     {
         for (input, expected) in data {
             let expected = transform(expected);
@@ -309,9 +316,9 @@ mod test {
     #[test]
     fn test_string_literals() {
         let data = vec![
-            (r#""""#, Token::StringLiteral),
-            (r#""Hello World!""#, Token::StringLiteral),
-            (r#""\t\u\n\"""#, Token::StringLiteral),
+            (r#""""#, Token::StringLiteral("")),
+            (r#""Hello World!""#, Token::StringLiteral("Hello World!")),
+            (r#""\t\u\n\"""#, Token::StringLiteral(r#"\t\u\n\""#)),
         ];
 
         test_data(data, |x| x);
