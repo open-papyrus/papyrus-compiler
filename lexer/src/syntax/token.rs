@@ -213,7 +213,7 @@ mod test {
             ("is", OperatorKind::CastIs),
         ];
 
-        test_data(data, |x| Token::Operator(x));
+        test_data(data, Token::Operator);
     }
 
     #[test]
@@ -261,7 +261,7 @@ mod test {
             ("While", KeywordKind::While),
         ];
 
-        test_data_with_variants(data, |x| Token::Keyword(x));
+        test_data_with_variants(data, Token::Keyword);
     }
 
     #[test]
@@ -279,7 +279,7 @@ mod test {
     #[test]
     fn test_boolean_literals() {
         let data = vec![("true", true), ("false", false)];
-        test_data_with_variants(data, |x| Token::BooleanLiteral(x));
+        test_data_with_variants(data, Token::BooleanLiteral);
     }
 
     #[test]
@@ -292,7 +292,7 @@ mod test {
             ("-2147483648", i32::MIN),
         ];
 
-        test_data(data, |x| Token::IntegerLiteral(x));
+        test_data(data, Token::IntegerLiteral);
     }
 
     #[test]
@@ -306,14 +306,14 @@ mod test {
             ("0x7fffffff", i32::MAX),
         ];
 
-        test_data_with_variants(data, |x| Token::IntegerLiteral(x));
+        test_data_with_variants(data, Token::IntegerLiteral);
     }
 
     #[test]
     fn test_float_literals() {
         let data: Vec<(&str, f32)> = vec![("0.0", 0.0), ("1.0", 1.0), ("-1.0", -1.0)];
 
-        test_data(data, |x| Token::FloatLiteral(x));
+        test_data(data, Token::FloatLiteral);
     }
 
     #[test]
