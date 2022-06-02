@@ -409,4 +409,42 @@ mod test {
         let mut lexer = Token::lexer(r"\");
         assert_eq!(lexer.next(), None);
     }
+
+    #[test]
+    #[cfg(feature = "external-scripts")]
+    fn test_scripts() {
+        let data = vec![
+            ("MrOctopus/nl_mcm/main/scripts/source/nl_mcm.psc", 769),
+            (
+                "MrOctopus/nl_mcm/main/scripts/source/nl_mcm_globalinfo.psc",
+                38,
+            ),
+            (
+                "MrOctopus/nl_mcm/main/scripts/source/nl_mcm_module.psc",
+                2358,
+            ),
+            (
+                "MrOctopus/nl_mcm/main/scripts/source/nl_mcm_playerloadalias.psc",
+                35,
+            ),
+        ];
+
+        for (script_path, expected_count) in data {
+            let script_path = format!("../extern/{}", script_path);
+            let path = std::path::Path::new(script_path.as_str());
+            assert!(path.exists());
+
+            let script = std::fs::read_to_string(path).unwrap();
+
+            let lexer = Token::lexer(script.as_str());
+            let mut count: usize = 0;
+
+            for token in lexer {
+                assert_ne!(token, Token::Error);
+                count += 1
+            }
+
+            assert_eq!(count, expected_count);
+        }
+    }
 }
