@@ -30,7 +30,6 @@ pub enum KeywordKind {
     Length,
     Native,
     New,
-    None,
     Property,
     Return,
     ScriptName,

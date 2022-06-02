@@ -65,7 +65,6 @@ pub enum Token {
     #[token("Length", callback = |_| KeywordKind::Length, ignore(ascii_case))]
     #[token("Native", callback = |_| KeywordKind::Native, ignore(ascii_case))]
     #[token("new", callback = |_| KeywordKind::New, ignore(ascii_case))]
-    #[token("none", callback = |_| KeywordKind::None, ignore(ascii_case))]
     #[token("Property", callback = |_| KeywordKind::Property, ignore(ascii_case))]
     #[token("return", callback = |_| KeywordKind::Return, ignore(ascii_case))]
     #[token("ScriptName", callback = |_| KeywordKind::ScriptName, ignore(ascii_case))]
@@ -81,6 +80,9 @@ pub enum Token {
     #[token("true", callback = |_| true, ignore(ascii_case))]
     #[token("false", callback = |_| false, ignore(ascii_case))]
     BooleanLiteral(bool),
+
+    #[token("none", ignore(ascii_case))]
+    NoneLiteral,
 
     #[regex(r"[ \t\n\r]+")]
     Whitespace,
@@ -197,7 +199,6 @@ mod test {
             ("Length", KeywordKind::Length),
             ("Native", KeywordKind::Native),
             ("new", KeywordKind::New),
-            ("none", KeywordKind::None),
             ("Property", KeywordKind::Property),
             ("return", KeywordKind::Return),
             ("ScriptName", KeywordKind::ScriptName),
@@ -240,7 +241,12 @@ mod test {
     #[test]
     fn test_boolean_literals() {
         let data = vec![("true", true), ("false", false)];
-
         test_data_with_variants(data, |x| Token::BooleanLiteral(x));
+    }
+
+    #[test]
+    fn test_none_literal() {
+        let data = vec![("none", Token::NoneLiteral)];
+        test_data_with_variants(data, |x| x);
     }
 }
