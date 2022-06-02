@@ -106,6 +106,9 @@ pub enum Token<'a> {
     #[regex(r";[^\n\r]*[\n\r]*", callback = |lex| lex.slice())]
     SingleLineComment(&'a str),
 
+    #[regex(r";/(?:[^;]|;[^/])*;", callback = |lex| lex.slice())]
+    MultiLineComment(&'a str),
+
     #[regex(r"\{[^\}]*\}", callback = |lex| lex.slice())]
     DocumentationComment(&'a str),
 
@@ -362,6 +365,27 @@ mod test {
             (
                 "; This is a Single Line Comment!\r\n",
                 Token::SingleLineComment("; This is a Single Line Comment!\r\n"),
+            ),
+        ];
+
+        test_data(data, |x| x);
+    }
+
+    #[test]
+    fn test_multi_line_comments() {
+        let data = vec![
+            (";//;", Token::MultiLineComment(";//;")),
+            (
+                ";/ Hello World! /;",
+                Token::MultiLineComment(";/ Hello World! /;"),
+            ),
+            (
+                ";/ Hello\nWorld! /;",
+                Token::MultiLineComment(";/ Hello\nWorld! /;"),
+            ),
+            (
+                ";/ Hello/World! /;",
+                Token::MultiLineComment(";/ Hello/World! /;"),
             ),
         ];
 
