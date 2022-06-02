@@ -100,8 +100,8 @@ pub enum Token<'a> {
     Whitespace,
 
     // example: https://regex101.com/r/DBrRC0/1
-    #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*")]
-    Identifier,
+    #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*", callback = parse_identifier)]
+    Identifier(&'a str),
 
     #[error]
     Error,
@@ -128,6 +128,11 @@ fn parse_string<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> &'a str {
     let length = slice.len();
     // slice without the leading and trailing double quotes
     &slice[1..length - 1]
+}
+
+fn parse_identifier<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> &'a str {
+    let slice: &'a str = lex.slice();
+    slice
 }
 
 #[cfg(test)]
@@ -264,10 +269,10 @@ mod test {
     #[test]
     fn test_identifiers() {
         let data = vec![
-            ("HelloWorld", Token::Identifier),
-            ("_IAmCool", Token::Identifier),
-            ("_4You", Token::Identifier),
-            ("i", Token::Identifier),
+            ("HelloWorld", Token::Identifier("HelloWorld")),
+            ("_IAmCool", Token::Identifier("_IAmCool")),
+            ("_4You", Token::Identifier("_4You")),
+            ("i", Token::Identifier("i")),
         ];
 
         test_data(data, |x| x);
