@@ -427,6 +427,13 @@ mod test {
                 "MrOctopus/nl_mcm/main/scripts/source/nl_mcm_playerloadalias.psc",
                 35,
             ),
+            ("MrOctopus/nl_mcm/main/source/nl_mcm.psc", 4013),
+            ("MrOctopus/nl_mcm/main/source/nl_mcm_globalinfo.psc", 23),
+            ("MrOctopus/nl_mcm/main/source/nl_mcm_module.psc", 3183),
+            (
+                "MrOctopus/nl_mcm/main/source/nl_mcm_playerloadalias.psc",
+                63,
+            ),
         ];
 
         for (script_path, expected_count) in data {
