@@ -96,9 +96,6 @@ pub enum Token<'a> {
     #[token("none", ignore(ascii_case))]
     NoneLiteral,
 
-    #[regex(r"[ \t\n\r]+")]
-    Whitespace,
-
     // example: https://regex101.com/r/DBrRC0/1
     #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*", callback = parse_identifier)]
     Identifier(&'a str),
@@ -114,6 +111,7 @@ pub enum Token<'a> {
 
     #[error]
     #[token(r"\", logos::skip)]
+    #[regex(r"[ \t\n\r]+", logos::skip)]
     Error,
 }
 
@@ -264,18 +262,6 @@ mod test {
         ];
 
         test_data_with_variants(data, |x| Token::Keyword(x));
-    }
-
-    #[test]
-    fn test_whitespaces() {
-        let data = vec![
-            (" ", Token::Whitespace),
-            ("\t", Token::Whitespace),
-            ("\n", Token::Whitespace),
-            ("\r", Token::Whitespace),
-        ];
-
-        test_data(data, |x| x);
     }
 
     #[test]
