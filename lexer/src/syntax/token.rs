@@ -103,6 +103,9 @@ pub enum Token<'a> {
     #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*", callback = parse_identifier)]
     Identifier(&'a str),
 
+    #[regex(r";[^\n\r]*[\n\r]*", callback = |lex| lex.slice())]
+    SingleLineComment(&'a str),
+
     #[error]
     Error,
 }
@@ -151,6 +154,7 @@ mod test {
 
             let mut lex: Lexer<Token> = Token::lexer(input);
             assert_eq!(lex.next(), Some(expected));
+            assert_eq!(lex.next(), None)
         }
     }
 
@@ -165,6 +169,7 @@ mod test {
             for variant in variants {
                 let mut lex: Lexer<Token> = Token::lexer(variant.as_str());
                 assert_eq!(lex.next(), Some(expected));
+                assert_eq!(lex.next(), None)
             }
         }
     }
@@ -333,5 +338,30 @@ mod test {
     fn test_none_literal() {
         let data = vec![("none", Token::NoneLiteral)];
         test_data_with_variants(data, |x| x);
+    }
+
+    #[test]
+    fn test_single_line_comments() {
+        let data = vec![
+            (";", Token::SingleLineComment(";")),
+            (
+                "; This is a Single Line Comment!",
+                Token::SingleLineComment("; This is a Single Line Comment!"),
+            ),
+            (
+                "; This is a Single Line Comment!\n",
+                Token::SingleLineComment("; This is a Single Line Comment!\n"),
+            ),
+            (
+                "; This is a Single Line Comment!\r",
+                Token::SingleLineComment("; This is a Single Line Comment!\r"),
+            ),
+            (
+                "; This is a Single Line Comment!\r\n",
+                Token::SingleLineComment("; This is a Single Line Comment!\r\n"),
+            ),
+        ];
+
+        test_data(data, |x| x);
     }
 }
