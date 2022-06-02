@@ -2,7 +2,7 @@ use crate::syntax::keyword_kind::KeywordKind;
 use crate::syntax::operator_kind::OperatorKind;
 use logos::Logos;
 
-#[derive(Logos, Debug, PartialEq, Clone)]
+#[derive(Logos, Debug, PartialEq, Copy, Clone)]
 pub enum Token {
     #[token("(", callback = |_| OperatorKind::ParenthesisOpen)]
     #[token(")", callback = |_| OperatorKind::ParenthesisClose)]
@@ -55,7 +55,6 @@ pub enum Token {
     #[token("EndWhile", callback = |_| KeywordKind::EndWhile, ignore(ascii_case))]
     #[token("Event", callback = |_| KeywordKind::Event, ignore(ascii_case))]
     #[token("Extends", callback = |_| KeywordKind::Extends, ignore(ascii_case))]
-    #[token("False", callback = |_| KeywordKind::False, ignore(ascii_case))]
     #[token("float", callback = |_| KeywordKind::Float, ignore(ascii_case))]
     #[token("Function", callback = |_| KeywordKind::Function, ignore(ascii_case))]
     #[token("Global", callback = |_| KeywordKind::Global, ignore(ascii_case))]
@@ -75,10 +74,13 @@ pub enum Token {
     #[token("string", callback = |_| KeywordKind::String, ignore(ascii_case))]
     #[token("Struct", callback = |_| KeywordKind::Struct, ignore(ascii_case))]
     #[token("StructVarName", callback = |_| KeywordKind::StructVarName, ignore(ascii_case))]
-    #[token("true", callback = |_| KeywordKind::True, ignore(ascii_case))]
     #[token("var", callback = |_| KeywordKind::Var, ignore(ascii_case))]
     #[token("While", callback = |_| KeywordKind::While, ignore(ascii_case))]
     Keyword(KeywordKind),
+
+    #[token("true", callback = |_| true, ignore(ascii_case))]
+    #[token("false", callback = |_| false, ignore(ascii_case))]
+    BooleanLiteral(bool),
 
     #[regex(r"[ \t\n\r]+")]
     Whitespace,
@@ -97,6 +99,33 @@ mod test {
     use crate::syntax::operator_kind::OperatorKind;
     use crate::syntax::token::Token;
     use logos::{Lexer, Logos};
+
+    fn test_data<T, F>(data: Vec<(&str, T)>, transform: F)
+    where
+        F: Fn(T) -> Token,
+    {
+        for (input, expected) in data {
+            let expected = transform(expected);
+
+            let mut lex: Lexer<Token> = Token::lexer(input);
+            assert_eq!(lex.next(), Some(expected));
+        }
+    }
+
+    fn test_data_with_variants<T, F>(data: Vec<(&str, T)>, transform: F)
+    where
+        F: Fn(T) -> Token,
+    {
+        for (input, expected) in data {
+            let expected = transform(expected);
+            let variants = vec![input.to_ascii_lowercase(), input.to_ascii_uppercase()];
+
+            for variant in variants {
+                let mut lex: Lexer<Token> = Token::lexer(variant.as_str());
+                assert_eq!(lex.next(), Some(expected));
+            }
+        }
+    }
 
     #[test]
     fn test_operators() {
@@ -132,10 +161,7 @@ mod test {
             ("is", OperatorKind::CastIs),
         ];
 
-        for (input, expected) in data {
-            let mut lex: Lexer<Token> = Token::lexer(input);
-            assert_eq!(lex.next(), Some(Token::Operator(expected)));
-        }
+        test_data(data, |x| Token::Operator(x));
     }
 
     #[test]
@@ -161,7 +187,6 @@ mod test {
             ("EndWhile", KeywordKind::EndWhile),
             ("Event", KeywordKind::Event),
             ("Extends", KeywordKind::Extends),
-            ("False", KeywordKind::False),
             ("float", KeywordKind::Float),
             ("Function", KeywordKind::Function),
             ("Global", KeywordKind::Global),
@@ -181,26 +206,11 @@ mod test {
             ("string", KeywordKind::String),
             ("Struct", KeywordKind::Struct),
             ("StructVarName", KeywordKind::StructVarName),
-            ("true", KeywordKind::True),
             ("var", KeywordKind::Var),
             ("While", KeywordKind::While),
         ];
 
-        for (input, expected) in data {
-            let variants = vec![input.to_ascii_lowercase(), input.to_ascii_uppercase()];
-
-            for variant in variants {
-                let mut lex: Lexer<Token> = Token::lexer(variant.as_str());
-                assert_eq!(lex.next(), Some(Token::Keyword(expected)));
-            }
-        }
-    }
-
-    fn test_data(data: Vec<(&str, Token)>) {
-        for (input, expected) in data {
-            let mut lex: Lexer<Token> = Token::lexer(input);
-            assert_eq!(lex.next(), Some(expected));
-        }
+        test_data_with_variants(data, |x| Token::Keyword(x));
     }
 
     #[test]
@@ -212,7 +222,7 @@ mod test {
             ("\r", Token::Whitespace),
         ];
 
-        test_data(data);
+        test_data(data, |x| x);
     }
 
     #[test]
@@ -224,6 +234,13 @@ mod test {
             ("i", Token::Identifier),
         ];
 
-        test_data(data);
+        test_data(data, |x| x);
+    }
+
+    #[test]
+    fn test_boolean_literals() {
+        let data = vec![("true", true), ("false", false)];
+
+        test_data_with_variants(data, |x| Token::BooleanLiteral(x));
     }
 }

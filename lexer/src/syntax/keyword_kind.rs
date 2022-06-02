@@ -20,7 +20,6 @@ pub enum KeywordKind {
     EndWhile,
     Event,
     Extends,
-    False,
     Float,
     Function,
     Global,
@@ -40,7 +39,6 @@ pub enum KeywordKind {
     String,
     Struct,
     StructVarName,
-    True,
     Var,
     While,
 }
