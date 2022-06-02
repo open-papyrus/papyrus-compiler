@@ -90,6 +90,9 @@ pub enum Token {
     #[regex(r"-?\d+\.\d+", callback = parse_float)]
     FloatLiteral(f32),
 
+    #[regex(r#""([^"\\]|\\t|\\u|\\n|\\")*""#)]
+    StringLiteral,
+
     #[token("none", ignore(ascii_case))]
     NoneLiteral,
 
@@ -298,6 +301,17 @@ mod test {
         let data: Vec<(&str, f32)> = vec![("0.0", 0.0), ("1.0", 1.0), ("-1.0", -1.0)];
 
         test_data(data, |x| Token::FloatLiteral(x));
+    }
+
+    #[test]
+    fn test_string_literals() {
+        let data = vec![
+            (r#""""#, Token::StringLiteral),
+            (r#""Hello World!""#, Token::StringLiteral),
+            (r#""\t\u\n\"""#, Token::StringLiteral),
+        ];
+
+        test_data(data, |x| x);
     }
 
     #[test]
