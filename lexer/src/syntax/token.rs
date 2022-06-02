@@ -1,6 +1,8 @@
 use crate::syntax::keyword_kind::KeywordKind;
 use crate::syntax::operator_kind::OperatorKind;
 use logos::Logos;
+use std::num::ParseIntError;
+use std::str::FromStr;
 
 #[derive(Logos, Debug, PartialEq, Copy, Clone)]
 pub enum Token {
@@ -81,6 +83,10 @@ pub enum Token {
     #[token("false", callback = |_| false, ignore(ascii_case))]
     BooleanLiteral(bool),
 
+    #[regex(r"-?\d+", callback = parse_integer)]
+    #[regex(r"0[xX][a-zA-Z0-9]+", callback = parse_hex_integer)]
+    IntegerLiteral(i32),
+
     #[token("none", ignore(ascii_case))]
     NoneLiteral,
 
@@ -93,6 +99,17 @@ pub enum Token {
 
     #[error]
     Error,
+}
+
+fn parse_integer(lex: &mut logos::Lexer<Token>) -> Result<i32, ParseIntError> {
+    let slice = lex.slice();
+    i32::from_str(slice)
+}
+
+fn parse_hex_integer(lex: &mut logos::Lexer<Token>) -> Result<i32, ParseIntError> {
+    let slice = lex.slice();
+    // slice without the leading '0x'
+    i32::from_str_radix(&slice[2..], 16)
 }
 
 #[cfg(test)]
@@ -242,6 +259,30 @@ mod test {
     fn test_boolean_literals() {
         let data = vec![("true", true), ("false", false)];
         test_data_with_variants(data, |x| Token::BooleanLiteral(x));
+    }
+
+    #[test]
+    fn test_integer_literals() {
+        let data: Vec<(&str, i32)> = vec![
+            ("0", 0),
+            ("1", 1),
+            ("-1", -1),
+            ("2147483647", i32::MAX),
+            ("-2147483648", i32::MIN),
+        ];
+
+        test_data(data, |x| Token::IntegerLiteral(x));
+
+        let data: Vec<(&str, i32)> = vec![
+            ("0x0", 0),
+            ("0x1", 1),
+            ("0xF", 15),
+            ("0x10", 16),
+            ("0x00000010", 16),
+            ("0x7fffffff", i32::MAX),
+        ];
+
+        test_data_with_variants(data, |x| Token::IntegerLiteral(x));
     }
 
     #[test]
