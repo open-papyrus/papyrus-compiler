@@ -1,7 +1,7 @@
 use crate::syntax::keyword_kind::KeywordKind;
 use crate::syntax::operator_kind::OperatorKind;
 use logos::Logos;
-use std::num::ParseIntError;
+use std::num::{ParseFloatError, ParseIntError};
 use std::str::FromStr;
 
 #[derive(Logos, Debug, PartialEq, Copy, Clone)]
@@ -87,6 +87,9 @@ pub enum Token {
     #[regex(r"0[xX][a-zA-Z0-9]+", callback = parse_hex_integer)]
     IntegerLiteral(i32),
 
+    #[regex(r"-?\d+\.\d+", callback = parse_float)]
+    FloatLiteral(f32),
+
     #[token("none", ignore(ascii_case))]
     NoneLiteral,
 
@@ -110,6 +113,11 @@ fn parse_hex_integer(lex: &mut logos::Lexer<Token>) -> Result<i32, ParseIntError
     let slice = lex.slice();
     // slice without the leading '0x'
     i32::from_str_radix(&slice[2..], 16)
+}
+
+fn parse_float(lex: &mut logos::Lexer<Token>) -> Result<f32, ParseFloatError> {
+    let slice = lex.slice();
+    f32::from_str(slice)
 }
 
 #[cfg(test)]
@@ -283,6 +291,13 @@ mod test {
         ];
 
         test_data_with_variants(data, |x| Token::IntegerLiteral(x));
+    }
+
+    #[test]
+    fn test_float_literals() {
+        let data: Vec<(&str, f32)> = vec![("0.0", 0.0), ("1.0", 1.0), ("-1.0", -1.0)];
+
+        test_data(data, |x| Token::FloatLiteral(x));
     }
 
     #[test]
