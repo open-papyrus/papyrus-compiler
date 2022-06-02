@@ -283,13 +283,16 @@ mod test {
         ];
 
         test_data(data, |x| Token::IntegerLiteral(x));
+    }
 
+    #[test]
+    fn test_integer_hex_literals() {
         let data: Vec<(&str, i32)> = vec![
-            ("0x0", 0),
-            ("0x1", 1),
-            ("0xF", 15),
-            ("0x10", 16),
-            ("0x00000010", 16),
+            ("0x0", 0x0),
+            ("0x1", 0x1),
+            ("0xF", 0xF),
+            ("0x10", 0x10),
+            ("0x00000010", 0x10),
             ("0x7fffffff", i32::MAX),
         ];
 
