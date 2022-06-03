@@ -1,5 +1,5 @@
 [package]
-name = "papyrus-lexer"
+name = "papyrus_compiler_lexer"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +7,4 @@ edition = "2021"
 logos = "0.12.0"
 
 [features]
-external-scripts = []
+test-external-scripts = []

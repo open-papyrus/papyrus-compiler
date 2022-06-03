@@ -411,7 +411,7 @@ mod test {
     }
 
     #[test]
-    #[cfg(feature = "external-scripts")]
+    #[cfg(feature = "test-external-scripts")]
     fn test_scripts() {
         let data = vec![
             ("MrOctopus/nl_mcm/main/scripts/source/nl_mcm.psc", 769),

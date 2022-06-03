@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context};
 use clap::Parser;
-use papyrus_lexer::Lexer;
+use papyrus_compiler_lexer::Lexer;
 use std::fs;
 use std::path::PathBuf;
 

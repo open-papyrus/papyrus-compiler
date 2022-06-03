@@ -156,19 +156,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21326818e99cfe6ce1e524c2a805c189a99b5ae555a35d19f9a284b427d86afa"
 
 [[package]]
-name = "papyrus-lexer"
-version = "0.1.0"
-dependencies = [
- "logos",
-]
-
-[[package]]
-name = "papyurus-compiler-cli"
+name = "papyrus_compiler_cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "papyrus-lexer",
+ "papyrus_compiler_lexer",
+]
+
+[[package]]
+name = "papyrus_compiler_lexer"
+version = "0.1.0"
+dependencies = [
+ "logos",
 ]
 
 [[package]]
