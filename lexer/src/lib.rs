@@ -1,7 +1,9 @@
+use crate::syntax::token::Token;
+
 pub mod syntax;
 
 pub struct Lexer<'a> {
-    lex: logos::Lexer<'a, syntax::token::Token<'a>>,
+    lex: logos::Lexer<'a, Token<'a>>,
 }
 
 impl<'a> Lexer<'a> {
@@ -9,13 +11,19 @@ impl<'a> Lexer<'a> {
         use logos::Logos;
 
         Self {
-            lex: syntax::token::Token::lexer(input),
+            lex: Token::lexer(input),
         }
+    }
+
+    pub fn lex_all(input: &'a str) -> Vec<Token<'a>> {
+        let me = Self::new(input);
+        let tokens: Vec<Token<'a>> = me.collect();
+        tokens
     }
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = syntax::token::Token<'a>;
+    type Item = Token<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.lex.next()
@@ -23,7 +31,7 @@ impl<'a> Iterator for Lexer<'a> {
 }
 
 pub struct SpannedLexer<'a> {
-    iter: logos::SpannedIter<'a, syntax::token::Token<'a>>,
+    iter: logos::SpannedIter<'a, Token<'a>>,
 }
 
 impl<'a> SpannedLexer<'a> {
@@ -31,13 +39,21 @@ impl<'a> SpannedLexer<'a> {
         use logos::Logos;
 
         Self {
-            iter: syntax::token::Token::lexer(input).spanned(),
+            iter: Token::lexer(input).spanned(),
         }
+    }
+
+    pub fn lex_all(input: &'a str) -> Vec<SpannedToken<'a>> {
+        let me = Self::new(input);
+        let tokens: Vec<SpannedToken<'a>> = me.collect();
+        tokens
     }
 }
 
+pub type SpannedToken<'a> = (Token<'a>, core::ops::Range<usize>);
+
 impl<'a> Iterator for SpannedLexer<'a> {
-    type Item = (syntax::token::Token<'a>, core::ops::Range<usize>);
+    type Item = SpannedToken<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next()
