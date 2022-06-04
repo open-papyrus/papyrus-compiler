@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context};
 use clap::Parser;
-use papyrus_compiler_lexer::Lexer;
+use papyrus_compiler_lexer::SpannedLexer;
 use std::fs;
 use std::path::PathBuf;
 
@@ -31,9 +31,9 @@ fn run(args: &Args) -> Result<(), anyhow::Error> {
     let script = fs::read_to_string(args.input_path.clone())
         .with_context(|| format!("Unable to read input file {}", args.input_path.display()))?;
 
-    let lexer = Lexer::new(script.as_str());
+    let lexer = SpannedLexer::new(script.as_str());
     for token in lexer {
-        println!("{:?}", token);
+        println!("{}", token);
     }
 
     Ok(())
