@@ -1,15 +1,9 @@
-use crate::ast::{Expr, ScriptFlag};
+use crate::ast::*;
 use chumsky::prelude::*;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::token::Token;
 use papyrus_compiler_lexer::SpannedToken;
 pub mod ast;
-
-type Span = core::ops::Range<usize>;
-
-pub type SpannedExpr<'a> = (Expr<'a>, Span);
-
-// pub type ParserError<'a> = Cheap<SpannedToken<'a>>;
 
 #[derive(Debug, PartialEq)]
 pub enum ParserError<'a> {
@@ -54,8 +48,7 @@ impl<'a> chumsky::Error<SpannedToken<'a>> for ParserError<'a> {
     }
 }
 
-pub fn parser<'a>(
-) -> impl Parser<SpannedToken<'a>, SpannedExpr<'a>, Error = ParserError<'a>> + Clone {
+pub fn parser<'a>() -> impl Parser<SpannedToken<'a>, Script<'a>, Error = ParserError<'a>> + Clone {
     let identifier = filter_map(|_, input: SpannedToken| {
         let (token, span) = input;
         let res = match token {
@@ -69,133 +62,95 @@ pub fn parser<'a>(
         res
     });
 
-    let header = filter(|input: &SpannedToken<'a>| {
+    let script_flag = select! {
+        (Token::Keyword(KeywordKind::Conditional), span) => (ScriptFlag::Conditional, span),
+        (Token::Keyword(KeywordKind::Const), span) => (ScriptFlag::Const, span),
+        (Token::Keyword(KeywordKind::DebugOnly), span) => (ScriptFlag::DebugOnly, span),
+        (Token::Keyword(KeywordKind::BetaOnly), span) => (ScriptFlag::BetaOnly, span),
+        (Token::Keyword(KeywordKind::Hidden), span) => (ScriptFlag::Hidden, span),
+        (Token::Keyword(KeywordKind::Native), span) => (ScriptFlag::Native, span),
+        (Token::Keyword(KeywordKind::Default), span) => (ScriptFlag::Default, span),
+    };
+
+    let header = filter(|input: &SpannedToken| {
         let (token, _) = input;
         matches!(token, Token::Keyword(KeywordKind::ScriptName))
     })
-    .map(|input| {
-        // don't care about the keyword, only want the span
-        let (_, span) = input;
-        span
-    })
-    .then(identifier)
+    .ignore_then(identifier)
     .then(
-        // 'extends <identifier>' is optional
         filter(|(token, _)| matches!(token, Token::Keyword(KeywordKind::Extends)))
             .ignore_then(identifier)
             .or_not(),
     )
-    .then(
-        filter_map(|_, input: SpannedToken| {
-            let (token, span) = input;
-            let script_flag = match token {
-                Token::Keyword(keyword) => match keyword {
-                    KeywordKind::Conditional => Some(ScriptFlag::Conditional),
-                    KeywordKind::Const => Some(ScriptFlag::Const),
-                    KeywordKind::DebugOnly => Some(ScriptFlag::DebugOnly),
-                    KeywordKind::BetaOnly => Some(ScriptFlag::BetaOnly),
-                    KeywordKind::Hidden => Some(ScriptFlag::Hidden),
-                    KeywordKind::Native => Some(ScriptFlag::Native),
-                    KeywordKind::Default => Some(ScriptFlag::Default),
-                    _ => None,
-                },
-                _ => None,
-            };
+    .then(script_flag.repeated().at_least(1).or_not());
 
-            match script_flag {
-                Some(script_flag) => Ok((script_flag, span)),
-                None => Err(ParserError::custom(
-                    span,
-                    format!("Expected a Script Flag, found {:?}", token),
-                )),
-            }
-        })
-        .repeated()
-        .at_least(1)
-        .map(|script_flags| {
-            let (_, last_span) = script_flags.last().unwrap();
-            let script_flags = script_flags
-                .iter()
-                .map(|(script_flag, _)| *script_flag)
-                .collect::<Vec<_>>();
+    header.map(|header_output| {
+        let ((name, extends), flags) = header_output;
 
-            (script_flags, last_span.clone())
-        })
-        .or_not(),
-    )
-    .map(
-        |(
-            (
-                (keyword_script_name_span, (identifier_script_name, identifier_script_name_span)),
-                identifier_extends,
-            ),
-            script_flags,
-        )| {
-            let end_index = match script_flags.as_ref() {
-                Some((_, script_flags_span)) => script_flags_span.end,
-                None => match identifier_extends.as_ref() {
-                    Some((_, identifier_extends_span)) => identifier_extends_span.end,
-                    None => identifier_script_name_span.end,
-                },
-            };
-
-            (
-                Expr::HeaderLine(
-                    identifier_script_name,
-                    identifier_extends.map(|(identifier_extends, _)| identifier_extends),
-                    script_flags.map(|(script_flags, _)| script_flags),
-                ),
-                keyword_script_name_span.start..end_index,
-            )
-        },
-    );
-
-    return header;
+        Script {
+            name,
+            extends,
+            flags,
+            expressions: vec![],
+        }
+    })
 }
 
 #[cfg(test)]
 mod test {
-    use crate::ast::ScriptFlag;
-    use crate::{parser, Expr, SpannedExpr};
+    use crate::ast::*;
+    use crate::parser;
     use chumsky::Parser;
     use papyrus_compiler_lexer::{SpannedLexer, SpannedToken};
     use std::path::Path;
 
     #[test]
     fn test_header_line() {
-        let data: Vec<(&str, SpannedExpr)> = vec![
+        let data: Vec<(&str, Script)> = vec![
             (
                 "ScriptName MyScript",
-                (Expr::HeaderLine("MyScript", None, None), 0..19),
+                Script{
+                    name: ("MyScript", 11..19),
+                    extends: None,
+                    flags: None,
+                    expressions: vec![]
+                }
             ),
             (
                 "ScriptName MyScript extends OtherScript",
-                (
-                    Expr::HeaderLine("MyScript", Some("OtherScript"), None),
-                    0..39,
-                ),
+                Script{
+                    name: ("MyScript", 11..19),
+                    extends: Some(("OtherScript", 28..39)),
+                    flags: None,
+                    expressions: vec![]
+                }
             ),
             (
                 "ScriptName MyScript extends OtherScript Conditional Const DebugOnly BetaOnly Hidden Native Default",
-                (
-                    Expr::HeaderLine("MyScript", Some("OtherScript"), Some(vec![
-                        ScriptFlag::Conditional,
-                        ScriptFlag::Const,
-                        ScriptFlag::DebugOnly,
-                        ScriptFlag::BetaOnly,
-                        ScriptFlag::Hidden,
-                        ScriptFlag::Native,
-                        ScriptFlag::Default
-                    ])),
-                    0..98
-                ),
+                Script{
+                    name: ("MyScript", 11..19),
+                    extends: Some(("OtherScript", 28..39)),
+                    flags: Some(vec![(ScriptFlag::Conditional, 40..51), (ScriptFlag::Const, 52..57), (ScriptFlag::DebugOnly, 58..67), (ScriptFlag::BetaOnly, 68..76), (ScriptFlag::Hidden, 77..83), (ScriptFlag::Native, 84..90), (ScriptFlag::Default, 91..98)]),
+                    expressions: vec![]
+                }
             ),
+            (
+                "ScriptName MyScript Native",
+                Script{
+                    name: ("MyScript", 11..19),
+                    extends: None,
+                    flags: Some(vec![(ScriptFlag::Native, 20..26)]),
+                    expressions: vec![]
+                }
+            )
         ];
 
         for (src, expected) in data {
             let tokens = SpannedLexer::lex_all(src);
             let res = parser().parse(tokens).unwrap();
-            assert_eq!(res, expected);
+            assert_eq!(res.name, expected.name);
+            assert_eq!(res.extends, expected.extends);
+            assert_eq!(res.flags, expected.flags);
         }
     }
 

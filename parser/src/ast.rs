@@ -1,20 +1,18 @@
+pub type Span = core::ops::Range<usize>;
 pub type Identifier<'a> = &'a str;
+pub type Spanned<T> = (T, Span);
 
-// pub struct Script<'a> {
-//     pub name: Identifier<'a>,
-//     pub extends: Option<Identifier<'a>>,
-//     pub flags: Option<Vec<ScriptFlag>>,
-// }
+#[derive(Debug)]
+pub struct Script<'a> {
+    pub name: Spanned<Identifier<'a>>,
+    pub extends: Option<Spanned<Identifier<'a>>>,
+    pub flags: Option<Vec<Spanned<ScriptFlag>>>,
+    
+    pub expressions: Vec<Spanned<Expr<'a>>>
+}
 
 #[derive(Debug, PartialEq)]
 pub enum Expr<'a> {
-    /// 'ScriptName <identifier> extends <identifier> <flags>'
-    HeaderLine(
-        Identifier<'a>,
-        Option<Identifier<'a>>,
-        Option<Vec<ScriptFlag>>,
-    ),
-
     /// 'Import <identifier>'
     Import(Identifier<'a>),
 
@@ -26,8 +24,6 @@ pub enum Expr<'a> {
 
     /// 'Return <expr>'
     Return(Box<Expr<'a>>),
-
-    Nothing,
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
