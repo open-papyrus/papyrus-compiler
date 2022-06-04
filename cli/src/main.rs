@@ -32,8 +32,8 @@ fn run(args: &Args) -> Result<(), anyhow::Error> {
         .with_context(|| format!("Unable to read input file {}", args.input_path.display()))?;
 
     let lexer = SpannedLexer::new(script.as_str());
-    for token in lexer {
-        println!("{}", token);
+    for (token, span) in lexer {
+        println!("{:?} ({:?})", token, span);
     }
 
     Ok(())

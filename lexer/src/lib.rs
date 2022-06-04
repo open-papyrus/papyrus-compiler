@@ -1,5 +1,3 @@
-use std::fmt::{Display, Formatter};
-
 pub mod syntax;
 
 pub struct Lexer<'a> {
@@ -24,18 +22,6 @@ impl<'a> Iterator for Lexer<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct SpannedToken<'a> {
-    pub token: syntax::token::Token<'a>,
-    pub span: logos::Span,
-}
-
-impl<'a> Display for SpannedToken<'a> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?} ({:?})", self.token, self.span)
-    }
-}
-
 pub struct SpannedLexer<'a> {
     iter: logos::SpannedIter<'a, syntax::token::Token<'a>>,
 }
@@ -51,10 +37,9 @@ impl<'a> SpannedLexer<'a> {
 }
 
 impl<'a> Iterator for SpannedLexer<'a> {
-    type Item = SpannedToken<'a>;
+    type Item = (syntax::token::Token<'a>, core::ops::Range<usize>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (token, span) = self.iter.next()?;
-        Some(SpannedToken { token, span })
+        self.iter.next()
     }
 }
