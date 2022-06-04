@@ -1,29 +1,72 @@
 use crate::ast::{Expr, ScriptFlag};
-use chumsky::error::Cheap;
 use chumsky::prelude::*;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::token::Token;
 use papyrus_compiler_lexer::SpannedToken;
 pub mod ast;
 
-pub type SpannedExpr<'a> = (Expr<'a>, core::ops::Range<usize>);
+type Span = core::ops::Range<usize>;
 
-pub type ParserError<'a> = Cheap<SpannedToken<'a>>;
+pub type SpannedExpr<'a> = (Expr<'a>, Span);
+
+// pub type ParserError<'a> = Cheap<SpannedToken<'a>>;
+
+#[derive(Debug, PartialEq)]
+pub enum ParserError<'a> {
+    ExpectedFound(
+        Span,
+        Vec<Option<SpannedToken<'a>>>,
+        Option<SpannedToken<'a>>,
+    ),
+    CustomError(Span, String),
+}
+
+impl<'a> ParserError<'a> {
+    fn custom(span: Span, msg: String) -> Self {
+        Self::CustomError(span, msg)
+    }
+}
+
+impl<'a> chumsky::Error<SpannedToken<'a>> for ParserError<'a> {
+    type Span = Span;
+    type Label = ();
+
+    fn expected_input_found<Iter: IntoIterator<Item = Option<SpannedToken<'a>>>>(
+        span: Self::Span,
+        expected: Iter,
+        found: Option<SpannedToken<'a>>,
+    ) -> Self {
+        Self::ExpectedFound(span, expected.into_iter().collect(), found)
+    }
+
+    fn with_label(self, _: Self::Label) -> Self {
+        todo!()
+    }
+
+    fn merge(mut self, mut other: Self) -> Self {
+        if let (Self::ExpectedFound(_, expected, _), Self::ExpectedFound(_, expected_other, _)) =
+            (&mut self, &mut other)
+        {
+            expected.append(expected_other);
+        }
+
+        self
+    }
+}
 
 pub fn parser<'a>(
 ) -> impl Parser<SpannedToken<'a>, SpannedExpr<'a>, Error = ParserError<'a>> + Clone {
-    let identifier = filter(|input: &SpannedToken<'a>| {
-        let (token, _) = input;
-        matches!(token, Token::Identifier(_))
-    })
-    .map(|input| {
+    let identifier = filter_map(|_, input: SpannedToken| {
         let (token, span) = input;
-        let identifier = match token {
-            Token::Identifier(identifier) => identifier,
-            _ => panic!(),
+        let res = match token {
+            Token::Identifier(identifier) => Ok((identifier, span)),
+            _ => Err(ParserError::custom(
+                span,
+                format!("Expected identifier, found {:?}", token),
+            )),
         };
 
-        (identifier, span)
+        res
     });
 
     let header = filter(|input: &SpannedToken<'a>| {
@@ -43,46 +86,37 @@ pub fn parser<'a>(
             .or_not(),
     )
     .then(
-        filter(|input: &SpannedToken| {
-            let (token, _) = input;
-            match token {
-                Token::Keyword(keyword) => matches!(
-                    keyword,
-                    KeywordKind::Conditional
-                        | KeywordKind::Const
-                        | KeywordKind::DebugOnly
-                        | KeywordKind::BetaOnly
-                        | KeywordKind::Hidden
-                        | KeywordKind::Native
-                        | KeywordKind::Default
-                ),
-                _ => false,
+        filter_map(|_, input: SpannedToken| {
+            let (token, span) = input;
+            let script_flag = match token {
+                Token::Keyword(keyword) => match keyword {
+                    KeywordKind::Conditional => Some(ScriptFlag::Conditional),
+                    KeywordKind::Const => Some(ScriptFlag::Const),
+                    KeywordKind::DebugOnly => Some(ScriptFlag::DebugOnly),
+                    KeywordKind::BetaOnly => Some(ScriptFlag::BetaOnly),
+                    KeywordKind::Hidden => Some(ScriptFlag::Hidden),
+                    KeywordKind::Native => Some(ScriptFlag::Native),
+                    KeywordKind::Default => Some(ScriptFlag::Default),
+                    _ => None,
+                },
+                _ => None,
+            };
+
+            match script_flag {
+                Some(script_flag) => Ok((script_flag, span)),
+                None => Err(ParserError::custom(
+                    span,
+                    format!("Expected a Script Flag, found {:?}", token),
+                )),
             }
         })
         .repeated()
         .at_least(1)
-        .map(|tokens| {
-            let last_token = tokens.last().unwrap();
-            let (_, last_span) = last_token;
-
-            let script_flags = tokens
+        .map(|script_flags| {
+            let (_, last_span) = script_flags.last().unwrap();
+            let script_flags = script_flags
                 .iter()
-                .map(|input| {
-                    let (token, _) = input;
-                    match token {
-                        Token::Keyword(keyword) => match keyword {
-                            KeywordKind::Conditional => ScriptFlag::Conditional,
-                            KeywordKind::Const => ScriptFlag::Const,
-                            KeywordKind::DebugOnly => ScriptFlag::DebugOnly,
-                            KeywordKind::BetaOnly => ScriptFlag::BetaOnly,
-                            KeywordKind::Hidden => ScriptFlag::Hidden,
-                            KeywordKind::Native => ScriptFlag::Native,
-                            KeywordKind::Default => ScriptFlag::Default,
-                            _ => panic!("Unknown keyword: {:?}", keyword),
-                        },
-                        _ => panic!("Token is not a keyword!"),
-                    }
-                })
+                .map(|(script_flag, _)| *script_flag)
                 .collect::<Vec<_>>();
 
             (script_flags, last_span.clone())

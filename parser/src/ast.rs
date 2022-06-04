@@ -30,7 +30,7 @@ pub enum Expr<'a> {
     Nothing,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum ScriptFlag {
     Conditional,
     Const,
@@ -41,7 +41,7 @@ pub enum ScriptFlag {
     Default,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum PropertyFlag {
     Conditional,
     Const,
@@ -49,27 +49,27 @@ pub enum PropertyFlag {
     Mandatory,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum VariableFlag {
     Conditional,
     Const,
     Hidden,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum GroupFlag {
     CollapsedOnRef,
     CollapsedOnBase,
     Collapsed,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum FunctionFlag {
     DebugOnly,
     BetaOnly,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum LiteralKind<'a> {
     BooleanLiteral(bool),
     IntegerLiteral(i32),
