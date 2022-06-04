@@ -3,6 +3,7 @@ use chumsky::prelude::*;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::token::Token;
 use papyrus_compiler_lexer::SpannedToken;
+
 pub mod ast;
 
 #[derive(Debug, PartialEq)]
@@ -62,6 +63,39 @@ pub fn parser<'a>() -> impl Parser<SpannedToken<'a>, Script<'a>, Error = ParserE
         res
     });
 
+    // let literal = select! {
+    //     (Token::BooleanLiteral(value), span) => (Expr::Literal(LiteralKind::BooleanLiteral(value)), span),
+    //     (Token::IntegerLiteral(value), span) => (Expr::Literal(LiteralKind::IntegerLiteral(value)), span),
+    //     (Token::FloatLiteral(value), span) => (Expr::Literal(LiteralKind::FloatLiteral(value)), span),
+    //     (Token::StringLiteral(value), span) => (Expr::Literal(LiteralKind::StringLiteral(value)), span),
+    // };
+
+    let known_type_name = select! {
+        (Token::Keyword(KeywordKind::Var), span) => (TypeName::KnownType(KnownTypeKind::Var), span),
+        (Token::Keyword(KeywordKind::Bool), span) => (TypeName::KnownType(KnownTypeKind::Bool), span),
+        (Token::Keyword(KeywordKind::String), span) => (TypeName::KnownType(KnownTypeKind::String), span),
+        (Token::Keyword(KeywordKind::Int), span) => (TypeName::KnownType(KnownTypeKind::Int), span),
+        (Token::Keyword(KeywordKind::Float), span) => (TypeName::KnownType(KnownTypeKind::Float), span),
+    };
+
+    let custom_type_name = select! {
+        (Token::Identifier(value), span) => (TypeName::CustomType(value), span)
+    };
+
+    let variable_declaration =
+        known_type_name
+            .or(custom_type_name)
+            .then(identifier)
+            .map(|output| {
+                let ((type_name, type_name_span), (identifier, identifier_span)) = output;
+                (
+                    Expr::VariableDeclaration(type_name, identifier),
+                    type_name_span.start..identifier_span.end,
+                )
+            });
+
+    // let expression = literal.or_not();
+
     let script_flag = select! {
         (Token::Keyword(KeywordKind::Conditional), span) => (ScriptFlag::Conditional, span),
         (Token::Keyword(KeywordKind::Const), span) => (ScriptFlag::Const, span),
@@ -84,16 +118,22 @@ pub fn parser<'a>() -> impl Parser<SpannedToken<'a>, Script<'a>, Error = ParserE
     )
     .then(script_flag.repeated().at_least(1).or_not());
 
-    header.map(|header_output| {
-        let ((name, extends), flags) = header_output;
+    header
+        .then(variable_declaration.repeated().or_not())
+        .then_ignore(end())
+        .map(|header_output| {
+            let (((name, extends), flags), expressions) = header_output;
 
-        Script {
-            name,
-            extends,
-            flags,
-            expressions: vec![],
-        }
-    })
+            Script {
+                name,
+                extends,
+                flags,
+                expressions: match expressions {
+                    Some(expressions) => expressions,
+                    None => vec![],
+                },
+            }
+        })
 }
 
 #[cfg(test)]
@@ -105,7 +145,7 @@ mod test {
     use std::path::Path;
 
     #[test]
-    fn test_header_line() {
+    fn test_header() {
         let data: Vec<(&str, Script)> = vec![
             (
                 "ScriptName MyScript",
@@ -154,6 +194,70 @@ mod test {
         }
     }
 
+    fn add_dummy_header(src: &str) -> (String, usize) {
+        (format!("ScriptName MyScript\n{}", src), 20)
+    }
+
+    fn test_expressions(data: Vec<(&str, (Expr, Span))>) {
+        for (src, expected) in data {
+            let (src, offset) = add_dummy_header(src);
+            let tokens = SpannedLexer::lex_all(src.as_str());
+
+            let res = parser().parse(tokens).unwrap();
+            let expressions = res.expressions;
+            assert_eq!(expressions.len(), 1);
+
+            let (expected_expression, expected_span) = expected;
+            let (expression, span) = expressions.first().unwrap().clone();
+
+            assert_eq!(expression, expected_expression);
+            assert_eq!(span.start - offset..span.end - offset, expected_span);
+        }
+    }
+
+    #[test]
+    fn test_variables() {
+        let data = vec![
+            (
+                "int foo",
+                (
+                    Expr::VariableDeclaration(TypeName::KnownType(KnownTypeKind::Int), "foo"),
+                    0..7,
+                ),
+            ),
+            (
+                "string foo",
+                (
+                    Expr::VariableDeclaration(TypeName::KnownType(KnownTypeKind::String), "foo"),
+                    0..10,
+                ),
+            ),
+            (
+                "bool foo",
+                (
+                    Expr::VariableDeclaration(TypeName::KnownType(KnownTypeKind::Bool), "foo"),
+                    0..8,
+                ),
+            ),
+            (
+                "float foo",
+                (
+                    Expr::VariableDeclaration(TypeName::KnownType(KnownTypeKind::Float), "foo"),
+                    0..9,
+                ),
+            ),
+            (
+                "var foo",
+                (
+                    Expr::VariableDeclaration(TypeName::KnownType(KnownTypeKind::Var), "foo"),
+                    0..7,
+                ),
+            ),
+        ];
+
+        test_expressions(data);
+    }
+
     #[test]
     #[cfg(feature = "test-external-scripts")]
     fn test_external_scripts() {
@@ -165,9 +269,6 @@ mod test {
         let tokens: Vec<SpannedToken> = lexer.collect();
 
         let res = parser().parse(tokens);
-        assert!(res.is_ok());
-
-        let res = res.unwrap();
         println!("{:?}", res);
     }
 }
