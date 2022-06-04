@@ -1,0 +1,13 @@
+[package]
+name = "papyrus_compiler_parser"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+test-external-scripts = []
+
+[dependencies.papyrus_compiler_lexer]
+path = "../lexer"
+
+[dependencies]
+chumsky = "0.8.0"
