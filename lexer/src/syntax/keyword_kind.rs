@@ -1,13 +1,15 @@
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub enum KeywordKind {
     Auto,
     AutoReadOnly,
     BetaOnly,
     Bool,
+    Conditional,
     Const,
     CustomEvent,
     CustomEventName,
     DebugOnly,
+    Default,
     Else,
     ElseIf,
     EndEvent,
@@ -24,6 +26,7 @@ pub enum KeywordKind {
     Function,
     Global,
     Group,
+    Hidden,
     If,
     Import,
     Int,

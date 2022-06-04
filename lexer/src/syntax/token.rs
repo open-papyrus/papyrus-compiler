@@ -41,10 +41,12 @@ pub enum Token<'a> {
     #[token("AutoReadOnly", callback = |_| KeywordKind::AutoReadOnly, ignore(ascii_case))]
     #[token("BetaOnly", callback = |_| KeywordKind::BetaOnly, ignore(ascii_case))]
     #[token("bool", callback = |_| KeywordKind::Bool, ignore(ascii_case))]
+    #[token("Conditional", callback = |_| KeywordKind::Conditional, ignore(ascii_case))]
     #[token("Const", callback = |_| KeywordKind::Const, ignore(ascii_case))]
     #[token("CustomEvent", callback = |_| KeywordKind::CustomEvent, ignore(ascii_case))]
     #[token("CustomEventName", callback = |_| KeywordKind::CustomEventName, ignore(ascii_case))]
     #[token("DebugOnly", callback = |_| KeywordKind::DebugOnly, ignore(ascii_case))]
+    #[token("Default", callback = |_| KeywordKind::Default, ignore(ascii_case))]
     #[token("Else", callback = |_| KeywordKind::Else, ignore(ascii_case))]
     #[token("ElseIf", callback = |_| KeywordKind::ElseIf, ignore(ascii_case))]
     #[token("EndEvent", callback = |_| KeywordKind::EndEvent, ignore(ascii_case))]
@@ -61,6 +63,7 @@ pub enum Token<'a> {
     #[token("Function", callback = |_| KeywordKind::Function, ignore(ascii_case))]
     #[token("Global", callback = |_| KeywordKind::Global, ignore(ascii_case))]
     #[token("Group", callback = |_| KeywordKind::Group, ignore(ascii_case))]
+    #[token("Hidden", callback = |_| KeywordKind::Hidden, ignore(ascii_case))]
     #[token("If", callback = |_| KeywordKind::If, ignore(ascii_case))]
     #[token("Import", callback = |_| KeywordKind::Import, ignore(ascii_case))]
     #[token("int", callback = |_| KeywordKind::Int, ignore(ascii_case))]
@@ -223,10 +226,12 @@ mod test {
             ("AutoReadOnly", KeywordKind::AutoReadOnly),
             ("BetaOnly", KeywordKind::BetaOnly),
             ("bool", KeywordKind::Bool),
+            ("Conditional", KeywordKind::Conditional),
             ("Const", KeywordKind::Const),
             ("CustomEvent", KeywordKind::CustomEvent),
             ("CustomEventName", KeywordKind::CustomEventName),
             ("DebugOnly", KeywordKind::DebugOnly),
+            ("Default", KeywordKind::Default),
             ("Else", KeywordKind::Else),
             ("ElseIf", KeywordKind::ElseIf),
             ("EndEvent", KeywordKind::EndEvent),
@@ -243,6 +248,7 @@ mod test {
             ("Function", KeywordKind::Function),
             ("Global", KeywordKind::Global),
             ("Group", KeywordKind::Group),
+            ("Hidden", KeywordKind::Hidden),
             ("If", KeywordKind::If),
             ("Import", KeywordKind::Import),
             ("int", KeywordKind::Int),
