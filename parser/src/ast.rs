@@ -38,6 +38,7 @@ pub enum Expr<'a> {
 pub enum TypeName<'a> {
     KnownType(KnownTypeKind),
     CustomType(Identifier<'a>),
+    ArrayType(Box<TypeName<'a>>)
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -88,7 +89,7 @@ pub enum FunctionFlag {
     BetaOnly,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum LiteralKind<'a> {
     BooleanLiteral(bool),
     IntegerLiteral(i32),

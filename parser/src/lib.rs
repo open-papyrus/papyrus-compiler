@@ -1,6 +1,7 @@
 use crate::ast::*;
 use chumsky::prelude::*;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
+use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
 use papyrus_compiler_lexer::SpannedToken;
 
@@ -63,12 +64,12 @@ pub fn parser<'a>() -> impl Parser<SpannedToken<'a>, Script<'a>, Error = ParserE
         res
     });
 
-    // let literal = select! {
-    //     (Token::BooleanLiteral(value), span) => (Expr::Literal(LiteralKind::BooleanLiteral(value)), span),
-    //     (Token::IntegerLiteral(value), span) => (Expr::Literal(LiteralKind::IntegerLiteral(value)), span),
-    //     (Token::FloatLiteral(value), span) => (Expr::Literal(LiteralKind::FloatLiteral(value)), span),
-    //     (Token::StringLiteral(value), span) => (Expr::Literal(LiteralKind::StringLiteral(value)), span),
-    // };
+    let literal = select! {
+        (Token::BooleanLiteral(value), span) => (Expr::Literal(LiteralKind::BooleanLiteral(value)), span),
+        (Token::IntegerLiteral(value), span) => (Expr::Literal(LiteralKind::IntegerLiteral(value)), span),
+        (Token::FloatLiteral(value), span) => (Expr::Literal(LiteralKind::FloatLiteral(value)), span),
+        (Token::StringLiteral(value), span) => (Expr::Literal(LiteralKind::StringLiteral(value)), span),
+    };
 
     let known_type_name = select! {
         (Token::Keyword(KeywordKind::Var), span) => (TypeName::KnownType(KnownTypeKind::Var), span),
@@ -82,19 +83,68 @@ pub fn parser<'a>() -> impl Parser<SpannedToken<'a>, Script<'a>, Error = ParserE
         (Token::Identifier(value), span) => (TypeName::CustomType(value), span)
     };
 
-    let variable_declaration =
-        known_type_name
-            .or(custom_type_name)
-            .then(identifier)
-            .map(|output| {
-                let ((type_name, type_name_span), (identifier, identifier_span)) = output;
-                (
-                    Expr::VariableDeclaration(type_name, identifier),
-                    type_name_span.start..identifier_span.end,
-                )
-            });
+    let type_name = filter(|input: &SpannedToken| {
+        let (token, _) = input;
+        matches!(token, Token::Operator(OperatorKind::SquareBracketsOpen))
+    })
+    .then_ignore(filter(|input: &SpannedToken| {
+        let (token, _) = input;
+        matches!(token, Token::Operator(OperatorKind::SquareBracketsClose))
+    }))
+    .or_not()
+    .then(known_type_name.or(custom_type_name))
+    .map(|output| {
+        let (operator_square_brackets_open, (type_name, type_name_span)) = output;
+        let start_span = match operator_square_brackets_open.as_ref() {
+            Some((_, operator_square_brackets_open_span)) => operator_square_brackets_open_span,
+            None => &type_name_span,
+        };
 
-    // let expression = literal.or_not();
+        let res = match operator_square_brackets_open {
+            Some(_) => TypeName::ArrayType(Box::new(type_name)),
+            None => type_name,
+        };
+
+        (res, start_span.start..type_name_span.end)
+    });
+
+    let variable_declaration = type_name.then(identifier).map(|output| {
+        let ((type_name, type_name_span), (identifier, identifier_span)) = output;
+        (
+            Expr::VariableDeclaration(type_name, identifier),
+            type_name_span.start..identifier_span.end,
+        )
+    });
+
+    let assignment = filter(|input: &SpannedToken| {
+        let (token, _) = input;
+        match token {
+            Token::Operator(operator) => matches!(operator, OperatorKind::Assignment),
+            _ => false,
+        }
+    })
+    .ignore_then(literal);
+
+    let expressions = variable_declaration
+        .repeated()
+        .or_not()
+        .then(assignment.repeated().or_not())
+        .map(|output| {
+            let (variable_declarations, assignments) = output;
+            let mut res = Vec::<Spanned<Expr>>::new();
+
+            match variable_declarations {
+                Some(mut variable_declarations) => res.append(&mut variable_declarations),
+                None => {}
+            }
+
+            match assignments {
+                Some(mut assignments) => res.append(&mut assignments),
+                None => {}
+            }
+
+            res
+        });
 
     let script_flag = select! {
         (Token::Keyword(KeywordKind::Conditional), span) => (ScriptFlag::Conditional, span),
@@ -119,7 +169,7 @@ pub fn parser<'a>() -> impl Parser<SpannedToken<'a>, Script<'a>, Error = ParserE
     .then(script_flag.repeated().at_least(1).or_not());
 
     header
-        .then(variable_declaration.repeated().or_not())
+        .then(expressions)
         .then_ignore(end())
         .map(|header_output| {
             let (((name, extends), flags), expressions) = header_output;
@@ -128,10 +178,7 @@ pub fn parser<'a>() -> impl Parser<SpannedToken<'a>, Script<'a>, Error = ParserE
                 name,
                 extends,
                 flags,
-                expressions: match expressions {
-                    Some(expressions) => expressions,
-                    None => vec![],
-                },
+                expressions,
             }
         })
 }
@@ -216,7 +263,7 @@ mod test {
     }
 
     #[test]
-    fn test_variables() {
+    fn test_variable_declarations() {
         let data = vec![
             (
                 "int foo",
@@ -251,6 +298,73 @@ mod test {
                 (
                     Expr::VariableDeclaration(TypeName::KnownType(KnownTypeKind::Var), "foo"),
                     0..7,
+                ),
+            ),
+            (
+                "[]int foos",
+                (
+                    Expr::VariableDeclaration(
+                        TypeName::ArrayType(Box::new(TypeName::KnownType(KnownTypeKind::Int))),
+                        "foos",
+                    ),
+                    0..10,
+                ),
+            ),
+            (
+                "[]string foos",
+                (
+                    Expr::VariableDeclaration(
+                        TypeName::ArrayType(Box::new(TypeName::KnownType(KnownTypeKind::String))),
+                        "foos",
+                    ),
+                    0..13,
+                ),
+            ),
+            (
+                "[]bool foos",
+                (
+                    Expr::VariableDeclaration(
+                        TypeName::ArrayType(Box::new(TypeName::KnownType(KnownTypeKind::Bool))),
+                        "foos",
+                    ),
+                    0..11,
+                ),
+            ),
+            (
+                "[]float foos",
+                (
+                    Expr::VariableDeclaration(
+                        TypeName::ArrayType(Box::new(TypeName::KnownType(KnownTypeKind::Float))),
+                        "foos",
+                    ),
+                    0..12,
+                ),
+            ),
+            (
+                "[]var foos",
+                (
+                    Expr::VariableDeclaration(
+                        TypeName::ArrayType(Box::new(TypeName::KnownType(KnownTypeKind::Var))),
+                        "foos",
+                    ),
+                    0..10,
+                ),
+            ),
+            (
+                "quest foo",
+                (
+                    Expr::VariableDeclaration(TypeName::CustomType("quest"), "foo"),
+                    0..9,
+                ),
+            ),
+            (
+                "[]quest foos",
+                (
+                    Expr::VariableDeclaration(
+                        TypeName::ArrayType(Box::new(TypeName::CustomType("quest"))),
+                        "foos",
+                    ),
+                    0..12,
                 ),
             ),
         ];
