@@ -46,6 +46,9 @@ pub enum Token<'a> {
     #[token("Const", callback = |_| KeywordKind::Const, ignore(ascii_case))]
     #[token("CustomEvent", callback = |_| KeywordKind::CustomEvent, ignore(ascii_case))]
     #[token("CustomEventName", callback = |_| KeywordKind::CustomEventName, ignore(ascii_case))]
+    #[token("CollapsedOnRef", callback = |_| KeywordKind::CollapsedOnRef, ignore(ascii_case))]
+    #[token("CollapsedOnBase", callback = |_| KeywordKind::CollapsedOnBase, ignore(ascii_case))]
+    #[token("Collapsed", callback = |_| KeywordKind::Collapsed, ignore(ascii_case))]
     #[token("DebugOnly", callback = |_| KeywordKind::DebugOnly, ignore(ascii_case))]
     #[token("Default", callback = |_| KeywordKind::Default, ignore(ascii_case))]
     #[token("Else", callback = |_| KeywordKind::Else, ignore(ascii_case))]
@@ -69,6 +72,7 @@ pub enum Token<'a> {
     #[token("Import", callback = |_| KeywordKind::Import, ignore(ascii_case))]
     #[token("int", callback = |_| KeywordKind::Int, ignore(ascii_case))]
     #[token("Length", callback = |_| KeywordKind::Length, ignore(ascii_case))]
+    #[token("Mandatory", callback = |_| KeywordKind::Mandatory, ignore(ascii_case))]
     #[token("Native", callback = |_| KeywordKind::Native, ignore(ascii_case))]
     #[token("new", callback = |_| KeywordKind::New, ignore(ascii_case))]
     #[token("Property", callback = |_| KeywordKind::Property, ignore(ascii_case))]
@@ -243,6 +247,9 @@ mod test {
             ("bool", KeywordKind::Bool),
             ("Conditional", KeywordKind::Conditional),
             ("Const", KeywordKind::Const),
+            ("CollapsedOnRef", KeywordKind::CollapsedOnRef),
+            ("CollapsedOnBase", KeywordKind::CollapsedOnBase),
+            ("Collapsed", KeywordKind::Collapsed),
             ("CustomEvent", KeywordKind::CustomEvent),
             ("CustomEventName", KeywordKind::CustomEventName),
             ("DebugOnly", KeywordKind::DebugOnly),
@@ -268,6 +275,7 @@ mod test {
             ("Import", KeywordKind::Import),
             ("int", KeywordKind::Int),
             ("Length", KeywordKind::Length),
+            ("Mandatory", KeywordKind::Mandatory),
             ("Native", KeywordKind::Native),
             ("new", KeywordKind::New),
             ("Property", KeywordKind::Property),
@@ -281,7 +289,7 @@ mod test {
             ("var", KeywordKind::Var),
             ("While", KeywordKind::While),
         ];
-
+        
         test_data_with_variants(data, Token::Keyword);
     }
 
