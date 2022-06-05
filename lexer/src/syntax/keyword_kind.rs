@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub enum KeywordKind {
     Auto,
@@ -43,4 +45,54 @@ pub enum KeywordKind {
     StructVarName,
     Var,
     While,
+}
+
+impl Display for KeywordKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            KeywordKind::Auto => write!(f, "Auto"),
+            KeywordKind::AutoReadOnly => write!(f, "AutoReadOnly"),
+            KeywordKind::BetaOnly => write!(f, "BetaOnly"),
+            KeywordKind::Bool => write!(f, "bool"),
+            KeywordKind::Conditional => write!(f, "Conditional"),
+            KeywordKind::Const => write!(f, "Const"),
+            KeywordKind::CustomEvent => write!(f, "CustomEvent"),
+            KeywordKind::CustomEventName => write!(f, "CustomEventName"),
+            KeywordKind::DebugOnly => write!(f, "DebugOnly"),
+            KeywordKind::Default => write!(f, "Default"),
+            KeywordKind::Else => write!(f, "Else"),
+            KeywordKind::ElseIf => write!(f, "ElseIf"),
+            KeywordKind::EndEvent => write!(f, "EndEvent"),
+            KeywordKind::EndFunction => write!(f, "EndFunction"),
+            KeywordKind::EndGroup => write!(f, "EndGroup"),
+            KeywordKind::EndIf => write!(f, "EndIf"),
+            KeywordKind::EndProperty => write!(f, "EndProperty"),
+            KeywordKind::EndState => write!(f, "EndState"),
+            KeywordKind::EndStruct => write!(f, "EndStruct"),
+            KeywordKind::EndWhile => write!(f, "EndWhile"),
+            KeywordKind::Event => write!(f, "Event"),
+            KeywordKind::Extends => write!(f, "Extends"),
+            KeywordKind::Float => write!(f, "float"),
+            KeywordKind::Function => write!(f, "Function"),
+            KeywordKind::Global => write!(f, "Global"),
+            KeywordKind::Group => write!(f, "Group"),
+            KeywordKind::Hidden => write!(f, "Hidden"),
+            KeywordKind::If => write!(f, "If"),
+            KeywordKind::Import => write!(f, "Import"),
+            KeywordKind::Int => write!(f, "int"),
+            KeywordKind::Length => write!(f, "Length"),
+            KeywordKind::Native => write!(f, "Native"),
+            KeywordKind::New => write!(f, "New"),
+            KeywordKind::Property => write!(f, "Property"),
+            KeywordKind::Return => write!(f, "Return"),
+            KeywordKind::ScriptName => write!(f, "ScriptName"),
+            KeywordKind::ScriptEventName => write!(f, "ScriptEventName"),
+            KeywordKind::State => write!(f, "State"),
+            KeywordKind::String => write!(f, "string"),
+            KeywordKind::Struct => write!(f, "Struct"),
+            KeywordKind::StructVarName => write!(f, "StructVarName"),
+            KeywordKind::Var => write!(f, "var"),
+            KeywordKind::While => write!(f, "While"),
+        }
+    }
 }

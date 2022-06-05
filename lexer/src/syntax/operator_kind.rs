@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub enum OperatorKind {
     ParenthesisOpen,
@@ -29,4 +31,40 @@ pub enum OperatorKind {
     ModulusAssignment,
     CastAs,
     CastIs,
+}
+
+impl Display for OperatorKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OperatorKind::ParenthesisOpen => write!(f, "("),
+            OperatorKind::ParenthesisClose => write!(f, ")"),
+            OperatorKind::SquareBracketsOpen => write!(f, "["),
+            OperatorKind::SquareBracketsClose => write!(f, "]"),
+            OperatorKind::Comma => write!(f, ","),
+            OperatorKind::Assignment => write!(f, "="),
+            OperatorKind::Addition => write!(f, "+"),
+            OperatorKind::Subtraction => write!(f, "-"),
+            OperatorKind::Multiplication => write!(f, "*"),
+            OperatorKind::Division => write!(f, "/"),
+            OperatorKind::Modulus => write!(f, "%"),
+            OperatorKind::Access => write!(f, "."),
+            OperatorKind::DoubleQuotes => write!(f, r#"""#),
+            OperatorKind::LogicalNot => write!(f, "!"),
+            OperatorKind::EqualTo => write!(f, "=="),
+            OperatorKind::NotEqualTo => write!(f, "!="),
+            OperatorKind::GreaterThan => write!(f, ">"),
+            OperatorKind::LessThan => write!(f, "<"),
+            OperatorKind::GreaterThanOrEqualTo => write!(f, ">="),
+            OperatorKind::LessThanOrEqualTo => write!(f, "<="),
+            OperatorKind::LogicalOr => write!(f, "||"),
+            OperatorKind::LogicalAnd => write!(f, "&&"),
+            OperatorKind::AdditionAssignment => write!(f, "+="),
+            OperatorKind::SubtractionAssignment => write!(f, "-="),
+            OperatorKind::MultiplicationAssignment => write!(f, "*="),
+            OperatorKind::DivisionAssignment => write!(f, "/="),
+            OperatorKind::ModulusAssignment => write!(f, "%="),
+            OperatorKind::CastAs => write!(f, "as"),
+            OperatorKind::CastIs => write!(f, "is"),
+        }
+    }
 }

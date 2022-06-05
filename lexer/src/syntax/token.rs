@@ -1,6 +1,7 @@
 use crate::syntax::keyword_kind::KeywordKind;
 use crate::syntax::operator_kind::OperatorKind;
 use logos::Logos;
+use std::fmt::{Display, Formatter};
 use std::num::{ParseFloatError, ParseIntError};
 use std::str::FromStr;
 
@@ -100,7 +101,7 @@ pub enum Token<'a> {
     NoneLiteral,
 
     // example: https://regex101.com/r/DBrRC0/1
-    #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*", callback = parse_identifier)]
+    #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*", callback = |lex| lex.slice())]
     Identifier(&'a str),
 
     #[regex(r";[^\n\r]*[\n\r]*", callback = |lex| lex.slice())]
@@ -141,9 +142,23 @@ fn parse_string<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> &'a str {
     &slice[1..length - 1]
 }
 
-fn parse_identifier<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> &'a str {
-    let slice: &'a str = lex.slice();
-    slice
+impl<'a> Display for Token<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Token::Operator(operator) => write!(f, "{}", operator),
+            Token::Keyword(keyword) => write!(f, "{}", keyword),
+            Token::BooleanLiteral(value) => write!(f, "{}", value),
+            Token::IntegerLiteral(value) => write!(f, "{}", value),
+            Token::FloatLiteral(value) => write!(f, "{}", value),
+            Token::StringLiteral(value) => write!(f, "{}", value),
+            Token::NoneLiteral => write!(f, "none"),
+            Token::Identifier(identifier) => write!(f, "{}", identifier),
+            Token::SingleLineComment(comment) => write!(f, "{}", comment),
+            Token::MultiLineComment(comment) => write!(f, "{}", comment),
+            Token::DocumentationComment(comment) => write!(f, "{}", comment),
+            Token::Error => write!(f, "ERROR"),
+        }
+    }
 }
 
 #[cfg(test)]
