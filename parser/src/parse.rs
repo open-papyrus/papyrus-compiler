@@ -1,3 +1,4 @@
+use crate::ast::function::{Function, FunctionParameter};
 use crate::ast::property::{AutoProperty, PropertyGroup};
 use crate::ast::structure::{Structure, StructureField};
 use crate::ast::types::{BaseType, Type, TypeName};
@@ -85,6 +86,8 @@ pub fn group_flag_parser<'a>() -> impl TokenParser<'a, GroupFlag> {
 
 pub fn function_flag_parser<'a>() -> impl TokenParser<'a, FunctionFlag> {
     select! {
+        Token::Keyword(KeywordKind::Global) => FunctionFlag::Global,
+        Token::Keyword(KeywordKind::Native) => FunctionFlag::Native,
         Token::Keyword(KeywordKind::DebugOnly) => FunctionFlag::DebugOnly,
         Token::Keyword(KeywordKind::BetaOnly) => FunctionFlag::BetaOnly,
     }
@@ -110,7 +113,13 @@ pub fn type_parser<'a>() -> impl TokenParser<'a, Type<'a>> {
     .map(|(type_name, is_array)| Type::new(type_name, is_array))
 }
 
-pub fn script_variable_parser<'a>() -> impl TokenParser<'a, ScriptVariable<'a>> {
+pub fn type_identifier_optional_literal<'a>() -> impl TokenParser<
+    'a,
+    (
+        (Node<Type<'a>>, Node<Identifier<'a>>),
+        Option<Node<Literal<'a>>>,
+    ),
+> {
     type_parser()
         .map_with_span(Node::new)
         .then(identifier_parser().map_with_span(Node::new))
@@ -119,6 +128,10 @@ pub fn script_variable_parser<'a>() -> impl TokenParser<'a, ScriptVariable<'a>> 
                 .ignore_then(literal_parser().map_with_span(Node::new))
                 .or_not(),
         )
+}
+
+pub fn script_variable_parser<'a>() -> impl TokenParser<'a, ScriptVariable<'a>> {
+    type_identifier_optional_literal()
         .then(
             variable_flag_parser()
                 .map_with_span(Node::new)
@@ -206,6 +219,45 @@ pub fn import_parser<'a>() -> impl TokenParser<'a, Identifier<'a>> {
     just(Token::Keyword(KeywordKind::Import)).ignore_then(identifier_parser())
 }
 
+pub fn function_parameter_parser<'a>() -> impl TokenParser<'a, FunctionParameter<'a>> {
+    type_identifier_optional_literal().map(|output| {
+        let ((type_node, identifier), default_value) = output;
+        FunctionParameter::new(type_node, identifier, default_value)
+    })
+}
+
+pub fn function_parser<'a>() -> impl TokenParser<'a, Function<'a>> {
+    type_parser()
+        .map_with_span(Node::new)
+        .or_not()
+        .then_ignore(just(Token::Keyword(KeywordKind::Function)))
+        .then(identifier_parser().map_with_span(Node::new))
+        .then_ignore(just(Token::Operator(OperatorKind::ParenthesisOpen)))
+        .then(
+            function_parameter_parser()
+                .map_with_span(Node::new)
+                // TODO: make sure that this is not possible: 'param1, param2,'
+                .then_ignore(just(Token::Operator(OperatorKind::Comma)).or_not())
+                .repeated()
+                .at_least(1)
+                .or_not(),
+        )
+        .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
+        // TODO: function body
+        .then(
+            function_flag_parser()
+                .map_with_span(Node::new)
+                .repeated()
+                .at_least(1)
+                .or_not(),
+        )
+        .then_ignore(just(Token::Keyword(KeywordKind::EndFunction)))
+        .map(|output| {
+            let (((type_node, identifier), parameters), flags) = output;
+            Function::new(type_node, identifier, parameters, flags)
+        })
+}
+
 pub fn script_parser<'a>() -> impl TokenParser<'a, Script<'a>> {
     just(Token::Keyword(KeywordKind::ScriptName))
         .ignore_then(
@@ -232,7 +284,8 @@ pub fn script_parser<'a>() -> impl TokenParser<'a, Script<'a>> {
 
 #[cfg(test)]
 mod test {
-    use crate::ast::flags::{GroupFlag, PropertyFlag, ScriptFlag, VariableFlag};
+    use crate::ast::flags::{FunctionFlag, GroupFlag, PropertyFlag, ScriptFlag, VariableFlag};
+    use crate::ast::function::{Function, FunctionParameter};
     use crate::ast::literal::Literal;
     use crate::ast::node::Node;
     use crate::ast::property::{AutoProperty, PropertyGroup};
@@ -241,9 +294,9 @@ mod test {
     use crate::ast::types::{BaseType, Type, TypeName};
     use crate::ast::variable::ScriptVariable;
     use crate::parse::{
-        auto_property_parser, import_parser, literal_parser, property_group_parser,
-        run_lexer_and_get_stream, script_parser, script_variable_parser, struct_parser,
-        type_parser, TokenParser,
+        auto_property_parser, function_parser, import_parser, literal_parser,
+        property_group_parser, run_lexer_and_get_stream, script_parser, script_variable_parser,
+        struct_parser, type_parser, TokenParser,
     };
     use chumsky::prelude::*;
 
@@ -507,6 +560,56 @@ mod test {
         let expected = "Other";
         let token_stream = run_lexer_and_get_stream(src);
         let res = import_parser()
+            .then_ignore(end())
+            .parse(token_stream)
+            .unwrap();
+        assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn test_function_parser() {
+        let src =
+            "int Function MyFunc(int a, int b = 1) Global Native DebugOnly BetaOnly EndFunction";
+        let expected = Function::new(
+            Some(Node::new(
+                Type::new(Node::new(TypeName::BaseType(BaseType::Int), 0..3), false),
+                0..3,
+            )),
+            Node::new("MyFunc", 13..19),
+            Some(vec![
+                Node::new(
+                    FunctionParameter::new(
+                        Node::new(
+                            Type::new(Node::new(TypeName::BaseType(BaseType::Int), 20..23), false),
+                            20..23,
+                        ),
+                        Node::new("a", 24..25),
+                        None,
+                    ),
+                    20..25,
+                ),
+                Node::new(
+                    FunctionParameter::new(
+                        Node::new(
+                            Type::new(Node::new(TypeName::BaseType(BaseType::Int), 27..30), false),
+                            27..30,
+                        ),
+                        Node::new("b", 31..32),
+                        Some(Node::new(Literal::Integer(1), 35..36)),
+                    ),
+                    27..36,
+                ),
+            ]),
+            Some(vec![
+                Node::new(FunctionFlag::Global, 38..44),
+                Node::new(FunctionFlag::Native, 45..51),
+                Node::new(FunctionFlag::DebugOnly, 52..61),
+                Node::new(FunctionFlag::BetaOnly, 62..70),
+            ]),
+        );
+
+        let token_stream = run_lexer_and_get_stream(src);
+        let res = function_parser()
             .then_ignore(end())
             .parse(token_stream)
             .unwrap();

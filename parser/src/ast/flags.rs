@@ -33,6 +33,8 @@ pub enum GroupFlag {
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, strum_macros::Display)]
 pub enum FunctionFlag {
+    Global,
+    Native,
     DebugOnly,
     BetaOnly,
 }
