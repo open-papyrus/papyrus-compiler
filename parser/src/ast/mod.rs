@@ -1,4 +1,5 @@
 pub mod event;
+pub mod expression;
 pub mod flags;
 pub mod function;
 pub mod identifier;
@@ -7,6 +8,7 @@ pub mod node;
 pub mod property;
 pub mod script;
 pub mod state;
+pub mod statement;
 pub mod structure;
 pub mod types;
 pub mod variable;

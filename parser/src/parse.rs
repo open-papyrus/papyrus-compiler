@@ -1,5 +1,7 @@
+use crate::ast::expression::{BinaryKind, ComparisonKind, LogicalKind, UnaryKind};
 use crate::ast::function::{Function, FunctionParameter};
 use crate::ast::property::{AutoProperty, PropertyGroup};
+use crate::ast::statement::AssignmentKind;
 use crate::ast::structure::{Structure, StructureField};
 use crate::ast::types::{BaseType, Type, TypeName};
 use crate::ast::variable::ScriptVariable;
@@ -90,6 +92,52 @@ pub fn function_flag_parser<'a>() -> impl TokenParser<'a, FunctionFlag> {
         Token::Keyword(KeywordKind::Native) => FunctionFlag::Native,
         Token::Keyword(KeywordKind::DebugOnly) => FunctionFlag::DebugOnly,
         Token::Keyword(KeywordKind::BetaOnly) => FunctionFlag::BetaOnly,
+    }
+}
+
+pub fn assignment_kind_parser<'a>() -> impl TokenParser<'a, AssignmentKind> {
+    select! {
+        Token::Operator(OperatorKind::Assignment) => AssignmentKind::Normal,
+        Token::Operator(OperatorKind::AdditionAssignment) => AssignmentKind::Addition,
+        Token::Operator(OperatorKind::SubtractionAssignment) => AssignmentKind::Subtraction,
+        Token::Operator(OperatorKind::MultiplicationAssignment) => AssignmentKind::Multiplication,
+        Token::Operator(OperatorKind::DivisionAssignment) => AssignmentKind::Division,
+        Token::Operator(OperatorKind::ModulusAssignment) => AssignmentKind::Modulus,
+    }
+}
+
+pub fn logical_kind_parser<'a>() -> impl TokenParser<'a, LogicalKind> {
+    select! {
+        Token::Operator(OperatorKind::LogicalAnd) => LogicalKind::And,
+        Token::Operator(OperatorKind::LogicalOr) => LogicalKind::Or,
+    }
+}
+
+pub fn comparison_kind_parser<'a>() -> impl TokenParser<'a, ComparisonKind> {
+    select! {
+        Token::Operator(OperatorKind::EqualTo) => ComparisonKind::EqualTo,
+        Token::Operator(OperatorKind::NotEqualTo) => ComparisonKind::NotEqualTo,
+        Token::Operator(OperatorKind::GreaterThan) => ComparisonKind::GreaterThan,
+        Token::Operator(OperatorKind::LessThan) => ComparisonKind::LessThan,
+        Token::Operator(OperatorKind::GreaterThanOrEqualTo) => ComparisonKind::GreaterThanOrEqualTo,
+        Token::Operator(OperatorKind::LessThanOrEqualTo) => ComparisonKind::LessThanOrEqualTo,
+    }
+}
+
+pub fn unary_kind_parser<'a>() -> impl TokenParser<'a, UnaryKind> {
+    select! {
+        Token::Operator(OperatorKind::LogicalNot) => UnaryKind::LogicalNot,
+        Token::Operator(OperatorKind::Subtraction) => UnaryKind::Negative,
+    }
+}
+
+pub fn binary_kind_parser<'a>() -> impl TokenParser<'a, BinaryKind> {
+    select! {
+        Token::Operator(OperatorKind::Addition) => BinaryKind::Addition,
+        Token::Operator(OperatorKind::Subtraction) => BinaryKind::Subtraction,
+        Token::Operator(OperatorKind::Multiplication) => BinaryKind::Multiplication,
+        Token::Operator(OperatorKind::Division) => BinaryKind::Division,
+        Token::Operator(OperatorKind::Modulus) => BinaryKind::Modulus,
     }
 }
 
