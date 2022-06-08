@@ -1,7 +1,7 @@
-use crate::ast::expression::{BinaryKind, ComparisonKind, LogicalKind, UnaryKind};
+use crate::ast::expression::{BinaryKind, ComparisonKind, Expression, LogicalKind, UnaryKind};
 use crate::ast::function::{Function, FunctionParameter};
 use crate::ast::property::{AutoProperty, PropertyGroup};
-use crate::ast::statement::AssignmentKind;
+use crate::ast::statement::{AssignmentKind, Statement};
 use crate::ast::structure::{Structure, StructureField};
 use crate::ast::types::{BaseType, Type, TypeName};
 use crate::ast::variable::ScriptVariable;
@@ -265,6 +265,50 @@ pub fn struct_parser<'a>() -> impl TokenParser<'a, Structure<'a>> {
 
 pub fn import_parser<'a>() -> impl TokenParser<'a, Identifier<'a>> {
     just(Token::Keyword(KeywordKind::Import)).ignore_then(identifier_parser())
+}
+
+pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
+    recursive(|expr| {
+        let literal_expression = literal_parser()
+            .map_with_span(Node::new)
+            .map(Expression::Literal);
+
+        literal_expression
+    })
+}
+
+pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
+    let return_statement = just(Token::Keyword(KeywordKind::Return))
+        .ignore_then(expression_parser().map_with_span(Node::new).or_not())
+        .map(Statement::Return);
+
+    let define_statement = type_parser()
+        .map_with_span(Node::new)
+        .then(identifier_parser().map_with_span(Node::new))
+        .then(
+            just(Token::Operator(OperatorKind::Assignment))
+                .ignore_then(expression_parser().map_with_span(Node::new))
+                .or_not(),
+        )
+        .map(|output| {
+            let ((type_node, identifier), expression) = output;
+            Statement::VariableDefinition {
+                type_node,
+                name: identifier,
+                expression,
+            }
+        });
+
+    let assignment = expression_parser()
+        .map_with_span(Node::new)
+        .then(assignment_kind_parser().map_with_span(Node::new))
+        .then(expression_parser().map_with_span(Node::new))
+        .map(|output| {
+            let ((lhs, kind), rhs) = output;
+            Statement::Assignment { lhs, kind, rhs }
+        });
+
+    return_statement.or(define_statement).or(assignment)
 }
 
 pub fn function_parameter_parser<'a>() -> impl TokenParser<'a, FunctionParameter<'a>> {

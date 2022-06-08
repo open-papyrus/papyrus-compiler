@@ -44,6 +44,11 @@ pub enum Expression<'a> {
         lhs: Node<Expression<'a>>,
         rhs: Node<TypeName<'a>>,
     },
+    /// 'a is string'
+    TypeCheck {
+        lhs: Node<Expression<'a>>,
+        rhs: Node<TypeName<'a>>,
+    },
     /// 'new int[10 * count]'
     NewArray {
         element_type: Node<TypeName<'a>>,
@@ -57,7 +62,8 @@ pub enum Expression<'a> {
         arguments: Option<Vec<Node<Expression<'a>>>>,
     },
     /// '1', '"Hello World"', '1.0', 'false', 'none'
-    Literal(Literal<'a>),
+    Literal(Node<Literal<'a>>),
+    Identifier(Node<Identifier<'a>>),
 }
 
 impl<'a> Display for Expression<'a> {
@@ -72,6 +78,7 @@ impl<'a> Display for Expression<'a> {
             Expression::ArrayAccess { array, index } => write!(f, "{}[{}]", array, index),
             Expression::Access { lhs, rhs } => write!(f, "{}.{}", lhs, rhs),
             Expression::Cast { lhs, rhs } => write!(f, "{} as {}", lhs, rhs),
+            Expression::TypeCheck { lhs, rhs } => write!(f, "{} is {}", lhs, rhs),
             Expression::NewArray { element_type, size } => {
                 write!(f, "new {}[{}]", element_type, size)
             }
@@ -98,6 +105,7 @@ impl<'a> Display for Expression<'a> {
                 Ok(())
             }
             Expression::Literal(value) => write!(f, "{}", value),
+            Expression::Identifier(value) => write!(f, "{}", value),
         }
     }
 }

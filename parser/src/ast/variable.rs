@@ -5,8 +5,6 @@ use crate::ast::node::Node;
 use crate::ast::types::Type;
 use std::fmt::{Display, Formatter};
 
-// TODO: LocalVariable
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScriptVariable<'a> {
     pub type_node: Node<Type<'a>>,
