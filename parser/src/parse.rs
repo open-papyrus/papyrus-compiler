@@ -236,10 +236,7 @@ pub fn function_parser<'a>() -> impl TokenParser<'a, Function<'a>> {
         .then(
             function_parameter_parser()
                 .map_with_span(Node::new)
-                // TODO: make sure that this is not possible: 'param1, param2,'
-                .then_ignore(just(Token::Operator(OperatorKind::Comma)).or_not())
-                .repeated()
-                .at_least(1)
+                .separated_by(just(Token::Operator(OperatorKind::Comma)))
                 .or_not(),
         )
         .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
