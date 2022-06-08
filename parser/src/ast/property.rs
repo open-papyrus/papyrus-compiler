@@ -9,9 +9,9 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct PropertyGroup<'a> {
-    name: Node<Identifier<'a>>,
-    flags: Option<Vec<Node<GroupFlag>>>,
-    properties: Vec<Node<AutoProperty<'a>>>,
+    pub name: Node<Identifier<'a>>,
+    pub flags: Option<Vec<Node<GroupFlag>>>,
+    pub properties: Vec<Node<AutoProperty<'a>>>,
 }
 
 impl<'a> PropertyGroup<'a> {
@@ -25,18 +25,6 @@ impl<'a> PropertyGroup<'a> {
             flags,
             properties,
         }
-    }
-
-    pub fn name(&self) -> &Node<Identifier<'a>> {
-        &self.name
-    }
-
-    pub fn flags(&self) -> Option<&Vec<Node<GroupFlag>>> {
-        self.flags.as_ref()
-    }
-
-    pub fn properties(&self) -> &Vec<Node<AutoProperty<'a>>> {
-        &self.properties
     }
 }
 
@@ -64,11 +52,11 @@ impl<'a> Display for PropertyGroup<'a> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct AutoProperty<'a> {
-    type_node: Node<Type<'a>>,
-    name: Node<Identifier<'a>>,
-    value: Option<Node<Literal<'a>>>,
-    flags: Option<Vec<Node<PropertyFlag>>>,
-    is_read_only: bool,
+    pub type_node: Node<Type<'a>>,
+    pub name: Node<Identifier<'a>>,
+    pub value: Option<Node<Literal<'a>>>,
+    pub flags: Option<Vec<Node<PropertyFlag>>>,
+    pub is_read_only: bool,
 }
 
 impl<'a> AutoProperty<'a> {
@@ -86,26 +74,6 @@ impl<'a> AutoProperty<'a> {
             flags,
             is_read_only,
         }
-    }
-
-    pub fn type_node(&self) -> &Node<Type<'a>> {
-        &self.type_node
-    }
-
-    pub fn name(&self) -> &Node<Identifier<'a>> {
-        &self.name
-    }
-
-    pub fn value(&self) -> Option<&Node<Literal<'a>>> {
-        self.value.as_ref()
-    }
-
-    pub fn flags(&self) -> Option<&Vec<Node<PropertyFlag>>> {
-        self.flags.as_ref()
-    }
-
-    pub fn is_read_only(&self) -> bool {
-        self.is_read_only
     }
 }
 

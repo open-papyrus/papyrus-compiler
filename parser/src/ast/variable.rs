@@ -9,10 +9,10 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScriptVariable<'a> {
-    type_node: Node<Type<'a>>,
-    name: Node<Identifier<'a>>,
-    value: Option<Node<Literal<'a>>>,
-    flags: Option<Vec<Node<VariableFlag>>>,
+    pub type_node: Node<Type<'a>>,
+    pub name: Node<Identifier<'a>>,
+    pub value: Option<Node<Literal<'a>>>,
+    pub flags: Option<Vec<Node<VariableFlag>>>,
 }
 
 impl<'a> ScriptVariable<'a> {
@@ -28,22 +28,6 @@ impl<'a> ScriptVariable<'a> {
             value,
             flags,
         }
-    }
-
-    pub fn type_node(&self) -> &Node<Type<'a>> {
-        &self.type_node
-    }
-
-    pub fn name(&self) -> &Node<Identifier<'a>> {
-        &self.name
-    }
-
-    pub fn value(&self) -> Option<&Node<Literal<'a>>> {
-        self.value.as_ref()
-    }
-
-    pub fn flags(&self) -> Option<&Vec<Node<VariableFlag>>> {
-        self.flags.as_ref()
     }
 }
 

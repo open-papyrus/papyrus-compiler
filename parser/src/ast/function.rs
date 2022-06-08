@@ -7,9 +7,9 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionParameter<'a> {
-    type_node: Node<Type<'a>>,
-    name: Node<Identifier<'a>>,
-    default_value: Option<Node<Literal<'a>>>,
+    pub type_node: Node<Type<'a>>,
+    pub name: Node<Identifier<'a>>,
+    pub default_value: Option<Node<Literal<'a>>>,
 }
 
 impl<'a> FunctionParameter<'a> {
@@ -23,18 +23,6 @@ impl<'a> FunctionParameter<'a> {
             name,
             default_value,
         }
-    }
-
-    pub fn type_node(&self) -> &Node<Type<'a>> {
-        &self.type_node
-    }
-
-    pub fn name(&self) -> &Node<Identifier<'a>> {
-        &self.name
-    }
-
-    pub fn default_value(&self) -> Option<&Node<Literal<'a>>> {
-        self.default_value.as_ref()
     }
 }
 
@@ -52,10 +40,10 @@ impl<'a> Display for FunctionParameter<'a> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Function<'a> {
-    return_type: Option<Node<Type<'a>>>,
-    name: Node<Identifier<'a>>,
-    parameters: Option<Vec<Node<FunctionParameter<'a>>>>,
-    flags: Option<Vec<Node<FunctionFlag>>>,
+    pub return_type: Option<Node<Type<'a>>>,
+    pub name: Node<Identifier<'a>>,
+    pub parameters: Option<Vec<Node<FunctionParameter<'a>>>>,
+    pub flags: Option<Vec<Node<FunctionFlag>>>,
 }
 
 impl<'a> Function<'a> {
@@ -71,22 +59,6 @@ impl<'a> Function<'a> {
             parameters,
             flags,
         }
-    }
-
-    pub fn return_type(&self) -> Option<&Node<Type<'a>>> {
-        self.return_type.as_ref()
-    }
-
-    pub fn name(&self) -> &Node<Identifier<'a>> {
-        &self.name
-    }
-
-    pub fn parameters(&self) -> Option<&Vec<Node<FunctionParameter<'a>>>> {
-        self.parameters.as_ref()
-    }
-
-    pub fn flags(&self) -> Option<&Vec<Node<FunctionFlag>>> {
-        self.flags.as_ref()
     }
 }
 

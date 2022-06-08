@@ -4,21 +4,13 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Type<'a> {
-    name: Node<TypeName<'a>>,
-    is_array: bool,
+    pub name: Node<TypeName<'a>>,
+    pub is_array: bool,
 }
 
 impl<'a> Type<'a> {
     pub fn new(name: Node<TypeName<'a>>, is_array: bool) -> Self {
         Self { name, is_array }
-    }
-
-    pub fn name(&self) -> &Node<TypeName<'a>> {
-        &self.name
-    }
-
-    pub fn is_array(&self) -> bool {
-        self.is_array
     }
 }
 
@@ -54,5 +46,5 @@ pub enum BaseType {
     Int,
     Float,
     String,
-    Var
+    Var,
 }

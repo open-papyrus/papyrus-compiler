@@ -7,21 +7,13 @@ pub type StructureField<'a> = ScriptVariable<'a>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Structure<'a> {
-    name: Node<Identifier<'a>>,
-    fields: Vec<Node<StructureField<'a>>>,
+    pub name: Node<Identifier<'a>>,
+    pub fields: Vec<Node<StructureField<'a>>>,
 }
 
 impl<'a> Structure<'a> {
     pub fn new(name: Node<Identifier<'a>>, fields: Vec<Node<StructureField<'a>>>) -> Self {
         Self { name, fields }
-    }
-
-    pub fn name(&self) -> &Node<Identifier<'a>> {
-        &self.name
-    }
-
-    pub fn fields(&self) -> &Vec<Node<StructureField<'a>>> {
-        &self.fields
     }
 }
 
