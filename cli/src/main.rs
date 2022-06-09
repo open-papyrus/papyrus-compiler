@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context};
+use ariadne::{Label, Report, ReportKind, Source};
 use clap::Parser;
 use std::fs;
 use std::path::PathBuf;
@@ -39,7 +40,18 @@ fn run(args: &Args) -> Result<(), anyhow::Error> {
             println!("{:#?}", script)
         }
         Err(errors) => {
-            println!("{:#?}", errors)
+            for error in errors {
+                Report::build(ReportKind::Error, (), error.span().start)
+                    .with_message("You fucked up")
+                    .with_label(
+                        Label::new(error.span()).with_message("Look here, this is fucking stupid"),
+                    )
+                    .finish()
+                    .print(Source::from(&script))
+                    .unwrap();
+            }
+
+            // println!("{:#?}", errors)
         }
     }
 

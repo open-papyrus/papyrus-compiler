@@ -726,6 +726,15 @@ mod test {
     use chumsky::prelude::*;
 
     #[test]
+    #[cfg(feature = "test-external-scripts")]
+    fn test_external_scripts() {
+        let script_path = "MrOctopus/nl_mcm/main/scripts/source/nl_mcm.psc";
+        let script_path = format!("../extern/{}", script_path);
+        let path = std::path::Path::new(script_path.as_str());
+        assert!(path.exists());
+    }
+
+    #[test]
     fn test_literal_parser() {
         let data = vec![
             ("1", Literal::Integer(1)),
