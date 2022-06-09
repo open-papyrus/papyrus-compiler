@@ -59,3 +59,16 @@ impl<T: PartialEq> PartialEq for Node<T> {
         self.span == other.span && self.inner.deref() == other.inner.deref()
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::ast::node::Node;
+
+    #[test]
+    fn test_span_union() {
+        let a = Node::new("a", 0..1);
+        let b = Node::new("b", 1..2);
+        let res = a.span_union(&b);
+        assert_eq!(res, 0..2);
+    }
+}
