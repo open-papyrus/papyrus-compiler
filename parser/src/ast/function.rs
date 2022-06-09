@@ -2,6 +2,7 @@ use crate::ast::flags::FunctionFlag;
 use crate::ast::identifier::Identifier;
 use crate::ast::literal::Literal;
 use crate::ast::node::Node;
+use crate::ast::statement::Statement;
 use crate::ast::types::Type;
 use std::fmt::{Display, Formatter};
 
@@ -44,6 +45,7 @@ pub struct Function<'a> {
     pub name: Node<Identifier<'a>>,
     pub parameters: Option<Vec<Node<FunctionParameter<'a>>>>,
     pub flags: Option<Vec<Node<FunctionFlag>>>,
+    pub statements: Option<Vec<Node<Statement<'a>>>>,
 }
 
 impl<'a> Function<'a> {
@@ -52,12 +54,14 @@ impl<'a> Function<'a> {
         name: Node<Identifier<'a>>,
         parameters: Option<Vec<Node<FunctionParameter<'a>>>>,
         flags: Option<Vec<Node<FunctionFlag>>>,
+        statements: Option<Vec<Node<Statement<'a>>>>,
     ) -> Self {
         Self {
             return_type,
             name,
             parameters,
             flags,
+            statements,
         }
     }
 }
@@ -86,6 +90,16 @@ impl<'a> Display for Function<'a> {
         }
 
         write!(f, ")")?;
+
+        match self.statements.as_ref() {
+            Some(statements) => {
+                for statement in statements {
+                    write!(f, "\n{}", statement)?;
+                }
+            }
+            None => {}
+        }
+
         write!(f, "\nEndFunction")?;
 
         Ok(())

@@ -558,7 +558,13 @@ pub fn function_parser<'a>() -> impl TokenParser<'a, Function<'a>> {
                 .or_not(),
         )
         .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
-        // TODO: function body
+        .then(
+            statement_parser()
+                .map_with_span(Node::new)
+                .repeated()
+                .at_least(1)
+                .or_not(),
+        )
         .then(
             function_flag_parser()
                 .map_with_span(Node::new)
@@ -568,8 +574,8 @@ pub fn function_parser<'a>() -> impl TokenParser<'a, Function<'a>> {
         )
         .then_ignore(just(Token::Keyword(KeywordKind::EndFunction)))
         .map(|output| {
-            let (((type_node, identifier), parameters), flags) = output;
-            Function::new(type_node, identifier, parameters, flags)
+            let ((((type_node, identifier), parameters), statements), flags) = output;
+            Function::new(type_node, identifier, parameters, flags, statements)
         })
 }
 
@@ -922,6 +928,7 @@ mod test {
                 Node::new(FunctionFlag::DebugOnly, 52..61),
                 Node::new(FunctionFlag::BetaOnly, 62..70),
             ]),
+            None,
         );
 
         let token_stream = run_lexer_and_get_stream(src);
@@ -936,17 +943,20 @@ mod test {
     fn test_expression_parser() {
         let data = vec![(
             "1 + 1",
-            Expression::Binary {
-                lhs: Node::new(
-                    Expression::Constant(Node::new(Literal::Integer(1), 0..1)),
-                    0..1,
-                ),
-                kind: Node::new(BinaryKind::Addition, 2..3),
-                rhs: Node::new(
-                    Expression::Constant(Node::new(Literal::Integer(1), 4..5)),
-                    4..5,
-                ),
-            },
+            Node::new(
+                Expression::Binary {
+                    lhs: Node::new(
+                        Expression::Constant(Node::new(Literal::Integer(1), 0..1)),
+                        0..1,
+                    ),
+                    kind: Node::new(BinaryKind::Addition, 2..3),
+                    rhs: Node::new(
+                        Expression::Constant(Node::new(Literal::Integer(1), 4..5)),
+                        4..5,
+                    ),
+                },
+                0..5,
+            ),
         )];
 
         for (src, expected) in data {
@@ -955,8 +965,7 @@ mod test {
                 .then_ignore(end())
                 .parse(token_stream)
                 .unwrap();
-            println!("{:#?}", res);
-            // assert_eq!(res, expected);
+            assert_eq!(res, expected);
         }
     }
 }
