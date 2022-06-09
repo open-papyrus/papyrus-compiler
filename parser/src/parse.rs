@@ -1,4 +1,4 @@
-use crate::ast::event::CustomEvent;
+use crate::ast::event::{CustomEvent, Event, EventParameter};
 use crate::ast::{
     expression::*, flags::*, function::*, identifier::*, literal::*, node::*, property::*,
     script::*, statement::*, structure::*, types::*, variable::*,
@@ -295,6 +295,45 @@ pub fn custom_event_parser<'a>() -> impl TokenParser<'a, CustomEvent<'a>> {
     just(Token::Keyword(KeywordKind::CustomEvent))
         .ignore_then(identifier_parser().map_with_span(Node::new))
         .map(CustomEvent::new)
+}
+
+pub fn event_parser<'a>() -> impl TokenParser<'a, Event<'a>> {
+    just(Token::Keyword(KeywordKind::Event))
+        .ignore_then(identifier_parser().map_with_span(Node::new))
+        .then(
+            just(Token::Operator(OperatorKind::ParenthesisOpen))
+                .ignore_then(
+                    type_name_parser()
+                        .map_with_span(Node::new)
+                        .then(identifier_parser().map_with_span(Node::new))
+                        .map(|output| {
+                            let (type_node, identifier) = output;
+                            EventParameter::new(type_node, identifier)
+                        })
+                        .map_with_span(Node::new)
+                        .separated_by(just(Token::Operator(OperatorKind::Comma)))
+                        .or_not(),
+                )
+                .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose))),
+        )
+        .then(
+            function_flag_parser()
+                .map_with_span(Node::new)
+                .repeated()
+                .at_least(1)
+                .or_not(),
+        )
+        .then(
+            statement_parser()
+                .map_with_span(Node::new)
+                .repeated()
+                .at_least(1),
+        )
+        .then_ignore(just(Token::Keyword(KeywordKind::EndEvent)))
+        .map(|output| {
+            let (((identifier, parameters), flags), statements) = output;
+            Event::new(identifier, parameters, flags, statements)
+        })
 }
 
 pub fn struct_field_parser<'a>() -> impl TokenParser<'a, StructureField<'a>> {
