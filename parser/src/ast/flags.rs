@@ -1,3 +1,6 @@
+use crate::ast::node::Node;
+use std::fmt::{Display, Formatter};
+
 #[derive(Debug, PartialEq, Eq, Copy, Clone, strum_macros::Display)]
 pub enum ScriptFlag {
     Conditional,
@@ -37,4 +40,20 @@ pub enum FunctionFlag {
     Native,
     DebugOnly,
     BetaOnly,
+}
+
+pub fn display_flags<Flag: Display>(
+    flags: &Option<Vec<Node<Flag>>>,
+    f: &mut Formatter<'_>,
+) -> std::fmt::Result {
+    match flags.as_ref() {
+        Some(flags) => {
+            for flag in flags {
+                write!(f, "{}", flag)?;
+            }
+        }
+        None => {}
+    }
+
+    Ok(())
 }

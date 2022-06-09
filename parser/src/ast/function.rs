@@ -1,4 +1,4 @@
-use crate::ast::flags::FunctionFlag;
+use crate::ast::flags::{display_flags, FunctionFlag};
 use crate::ast::identifier::Identifier;
 use crate::ast::literal::Literal;
 use crate::ast::node::Node;
@@ -90,6 +90,8 @@ impl<'a> Display for Function<'a> {
         }
 
         write!(f, ")")?;
+
+        display_flags(&self.flags, f)?;
 
         match self.statements.as_ref() {
             Some(statements) => {

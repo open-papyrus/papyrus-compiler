@@ -1,4 +1,4 @@
-use crate::ast::flags::VariableFlag;
+use crate::ast::flags::{display_flags, VariableFlag};
 use crate::ast::identifier::Identifier;
 use crate::ast::literal::Literal;
 use crate::ast::node::Node;
@@ -32,19 +32,13 @@ impl<'a> ScriptVariable<'a> {
 impl<'a> Display for ScriptVariable<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} {}", self.type_node, self.name)?;
-        match &self.value {
-            Some(value) => write!(f, " = {}", value),
-            None => Ok(()),
-        }?;
 
-        match &self.flags {
-            Some(flags) => {
-                for flag in flags {
-                    write!(f, "{}", flag)?;
-                }
-            }
+        match &self.value {
+            Some(value) => write!(f, " = {}", value)?,
             None => {}
         };
+
+        display_flags(&self.flags, f)?;
 
         Ok(())
     }

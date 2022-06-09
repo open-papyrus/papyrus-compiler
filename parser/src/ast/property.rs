@@ -1,4 +1,5 @@
-use crate::ast::flags::{GroupFlag, PropertyFlag};
+use crate::ast::flags::{display_flags, GroupFlag, PropertyFlag};
+use crate::ast::function::Function;
 use crate::ast::identifier::Identifier;
 use crate::ast::literal::Literal;
 use crate::ast::node::Node;
@@ -31,14 +32,8 @@ impl<'a> PropertyGroup<'a> {
 impl<'a> Display for PropertyGroup<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Group {}", self.name)?;
-        match self.flags.as_ref() {
-            Some(flags) => {
-                for flag in flags {
-                    write!(f, " {}", flag)?;
-                }
-            }
-            None => {}
-        }
+
+        display_flags(&self.flags, f)?;
 
         for property in &self.properties {
             write!(f, "\n{}", property)?;
