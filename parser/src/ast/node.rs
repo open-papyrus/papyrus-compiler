@@ -32,6 +32,11 @@ impl<T> Node<T> {
     pub fn span_union<TOther>(&self, other: &Node<TOther>) -> Span {
         union(&self.span, &other.span)
     }
+
+    pub fn map<Other, F: Fn(T) -> Other>(self, map_fn: F) -> Node<Other> {
+        let span = self.span();
+        Node::new(map_fn(self.inner.into_inner()), span)
+    }
 }
 
 impl<T> Deref for Node<T> {
