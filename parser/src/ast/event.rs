@@ -42,6 +42,7 @@ impl<'a> Display for EventParameter<'a> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Event<'a> {
+    // TODO: remote events
     pub name: Node<Identifier<'a>>,
     pub parameters: Option<Vec<Node<EventParameter<'a>>>>,
     pub flags: Option<Vec<Node<FunctionFlag>>>,

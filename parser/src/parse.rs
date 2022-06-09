@@ -253,6 +253,12 @@ pub fn full_property_parser<'a>() -> impl TokenParser<'a, FullProperty<'a>> {
         })
 }
 
+pub fn property_parser<'a>() -> impl TokenParser<'a, Property<'a>> {
+    auto_property_parser()
+        .map(Property::AutoProperty)
+        .or(full_property_parser().map(Property::FullProperty))
+}
+
 pub fn property_group_parser<'a>() -> impl TokenParser<'a, PropertyGroup<'a>> {
     just(Token::Keyword(KeywordKind::Group))
         .ignore_then(identifier_parser().map_with_span(Node::new))
@@ -263,26 +269,10 @@ pub fn property_group_parser<'a>() -> impl TokenParser<'a, PropertyGroup<'a>> {
                 .or_not(),
         )
         .then(
-            auto_property_parser()
+            property_parser()
                 .map_with_span(Node::new)
                 .repeated()
-                .at_least(1)
-                .map(|properties: Vec<Node<AutoProperty>>| {
-                    properties
-                        .iter()
-                        .map(|x| x.to_owned().map(Property::AutoProperty))
-                        .collect::<Vec<_>>()
-                })
-                .or(full_property_parser()
-                    .map_with_span(Node::new)
-                    .repeated()
-                    .at_least(1)
-                    .map(|properties: Vec<Node<FullProperty>>| {
-                        properties
-                            .iter()
-                            .map(|x| x.to_owned().map(Property::FullProperty))
-                            .collect::<Vec<_>>()
-                    })),
+                .at_least(1),
         )
         .then_ignore(just(Token::Keyword(KeywordKind::EndGroup)))
         .map(|output| {
@@ -663,6 +653,27 @@ pub fn function_parser<'a>() -> impl TokenParser<'a, Function<'a>> {
         })
 }
 
+pub fn script_content_parser<'a>() -> impl TokenParser<'a, ScriptContent<'a>> {
+    let variable = script_variable_parser().map(ScriptContent::Variable);
+    let structure = struct_parser().map(ScriptContent::Structure);
+    let custom_event = custom_event_parser().map(ScriptContent::CustomEvent);
+    let property = property_parser().map(ScriptContent::Property);
+    let property_group = property_group_parser().map(ScriptContent::PropertyGroup);
+    // TODO: state
+    let function = function_parser().map(ScriptContent::Function);
+    let event = event_parser().map(ScriptContent::Event);
+
+    choice((
+        variable,
+        structure,
+        custom_event,
+        property,
+        property_group,
+        function,
+        event,
+    ))
+}
+
 pub fn script_parser<'a>() -> impl TokenParser<'a, Script<'a>> {
     just(Token::Keyword(KeywordKind::ScriptName))
         .ignore_then(
@@ -681,9 +692,16 @@ pub fn script_parser<'a>() -> impl TokenParser<'a, Script<'a>> {
                         .or_not(),
                 ),
         )
+        .then(
+            script_content_parser()
+                .map_with_span(Node::new)
+                .repeated()
+                .at_least(1)
+                .or_not(),
+        )
         .map(|output| {
-            let ((name_identifier, extends_identifier), script_flags) = output;
-            Script::new(name_identifier, extends_identifier, script_flags)
+            let (((name_identifier, extends_identifier), script_flags), contents) = output;
+            Script::new(name_identifier, extends_identifier, script_flags, contents)
         })
 }
 
@@ -741,6 +759,7 @@ mod test {
                 (Node::new(ScriptFlag::Native, 84..90)),
                 (Node::new(ScriptFlag::Default, 91..98)),
             ]),
+            None,
         );
 
         let token_stream = run_lexer_and_get_stream(src);
