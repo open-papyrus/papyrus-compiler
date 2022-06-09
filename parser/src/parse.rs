@@ -131,17 +131,22 @@ pub fn unary_kind_parser<'a>() -> impl TokenParser<'a, UnaryKind> {
     }
 }
 
-pub fn binary_kind_parser<'a>() -> impl TokenParser<'a, BinaryKind> {
+pub fn binary_kind_sum_parser<'a>() -> impl TokenParser<'a, BinaryKind> {
     select! {
         Token::Operator(OperatorKind::Addition) => BinaryKind::Addition,
         Token::Operator(OperatorKind::Subtraction) => BinaryKind::Subtraction,
+    }
+}
+
+pub fn binary_kind_product_parser<'a>() -> impl TokenParser<'a, BinaryKind> {
+    select! {
         Token::Operator(OperatorKind::Multiplication) => BinaryKind::Multiplication,
         Token::Operator(OperatorKind::Division) => BinaryKind::Division,
         Token::Operator(OperatorKind::Modulus) => BinaryKind::Modulus,
     }
 }
 
-pub fn type_parser<'a>() -> impl TokenParser<'a, Type<'a>> {
+pub fn type_name_parser<'a>() -> impl TokenParser<'a, TypeName<'a>> {
     select! {
         Token::Keyword(KeywordKind::Bool) => BaseType::Bool,
         Token::Keyword(KeywordKind::Int) => BaseType::Int,
@@ -151,14 +156,18 @@ pub fn type_parser<'a>() -> impl TokenParser<'a, Type<'a>> {
     }
     .map(TypeName::BaseType)
     .or(identifier_parser().map(TypeName::Identifier))
-    .map_with_span(Node::new)
-    .then(
-        just(Token::Operator(OperatorKind::SquareBracketsOpen))
-            .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsClose)))
-            .or_not()
-            .map(|option| !matches!(option, None)),
-    )
-    .map(|(type_name, is_array)| Type::new(type_name, is_array))
+}
+
+pub fn type_parser<'a>() -> impl TokenParser<'a, Type<'a>> {
+    type_name_parser()
+        .map_with_span(Node::new)
+        .then(
+            just(Token::Operator(OperatorKind::SquareBracketsOpen))
+                .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsClose)))
+                .or_not()
+                .map(|option| !matches!(option, None)),
+        )
+        .map(|(type_name, is_array)| Type::new(type_name, is_array))
 }
 
 pub fn type_identifier_optional_literal<'a>() -> impl TokenParser<
@@ -267,19 +276,237 @@ pub fn import_parser<'a>() -> impl TokenParser<'a, Identifier<'a>> {
     just(Token::Keyword(KeywordKind::Import)).ignore_then(identifier_parser())
 }
 
-pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
+pub fn expression_parser<'a>() -> impl TokenParser<'a, Node<Expression<'a>>> {
     recursive(|expr| {
-        let literal_expression = literal_parser()
+        let constant_expression = literal_parser()
             .map_with_span(Node::new)
-            .map(Expression::Literal);
+            .map(Expression::Constant)
+            .map_with_span(Node::new);
 
-        literal_expression
+        let identifier_expression = identifier_parser()
+            .map_with_span(Node::new)
+            .map(Expression::Identifier)
+            .map_with_span(Node::new);
+
+        // <func or id> ::= <function call> | <scriptType> | 'length'
+        let func_or_id = identifier_expression.clone();
+
+        // <array func or id> ::= <func or id> ['[' <expression> ']']
+        let array_func_or_id = func_or_id
+            .clone()
+            .then(
+                just(Token::Operator(OperatorKind::SquareBracketsOpen))
+                    .ignore_then(expr.clone())
+                    .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsClose)))
+                    .or_not(),
+            )
+            .map(|output| {
+                let (lhs, index) = output;
+                match index {
+                    Some(index) => {
+                        let span = lhs.span_union(&index);
+                        Node::new(Expression::ArrayAccess { array: lhs, index }, span)
+                    }
+                    None => lhs,
+                }
+            });
+
+        // <atom> ::= ('(' <expression> ')') | ('new' <type> ['[' <expression> ']']) | <func or id>
+        let atom = just(Token::Operator(OperatorKind::ParenthesisOpen))
+            .ignore_then(
+                expr.clone()
+                    .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose))),
+            )
+            .or(just(Token::Keyword(KeywordKind::New))
+                .ignore_then(
+                    type_name_parser().map_with_span(Node::new).then(
+                        just(Token::Operator(OperatorKind::SquareBracketsOpen))
+                            .ignore_then(expr.clone())
+                            .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsClose)))
+                            .or_not(),
+                    ),
+                )
+                .map(|output| {
+                    let (type_name, size) = output;
+                    match size {
+                        Some(size) => Expression::NewArray {
+                            element_type: type_name,
+                            size,
+                        },
+                        None => Expression::NewStructure(type_name),
+                    }
+                })
+                .map_with_span(Node::new))
+            .or(func_or_id.clone())
+            .boxed();
+
+        // <array atom> ::= <atom> ['[' <expression> ']']
+        let array_atom = atom
+            .then(
+                just(Token::Operator(OperatorKind::SquareBracketsOpen))
+                    .ignore_then(expr.clone())
+                    .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsClose)))
+                    .or_not(),
+            )
+            .map(|(lhs, index)| match index {
+                Some(index) => {
+                    let span = lhs.span_union(&index);
+                    Node::new(Expression::ArrayAccess { array: lhs, index }, span)
+                }
+                None => lhs,
+            });
+
+        // <dot atom> ::= (<array atom> ('.' <array func or id>)*) | <constant>
+        let dot_atom = array_atom
+            .then(just(Token::Operator(OperatorKind::Access)).ignore_then(array_func_or_id.clone()))
+            .map(|output| {
+                let (lhs, rhs) = output;
+                let span = lhs.span_union(&rhs);
+                Node::new(Expression::Access { lhs, rhs }, span)
+            })
+            .or(constant_expression.clone());
+
+        // <cast atom> ::= <dot atom> ['as' <type>]
+        let cast_atom = dot_atom
+            .then(
+                just(Token::Operator(OperatorKind::CastAs))
+                    .ignore_then(type_name_parser().map_with_span(Node::new))
+                    .or_not(),
+            )
+            .map(|(lhs, rhs)| match rhs {
+                Some(rhs) => {
+                    let span = lhs.span_union(&rhs);
+                    Node::new(Expression::Cast { lhs, rhs }, span)
+                }
+                None => lhs,
+            })
+            .boxed();
+
+        // <unary expression> ::= ['-' | '!'] <cast atom>
+        let unary_expression = unary_kind_parser()
+            .map_with_span(Node::new)
+            .or_not()
+            .then(cast_atom)
+            .map(|output| {
+                let (kind, rhs) = output;
+                match kind {
+                    Some(kind) => {
+                        let span = kind.span_union(&rhs);
+                        Node::new(Expression::Unary { kind, rhs }, span)
+                    }
+                    None => rhs,
+                }
+            });
+
+        // <mult expression> ::= <unary expression> (('*' | '/' | '%') <unary expression>)*
+        let product_expression = unary_expression
+            .clone()
+            .then(
+                binary_kind_product_parser()
+                    .map_with_span(Node::new)
+                    .then(unary_expression.clone())
+                    .or_not(),
+            )
+            .map(|output| {
+                let (lhs, rhs) = output;
+                match rhs {
+                    Some((kind, rhs)) => {
+                        let span = lhs.span_union(&rhs);
+                        Node::new(Expression::Binary { lhs, kind, rhs }, span)
+                    }
+                    None => lhs,
+                }
+            });
+
+        // <add expression> ::= <mult expression> (('+' | '-') <mult expression>)*
+        let sum_expression = product_expression
+            .clone()
+            .then(
+                binary_kind_sum_parser()
+                    .map_with_span(Node::new)
+                    .then(product_expression.clone())
+                    .or_not(),
+            )
+            .map(|output| {
+                let (lhs, rhs) = output;
+                match rhs {
+                    Some((kind, rhs)) => {
+                        let span = lhs.span_union(&rhs);
+                        Node::new(Expression::Binary { lhs, kind, rhs }, span)
+                    }
+                    None => lhs,
+                }
+            });
+
+        // <bool expression> ::= <add expression> (<comparison operator> <add expression>)*
+        let comparison_expression = sum_expression
+            .clone()
+            .then(
+                comparison_kind_parser()
+                    .map_with_span(Node::new)
+                    .then(sum_expression.clone())
+                    .or_not(),
+            )
+            .map(|output| {
+                let (lhs, rhs) = output;
+                match rhs {
+                    Some((kind, rhs)) => {
+                        let span = lhs.span_union(&rhs);
+                        Node::new(Expression::Comparison { lhs, kind, rhs }, span)
+                    }
+                    None => lhs,
+                }
+            });
+
+        // <and expression> ::= <bool expression> ('&&' <bool expression>)*
+        let logical_and_expression = comparison_expression
+            .clone()
+            .then(
+                just(Token::Operator(OperatorKind::LogicalAnd))
+                    .to(LogicalKind::And)
+                    .map_with_span(Node::new)
+                    .then(comparison_expression.clone())
+                    .or_not(),
+            )
+            .map(|output| {
+                let (lhs, rhs) = output;
+                match rhs {
+                    Some((kind, rhs)) => {
+                        let span = lhs.span_union(&rhs);
+                        Node::new(Expression::LogicalOperation { lhs, kind, rhs }, span)
+                    }
+                    None => lhs,
+                }
+            });
+
+        // <expression> ::= <and expression> ('||' <and expression>)*
+        let logical_or_expression = logical_and_expression
+            .clone()
+            .then(
+                just(Token::Operator(OperatorKind::LogicalOr))
+                    .to(LogicalKind::Or)
+                    .map_with_span(Node::new)
+                    .then(logical_and_expression.clone())
+                    .or_not(),
+            )
+            .map(|output| {
+                let (lhs, rhs) = output;
+                match rhs {
+                    Some((kind, rhs)) => {
+                        let span = lhs.span_union(&rhs);
+                        Node::new(Expression::LogicalOperation { lhs, kind, rhs }, span)
+                    }
+                    None => lhs,
+                }
+            });
+
+        logical_or_expression.boxed()
     })
 }
 
 pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
     let return_statement = just(Token::Keyword(KeywordKind::Return))
-        .ignore_then(expression_parser().map_with_span(Node::new).or_not())
+        .ignore_then(expression_parser().or_not())
         .map(Statement::Return);
 
     let define_statement = type_parser()
@@ -287,7 +514,7 @@ pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
         .then(identifier_parser().map_with_span(Node::new))
         .then(
             just(Token::Operator(OperatorKind::Assignment))
-                .ignore_then(expression_parser().map_with_span(Node::new))
+                .ignore_then(expression_parser())
                 .or_not(),
         )
         .map(|output| {
@@ -300,9 +527,8 @@ pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
         });
 
     let assignment = expression_parser()
-        .map_with_span(Node::new)
         .then(assignment_kind_parser().map_with_span(Node::new))
-        .then(expression_parser().map_with_span(Node::new))
+        .then(expression_parser())
         .map(|output| {
             let ((lhs, kind), rhs) = output;
             Statement::Assignment { lhs, kind, rhs }
@@ -373,6 +599,7 @@ pub fn script_parser<'a>() -> impl TokenParser<'a, Script<'a>> {
 
 #[cfg(test)]
 mod test {
+    use crate::ast::expression::{BinaryKind, Expression};
     use crate::ast::flags::{FunctionFlag, GroupFlag, PropertyFlag, ScriptFlag, VariableFlag};
     use crate::ast::function::{Function, FunctionParameter};
     use crate::ast::literal::Literal;
@@ -383,7 +610,7 @@ mod test {
     use crate::ast::types::{BaseType, Type, TypeName};
     use crate::ast::variable::ScriptVariable;
     use crate::parse::{
-        auto_property_parser, function_parser, import_parser, literal_parser,
+        auto_property_parser, expression_parser, function_parser, import_parser, literal_parser,
         property_group_parser, run_lexer_and_get_stream, script_parser, script_variable_parser,
         struct_parser, type_parser, TokenParser,
     };
@@ -703,5 +930,33 @@ mod test {
             .parse(token_stream)
             .unwrap();
         assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn test_expression_parser() {
+        let data = vec![(
+            "1 + 1",
+            Expression::Binary {
+                lhs: Node::new(
+                    Expression::Constant(Node::new(Literal::Integer(1), 0..1)),
+                    0..1,
+                ),
+                kind: Node::new(BinaryKind::Addition, 2..3),
+                rhs: Node::new(
+                    Expression::Constant(Node::new(Literal::Integer(1), 4..5)),
+                    4..5,
+                ),
+            },
+        )];
+
+        for (src, expected) in data {
+            let token_stream = run_lexer_and_get_stream(src);
+            let res = expression_parser()
+                .then_ignore(end())
+                .parse(token_stream)
+                .unwrap();
+            println!("{:#?}", res);
+            // assert_eq!(res, expected);
+        }
     }
 }

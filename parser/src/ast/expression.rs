@@ -55,14 +55,14 @@ pub enum Expression<'a> {
         size: Node<Expression<'a>>,
     },
     /// 'new Point'
-    NewObject(Node<TypeName<'a>>),
+    NewStructure(Node<TypeName<'a>>),
     /// 'DoSomething(a, b, 1, 3, "Hello World")'
     FunctionCall {
         name: Node<Identifier<'a>>,
         arguments: Option<Vec<Node<Expression<'a>>>>,
     },
     /// '1', '"Hello World"', '1.0', 'false', 'none'
-    Literal(Node<Literal<'a>>),
+    Constant(Node<Literal<'a>>),
     Identifier(Node<Identifier<'a>>),
 }
 
@@ -82,7 +82,7 @@ impl<'a> Display for Expression<'a> {
             Expression::NewArray { element_type, size } => {
                 write!(f, "new {}[{}]", element_type, size)
             }
-            Expression::NewObject(type_name) => write!(f, "new {}", type_name),
+            Expression::NewStructure(type_name) => write!(f, "new {}", type_name),
             Expression::FunctionCall { name, arguments } => {
                 write!(f, "{} (", name)?;
 
@@ -104,7 +104,7 @@ impl<'a> Display for Expression<'a> {
 
                 Ok(())
             }
-            Expression::Literal(value) => write!(f, "{}", value),
+            Expression::Constant(value) => write!(f, "{}", value),
             Expression::Identifier(value) => write!(f, "{}", value),
         }
     }
