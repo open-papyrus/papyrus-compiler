@@ -699,6 +699,7 @@ pub fn script_parser<'a>() -> impl TokenParser<'a, Script<'a>> {
                 .at_least(1)
                 .or_not(),
         )
+        .then_ignore(end())
         .map(|output| {
             let (((name_identifier, extends_identifier), script_flags), contents) = output;
             Script::new(name_identifier, extends_identifier, script_flags, contents)
@@ -763,10 +764,7 @@ mod test {
         );
 
         let token_stream = run_lexer_and_get_stream(src);
-        let res = script_parser()
-            .then_ignore(end())
-            .parse(token_stream)
-            .unwrap();
+        let res = script_parser().parse(token_stream).unwrap();
         assert_eq!(res, expected);
     }
 
