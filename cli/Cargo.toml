@@ -6,6 +6,9 @@ edition = "2021"
 [dependencies.papyrus_compiler_lexer]
 path = "../lexer"
 
+[dependencies.papyrus_compiler_parser]
+path = "../parser"
+
 [dependencies]
 anyhow = "1.0.57"
 clap = { version = "3.1.18", features = ["derive"] }

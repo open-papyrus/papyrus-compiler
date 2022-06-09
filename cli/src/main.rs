@@ -31,8 +31,16 @@ fn run(args: &Args) -> Result<(), anyhow::Error> {
         .with_context(|| format!("Unable to read input file {}", args.input_path.display()))?;
 
     let tokens = papyrus_compiler_lexer::run_lexer(script.as_str());
-    for (token, span) in tokens {
-        println!("{:?} ({:?})", token, span);
+    // println!("{:#?}", &tokens);
+
+    let parse_result = papyrus_compiler_parser::parse_script(tokens);
+    match parse_result {
+        Ok(script) => {
+            println!("{:#?}", script)
+        }
+        Err(errors) => {
+            println!("{:#?}", errors)
+        }
     }
 
     Ok(())

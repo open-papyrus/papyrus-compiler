@@ -224,6 +224,7 @@ dependencies = [
  "anyhow",
  "clap",
  "papyrus_compiler_lexer",
+ "papyrus_compiler_parser",
 ]
 
 [[package]]
