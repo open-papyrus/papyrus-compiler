@@ -1,3 +1,4 @@
+use crate::ast::event::CustomEvent;
 use crate::ast::{
     expression::*, flags::*, function::*, identifier::*, literal::*, node::*, property::*,
     script::*, statement::*, structure::*, types::*, variable::*,
@@ -288,6 +289,12 @@ pub fn property_group_parser<'a>() -> impl TokenParser<'a, PropertyGroup<'a>> {
             let ((identifier, flags), properties) = output;
             PropertyGroup::new(identifier, flags, properties)
         })
+}
+
+pub fn custom_event_parser<'a>() -> impl TokenParser<'a, CustomEvent<'a>> {
+    just(Token::Keyword(KeywordKind::CustomEvent))
+        .ignore_then(identifier_parser().map_with_span(Node::new))
+        .map(CustomEvent::new)
 }
 
 pub fn struct_field_parser<'a>() -> impl TokenParser<'a, StructureField<'a>> {
