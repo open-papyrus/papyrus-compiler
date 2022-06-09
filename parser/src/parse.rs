@@ -1,11 +1,7 @@
-use crate::ast::expression::{BinaryKind, ComparisonKind, Expression, LogicalKind, UnaryKind};
-use crate::ast::function::{Function, FunctionParameter};
-use crate::ast::property::{AutoProperty, PropertyGroup};
-use crate::ast::statement::{AssignmentKind, Statement};
-use crate::ast::structure::{Structure, StructureField};
-use crate::ast::types::{BaseType, Type, TypeName};
-use crate::ast::variable::ScriptVariable;
-use crate::ast::{flags::*, identifier::*, literal::*, node::*, script::*};
+use crate::ast::{
+    expression::*, flags::*, function::*, identifier::*, literal::*, node::*, property::*,
+    script::*, statement::*, structure::*, types::*, variable::*,
+};
 use crate::error::Error;
 use crate::span::Span;
 use chumsky::prelude::*;
@@ -230,6 +226,32 @@ pub fn auto_property_parser<'a>() -> impl TokenParser<'a, AutoProperty<'a>> {
         })
 }
 
+pub fn full_property_parser<'a>() -> impl TokenParser<'a, FullProperty<'a>> {
+    type_parser()
+        .map_with_span(Node::new)
+        .then_ignore(just(Token::Keyword(KeywordKind::Property)))
+        .then(identifier_parser().map_with_span(Node::new))
+        .then(
+            property_flag_parser()
+                .map_with_span(Node::new)
+                .repeated()
+                .at_least(1)
+                .or_not(),
+        )
+        .then(
+            function_parser()
+                .map_with_span(Node::new)
+                .repeated()
+                .at_least(1)
+                .at_most(2),
+        )
+        .then_ignore(just(Token::Keyword(KeywordKind::EndProperty)))
+        .map(|output| {
+            let (((type_node, identifier), flags), functions) = output;
+            FullProperty::new(type_node, identifier, flags, functions)
+        })
+}
+
 pub fn property_group_parser<'a>() -> impl TokenParser<'a, PropertyGroup<'a>> {
     just(Token::Keyword(KeywordKind::Group))
         .ignore_then(identifier_parser().map_with_span(Node::new))
@@ -243,12 +265,28 @@ pub fn property_group_parser<'a>() -> impl TokenParser<'a, PropertyGroup<'a>> {
             auto_property_parser()
                 .map_with_span(Node::new)
                 .repeated()
-                .at_least(1),
+                .at_least(1)
+                .map(|properties: Vec<Node<AutoProperty>>| {
+                    properties
+                        .iter()
+                        .map(|x| x.to_owned().map(Property::AutoProperty))
+                        .collect::<Vec<_>>()
+                })
+                .or(full_property_parser()
+                    .map_with_span(Node::new)
+                    .repeated()
+                    .at_least(1)
+                    .map(|properties: Vec<Node<FullProperty>>| {
+                        properties
+                            .iter()
+                            .map(|x| x.to_owned().map(Property::FullProperty))
+                            .collect::<Vec<_>>()
+                    })),
         )
         .then_ignore(just(Token::Keyword(KeywordKind::EndGroup)))
         .map(|output| {
-            let ((identifier, flags), auto_properties) = output;
-            PropertyGroup::new(identifier, flags, auto_properties)
+            let ((identifier, flags), properties) = output;
+            PropertyGroup::new(identifier, flags, properties)
         })
 }
 
@@ -610,7 +648,7 @@ mod test {
     use crate::ast::function::{Function, FunctionParameter};
     use crate::ast::literal::Literal;
     use crate::ast::node::Node;
-    use crate::ast::property::{AutoProperty, PropertyGroup};
+    use crate::ast::property::{AutoProperty, Property, PropertyGroup};
     use crate::ast::script::Script;
     use crate::ast::structure::{Structure, StructureField};
     use crate::ast::types::{BaseType, Type, TypeName};
@@ -790,7 +828,7 @@ mod test {
             ]),
             vec![
                 Node::new(
-                    AutoProperty::new(
+                    Property::AutoProperty(AutoProperty::new(
                         Node::new(
                             Type::new(Node::new(TypeName::BaseType(BaseType::Int), 56..59), false),
                             56..59,
@@ -799,11 +837,11 @@ mod test {
                         None,
                         None,
                         false,
-                    ),
+                    )),
                     56..87,
                 ),
                 Node::new(
-                    AutoProperty::new(
+                    Property::AutoProperty(AutoProperty::new(
                         Node::new(
                             Type::new(
                                 Node::new(TypeName::BaseType(BaseType::Float), 89..94),
@@ -815,7 +853,7 @@ mod test {
                         None,
                         None,
                         false,
-                    ),
+                    )),
                     89..123,
                 ),
             ],

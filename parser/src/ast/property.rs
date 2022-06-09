@@ -12,14 +12,14 @@ use std::fmt::{Display, Formatter};
 pub struct PropertyGroup<'a> {
     pub name: Node<Identifier<'a>>,
     pub flags: Option<Vec<Node<GroupFlag>>>,
-    pub properties: Vec<Node<AutoProperty<'a>>>,
+    pub properties: Vec<Node<Property<'a>>>,
 }
 
 impl<'a> PropertyGroup<'a> {
     pub fn new(
         name: Node<Identifier<'a>>,
         flags: Option<Vec<Node<GroupFlag>>>,
-        properties: Vec<Node<AutoProperty<'a>>>,
+        properties: Vec<Node<Property<'a>>>,
     ) -> Self {
         Self {
             name,
@@ -42,6 +42,21 @@ impl<'a> Display for PropertyGroup<'a> {
         write!(f, "\nEndGroup")?;
 
         Ok(())
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Property<'a> {
+    AutoProperty(AutoProperty<'a>),
+    FullProperty(FullProperty<'a>),
+}
+
+impl<'a> Display for Property<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Property::AutoProperty(property) => write!(f, "{}", property),
+            Property::FullProperty(property) => write!(f, "{}", property),
+        }
     }
 }
 
@@ -86,13 +101,44 @@ impl<'a> Display for AutoProperty<'a> {
             write!(f, " Auto")?;
         }
 
-        match self.flags.as_ref() {
-            Some(flags) => {
-                for flag in flags {
-                    write!(f, " {}", flag)?;
-                }
-            }
-            None => {}
+        display_flags(&self.flags, f)?;
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct FullProperty<'a> {
+    pub type_node: Node<Type<'a>>,
+    pub name: Node<Identifier<'a>>,
+    pub flags: Option<Vec<Node<PropertyFlag>>>,
+    pub functions: Vec<Node<Function<'a>>>,
+}
+
+impl<'a> FullProperty<'a> {
+    pub fn new(
+        type_node: Node<Type<'a>>,
+        name: Node<Identifier<'a>>,
+        flags: Option<Vec<Node<PropertyFlag>>>,
+        functions: Vec<Node<Function<'a>>>,
+    ) -> Self {
+        Self {
+            type_node,
+            name,
+            flags,
+            functions,
+        }
+    }
+}
+
+impl<'a> Display for FullProperty<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} Property {}", self.type_node, self.name)?;
+
+        display_flags(&self.flags, f)?;
+
+        for function in &self.functions {
+            write!(f, "\n{}", function)?;
         }
 
         Ok(())
