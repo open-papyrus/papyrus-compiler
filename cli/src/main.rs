@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Context};
-use ariadne::{Label, Report, ReportKind, Source};
 use clap::Parser;
 use papyrus_compiler_core::cache::SourceCache;
 use std::path::PathBuf;
@@ -31,50 +30,21 @@ fn run(args: &Args) -> Result<(), anyhow::Error> {
     let mut cache = SourceCache::default();
     let script = cache.add_file(&args.input_path)?;
 
-    let tokens = papyrus_compiler_core::run_lexer(
+    let res = papyrus_compiler_core::compile_string(
         args.input_path.to_str().unwrap().to_string(),
         script.as_str(),
     );
 
-    let tokens = match tokens {
-        Ok(tokens) => Some(tokens),
+    match res {
+        Ok(script) => println!("{:#?}", script),
         Err(reports) => {
             for report in reports {
                 report
                     .print(&mut cache)
                     .with_context(|| "Unable to print error")?;
             }
-
-            None
         }
-    };
-
-    if tokens.is_none() {
-        return Ok(());
     }
-
-    let tokens = tokens.unwrap();
-
-    // let parse_result = papyrus_compiler_parser::parse_script(tokens);
-    // match parse_result {
-    //     Ok(script) => {
-    //         println!("{:#?}", script)
-    //     }
-    //     Err(errors) => {
-    //         for error in errors {
-    //             Report::build(ReportKind::Error, (), error.span().start)
-    //                 .with_message("You fucked up")
-    //                 .with_label(
-    //                     Label::new(error.span()).with_message("Look here, this is fucking stupid"),
-    //                 )
-    //                 .finish()
-    //                 .print(Source::from(&script))
-    //                 .unwrap();
-    //         }
-    //
-    //         // println!("{:#?}", errors)
-    //     }
-    // }
 
     Ok(())
 }

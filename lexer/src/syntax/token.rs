@@ -165,6 +165,25 @@ impl<'a> Display for Token<'a> {
     }
 }
 
+impl<'a> Token<'a> {
+    pub fn error_display(&self) -> String {
+        match self {
+            Token::Operator(operator) => format!("Operator: '{}'", operator),
+            Token::Keyword(keyword) => format!("Keyword: '{}'", keyword),
+            Token::BooleanLiteral(_) => "Boolean Literal".to_string(),
+            Token::IntegerLiteral(_) => "Integer Literal".to_string(),
+            Token::FloatLiteral(_) => "Float Literal".to_string(),
+            Token::StringLiteral(_) => "String Literal".to_string(),
+            Token::NoneLiteral => "none".to_string(),
+            Token::Identifier(_) => "Identifier".to_string(),
+            Token::SingleLineComment(_) => "Single Line Comment".to_string(),
+            Token::MultiLineComment(_) => "Multi Line Comment".to_string(),
+            Token::DocumentationComment(_) => "Documentation Comment".to_string(),
+            Token::Error => "ERROR".to_string(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::syntax::keyword_kind::KeywordKind;
