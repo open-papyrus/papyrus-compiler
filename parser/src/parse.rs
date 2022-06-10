@@ -1,10 +1,8 @@
-use crate::ast::event::{CustomEvent, Event, EventParameter};
 use crate::ast::{
-    expression::*, flags::*, function::*, identifier::*, literal::*, node::*, property::*,
-    script::*, statement::*, structure::*, types::*, variable::*,
+    event::*, expression::*, flags::*, function::*, identifier::*, literal::*, node::*,
+    property::*, script::*, statement::*, structure::*, types::*, variable::*,
 };
-use crate::error::Error;
-use crate::span::Span;
+use crate::{error::*, span::*};
 use chumsky::prelude::*;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
@@ -13,21 +11,27 @@ use std::ops::Range;
 use std::vec::IntoIter;
 
 pub trait TokenParser<'a, O> = Parser<Token<'a>, O, Error = Error<'a>> + Clone;
-pub type TokenStream<'a> =
-    chumsky::Stream<'a, Token<'a>, Range<usize>, IntoIter<(Token<'a>, Span)>>;
+pub type TokenStream<'a> = chumsky::Stream<'a, Token<'a>, Span, IntoIter<(Token<'a>, Span)>>;
 
-pub fn create_token_stream(tokens: Vec<(Token, Span)>) -> TokenStream {
+pub(crate) type LexerSpan = Range<usize>;
+
+pub fn create_token_stream(id: SourceId, tokens: Vec<(Token, LexerSpan)>) -> TokenStream {
+    let tokens = tokens
+        .into_iter()
+        .map(|(token, lexer_span)| (token, Span::new(id.clone(), lexer_span)))
+        .collect::<Vec<_>>();
+
     let eoi = match tokens.last() {
         Some((_, span)) => span.clone(),
-        None => Span { start: 0, end: 0 },
+        None => Span::new(id.clone(), 0..1),
     };
 
     chumsky::Stream::from_iter(eoi, tokens.into_iter())
 }
 
-pub fn run_lexer_and_get_stream(input: &str) -> TokenStream {
+pub fn run_lexer_and_get_stream(id: SourceId, input: &str) -> TokenStream {
     let tokens = papyrus_compiler_lexer::run_lexer(input);
-    create_token_stream(tokens)
+    create_token_stream(id, tokens)
 }
 
 pub fn literal_parser<'a>() -> impl TokenParser<'a, Literal<'a>> {
@@ -724,6 +728,18 @@ mod test {
         struct_parser, type_parser, TokenParser,
     };
     use chumsky::prelude::*;
+    use std::fmt::Debug;
+
+    fn run_test<'a, F, P, O>(src: &'a str, expected: O, parser_fn: F)
+    where
+        F: Fn() -> P,
+        P: TokenParser<'a, O>,
+        O: PartialEq + Debug,
+    {
+        let token_stream = run_lexer_and_get_stream("repl".to_string(), src);
+        let res = parser_fn().then_ignore(end()).parse(token_stream).unwrap();
+        assert_eq!(res, expected);
+    }
 
     #[test]
     #[cfg(feature = "test-external-scripts")]
@@ -745,12 +761,7 @@ mod test {
         ];
 
         for (src, expected) in data {
-            let token_stream = run_lexer_and_get_stream(src);
-            let res = literal_parser()
-                .then_ignore(end())
-                .parse(token_stream)
-                .unwrap();
-            assert_eq!(res, expected);
+            run_test(src, expected, literal_parser);
         }
     }
 
@@ -758,23 +769,21 @@ mod test {
     fn test_script_parser() {
         let src = "ScriptName MyScript extends OtherScript Conditional Const DebugOnly BetaOnly Hidden Native Default";
         let expected = Script::new(
-            Node::new("MyScript", 11..19),
-            Some(Node::new("OtherScript", 28..39)),
+            Node::new("MyScript", (11..19).into()),
+            Some(Node::new("OtherScript", (28..39).into())),
             Some(vec![
-                (Node::new(ScriptFlag::Conditional, 40..51)),
-                (Node::new(ScriptFlag::Const, 52..57)),
-                (Node::new(ScriptFlag::DebugOnly, 58..67)),
-                (Node::new(ScriptFlag::BetaOnly, 68..76)),
-                (Node::new(ScriptFlag::Hidden, 77..83)),
-                (Node::new(ScriptFlag::Native, 84..90)),
-                (Node::new(ScriptFlag::Default, 91..98)),
+                (Node::new(ScriptFlag::Conditional, (40..51).into())),
+                (Node::new(ScriptFlag::Const, (52..57).into())),
+                (Node::new(ScriptFlag::DebugOnly, (58..67).into())),
+                (Node::new(ScriptFlag::BetaOnly, (68..76).into())),
+                (Node::new(ScriptFlag::Hidden, (77..83).into())),
+                (Node::new(ScriptFlag::Native, (84..90).into())),
+                (Node::new(ScriptFlag::Default, (91..98).into())),
             ]),
             None,
         );
 
-        let token_stream = run_lexer_and_get_stream(src);
-        let res = script_parser().parse(token_stream).unwrap();
-        assert_eq!(res, expected);
+        run_test(src, expected, script_parser);
     }
 
     #[test]
@@ -782,57 +791,85 @@ mod test {
         let data = vec![
             (
                 "bool",
-                Type::new(Node::new(TypeName::BaseType(BaseType::Bool), 0..4), false),
+                Type::new(
+                    Node::new(TypeName::BaseType(BaseType::Bool), (0..4).into()),
+                    false,
+                ),
             ),
             (
                 "int",
-                Type::new(Node::new(TypeName::BaseType(BaseType::Int), 0..3), false),
+                Type::new(
+                    Node::new(TypeName::BaseType(BaseType::Int), (0..3).into()),
+                    false,
+                ),
             ),
             (
                 "float",
-                Type::new(Node::new(TypeName::BaseType(BaseType::Float), 0..5), false),
+                Type::new(
+                    Node::new(TypeName::BaseType(BaseType::Float), (0..5).into()),
+                    false,
+                ),
             ),
             (
                 "string",
-                Type::new(Node::new(TypeName::BaseType(BaseType::String), 0..6), false),
+                Type::new(
+                    Node::new(TypeName::BaseType(BaseType::String), (0..6).into()),
+                    false,
+                ),
             ),
             (
                 "var",
-                Type::new(Node::new(TypeName::BaseType(BaseType::Var), 0..3), false),
+                Type::new(
+                    Node::new(TypeName::BaseType(BaseType::Var), (0..3).into()),
+                    false,
+                ),
             ),
             (
                 "custom",
-                Type::new(Node::new(TypeName::Identifier("custom"), 0..6), false),
+                Type::new(
+                    Node::new(TypeName::Identifier("custom"), (0..6).into()),
+                    false,
+                ),
             ),
             (
                 "bool[]",
-                Type::new(Node::new(TypeName::BaseType(BaseType::Bool), 0..4), true),
+                Type::new(
+                    Node::new(TypeName::BaseType(BaseType::Bool), (0..4).into()),
+                    true,
+                ),
             ),
             (
                 "int[]",
-                Type::new(Node::new(TypeName::BaseType(BaseType::Int), 0..3), true),
+                Type::new(
+                    Node::new(TypeName::BaseType(BaseType::Int), (0..3).into()),
+                    true,
+                ),
             ),
             (
                 "float[]",
-                Type::new(Node::new(TypeName::BaseType(BaseType::Float), 0..5), true),
+                Type::new(
+                    Node::new(TypeName::BaseType(BaseType::Float), (0..5).into()),
+                    true,
+                ),
             ),
             (
                 "string[]",
-                Type::new(Node::new(TypeName::BaseType(BaseType::String), 0..6), true),
+                Type::new(
+                    Node::new(TypeName::BaseType(BaseType::String), (0..6).into()),
+                    true,
+                ),
             ),
             (
                 "custom[]",
-                Type::new(Node::new(TypeName::Identifier("custom"), 0..6), true),
+                Type::new(
+                    Node::new(TypeName::Identifier("custom"), (0..6).into()),
+                    true,
+                ),
             ),
         ];
 
         for (src, expected) in data {
-            let token_stream = run_lexer_and_get_stream(src);
-            let res = type_parser()
-                .then_ignore(end())
-                .parse(token_stream)
-                .unwrap();
-            assert_eq!(res, expected);
+            run_test(src, expected, type_parser)
         }
     }
 
@@ -841,24 +878,22 @@ mod test {
         let src = "int x = 0 Conditional Const Hidden";
         let expected = ScriptVariable::new(
             Node::new(
-                Type::new(Node::new(TypeName::BaseType(BaseType::Int), 0..3), false),
-                0..3,
+                Type::new(
+                    Node::new(TypeName::BaseType(BaseType::Int), (0..3).into()),
+                    false,
+                ),
+                (0..3).into(),
             ),
-            Node::new("x", 4..5),
-            Some(Node::new(Literal::Integer(0), 8..9)),
+            Node::new("x", (4..5).into()),
+            Some(Node::new(Literal::Integer(0), (8..9).into())),
             Some(vec![
-                Node::new(VariableFlag::Conditional, 10..21),
-                Node::new(VariableFlag::Const, 22..27),
-                Node::new(VariableFlag::Hidden, 28..34),
+                Node::new(VariableFlag::Conditional, (10..21).into()),
+                Node::new(VariableFlag::Const, (22..27).into()),
+                Node::new(VariableFlag::Hidden, (28..34).into()),
             ]),
         );
 
-        let token_stream = run_lexer_and_get_stream(src);
-        let res = script_variable_parser()
-            .then_ignore(end())
-            .parse(token_stream)
-            .unwrap();
-        assert_eq!(res, expected);
+        run_test(src, expected, script_variable_parser);
     }
 
     #[test]
@@ -866,136 +901,122 @@ mod test {
         let src = "int Property MyProperty = 1 Auto Conditional Const Hidden Mandatory";
         let expected = AutoProperty::new(
             Node::new(
-                Type::new(Node::new(TypeName::BaseType(BaseType::Int), 0..3), false),
-                0..3,
+                Type::new(
+                    Node::new(TypeName::BaseType(BaseType::Int), (0..3).into()),
+                    false,
+                ),
+                (0..3).into(),
             ),
-            Node::new("MyProperty", 13..23),
-            Some(Node::new(Literal::Integer(1), 26..27)),
+            Node::new("MyProperty", (13..23).into()),
+            Some(Node::new(Literal::Integer(1), (26..27).into())),
             Some(vec![
-                Node::new(PropertyFlag::Conditional, 33..44),
-                Node::new(PropertyFlag::Const, 45..50),
-                Node::new(PropertyFlag::Hidden, 51..57),
-                Node::new(PropertyFlag::Mandatory, 58..67),
+                Node::new(PropertyFlag::Conditional, (33..44).into()),
+                Node::new(PropertyFlag::Const, (45..50).into()),
+                Node::new(PropertyFlag::Hidden, (51..57).into()),
+                Node::new(PropertyFlag::Mandatory, (58..67).into()),
             ]),
             false,
         );
 
-        let token_stream = run_lexer_and_get_stream(src);
-        let res = auto_property_parser()
-            .then_ignore(end())
-            .parse(token_stream)
-            .unwrap();
-        assert_eq!(res, expected);
+        run_test(src, expected, auto_property_parser);
     }
 
     #[test]
     fn test_property_group_parser() {
         let src = "Group MyGroup CollapsedOnRef CollapsedOnBase Collapsed\n int Property FirstProperty Auto\n float Property SecondProperty Auto\nEndGroup";
         let expected = PropertyGroup::new(
-            Node::new("MyGroup", 6..13),
+            Node::new("MyGroup", (6..13).into()),
             Some(vec![
-                Node::new(GroupFlag::CollapsedOnRef, 14..28),
-                Node::new(GroupFlag::CollapsedOnBase, 29..44),
-                Node::new(GroupFlag::Collapsed, 45..54),
+                Node::new(GroupFlag::CollapsedOnRef, (14..28).into()),
+                Node::new(GroupFlag::CollapsedOnBase, (29..44).into()),
+                Node::new(GroupFlag::Collapsed, (45..54).into()),
             ]),
             vec![
                 Node::new(
                     Property::AutoProperty(AutoProperty::new(
                         Node::new(
-                            Type::new(Node::new(TypeName::BaseType(BaseType::Int), 56..59), false),
-                            56..59,
+                            Type::new(
+                                Node::new(TypeName::BaseType(BaseType::Int), (56..59).into()),
+                                false,
+                            ),
+                            (56..59).into(),
                         ),
-                        Node::new("FirstProperty", 69..82),
+                        Node::new("FirstProperty", (69..82).into()),
                         None,
                         None,
                         false,
                     )),
-                    56..87,
+                    (56..87).into(),
                 ),
                 Node::new(
                     Property::AutoProperty(AutoProperty::new(
                         Node::new(
                             Type::new(
-                                Node::new(TypeName::BaseType(BaseType::Float), 89..94),
+                                Node::new(TypeName::BaseType(BaseType::Float), (89..94).into()),
                                 false,
                             ),
-                            89..94,
+                            (89..94).into(),
                         ),
-                        Node::new("SecondProperty", 104..118),
+                        Node::new("SecondProperty", (104..118).into()),
                         None,
                         None,
                         false,
                     )),
-                    89..123,
+                    (89..123).into(),
                 ),
             ],
         );
 
-        let token_stream = run_lexer_and_get_stream(src);
-        let res = property_group_parser()
-            .then_ignore(end())
-            .parse(token_stream)
-            .unwrap();
-        assert_eq!(res, expected);
+        run_test(src, expected, property_group_parser);
     }
 
     #[test]
     fn test_struct_parser() {
         let src = "Struct Point\nfloat X\nfloat Y\nEndStruct";
         let expected = Structure::new(
-            Node::new("Point", 7..12),
+            Node::new("Point", (7..12).into()),
             vec![
                 Node::new(
                     StructureField::new(
                         Node::new(
                             Type::new(
-                                Node::new(TypeName::BaseType(BaseType::Float), 13..18),
+                                Node::new(TypeName::BaseType(BaseType::Float), (13..18).into()),
                                 false,
                             ),
-                            13..18,
+                            (13..18).into(),
                         ),
-                        Node::new("X", 19..20),
+                        Node::new("X", (19..20).into()),
                         None,
                         None,
                     ),
-                    13..20,
+                    (13..20).into(),
                 ),
                 Node::new(
                     StructureField::new(
                         Node::new(
                             Type::new(
-                                Node::new(TypeName::BaseType(BaseType::Float), 21..26),
+                                Node::new(TypeName::BaseType(BaseType::Float), (21..26).into()),
                                 false,
                             ),
-                            21..26,
+                            (21..26).into(),
                         ),
-                        Node::new("Y", 27..28),
+                        Node::new("Y", (27..28).into()),
                         None,
                         None,
                     ),
-                    21..28,
+                    (21..28).into(),
                 ),
             ],
         );
 
-        let token_stream = run_lexer_and_get_stream(src);
-        let res = struct_parser()
-            .then_ignore(end())
-            .parse(token_stream)
-            .unwrap();
-        assert_eq!(res, expected);
+        run_test(src, expected, struct_parser);
     }
 
     #[test]
     fn test_import_parser() {
         let src = "Import Other";
         let expected = "Other";
-        let token_stream = run_lexer_and_get_stream(src);
-        let res = import_parser()
-            .then_ignore(end())
-            .parse(token_stream)
-            .unwrap();
-        assert_eq!(res, expected);
+        run_test(src, expected, import_parser);
     }
 
     #[test]
@@ -1004,49 +1025,53 @@ mod test {
             "int Function MyFunc(int a, int b = 1) Global Native DebugOnly BetaOnly EndFunction";
         let expected = Function::new(
             Some(Node::new(
-                Type::new(Node::new(TypeName::BaseType(BaseType::Int), 0..3), false),
-                0..3,
+                Type::new(
+                    Node::new(TypeName::BaseType(BaseType::Int), (0..3).into()),
+                    false,
+                ),
+                (0..3).into(),
             )),
-            Node::new("MyFunc", 13..19),
+            Node::new("MyFunc", (13..19).into()),
             Some(vec![
                 Node::new(
                     FunctionParameter::new(
                         Node::new(
-                            Type::new(Node::new(TypeName::BaseType(BaseType::Int), 20..23), false),
-                            20..23,
+                            Type::new(
+                                Node::new(TypeName::BaseType(BaseType::Int), (20..23).into()),
+                                false,
+                            ),
+                            (20..23).into(),
                         ),
-                        Node::new("a", 24..25),
+                        Node::new("a", (24..25).into()),
                         None,
                     ),
-                    20..25,
+                    (20..25).into(),
                 ),
                 Node::new(
                     FunctionParameter::new(
                         Node::new(
-                            Type::new(Node::new(TypeName::BaseType(BaseType::Int), 27..30), false),
-                            27..30,
+                            Type::new(
+                                Node::new(TypeName::BaseType(BaseType::Int), (27..30).into()),
+                                false,
+                            ),
+                            (27..30).into(),
                         ),
-                        Node::new("b", 31..32),
-                        Some(Node::new(Literal::Integer(1), 35..36)),
+                        Node::new("b", (31..32).into()),
+                        Some(Node::new(Literal::Integer(1), (35..36).into())),
                     ),
-                    27..36,
+                    (27..36).into(),
                 ),
             ]),
             Some(vec![
-                Node::new(FunctionFlag::Global, 38..44),
-                Node::new(FunctionFlag::Native, 45..51),
-                Node::new(FunctionFlag::DebugOnly, 52..61),
-                Node::new(FunctionFlag::BetaOnly, 62..70),
+                Node::new(FunctionFlag::Global, (38..44).into()),
+                Node::new(FunctionFlag::Native, (45..51).into()),
+                Node::new(FunctionFlag::DebugOnly, (52..61).into()),
+                Node::new(FunctionFlag::BetaOnly, (62..70).into()),
             ]),
             None,
         );
 
-        let token_stream = run_lexer_and_get_stream(src);
-        let res = function_parser()
-            .then_ignore(end())
-            .parse(token_stream)
-            .unwrap();
-        assert_eq!(res, expected);
+        run_test(src, expected, function_parser);
     }
 
     #[test]
@@ -1056,26 +1081,21 @@ mod test {
             Node::new(
                 Expression::Binary {
                     lhs: Node::new(
-                        Expression::Constant(Node::new(Literal::Integer(1), 0..1)),
-                        0..1,
+                        Expression::Constant(Node::new(Literal::Integer(1), (0..1).into())),
+                        (0..1).into(),
                     ),
-                    kind: Node::new(BinaryKind::Addition, 2..3),
+                    kind: Node::new(BinaryKind::Addition, (2..3).into()),
                     rhs: Node::new(
-                        Expression::Constant(Node::new(Literal::Integer(1), 4..5)),
-                        4..5,
+                        Expression::Constant(Node::new(Literal::Integer(1), (4..5).into())),
+                        (4..5).into(),
                     ),
                 },
-                0..5,
+                (0..5).into(),
             ),
         )];
 
         for (src, expected) in data {
-            let token_stream = run_lexer_and_get_stream(src);
-            let res = expression_parser()
-                .then_ignore(end())
-                .parse(token_stream)
-                .unwrap();
-            assert_eq!(res, expected);
+            run_test(src, expected, expression_parser);
         }
     }
 }

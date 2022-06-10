@@ -32,3 +32,7 @@ pub fn run_lexer(id: SourceId, src: &str) -> Result<Vec<(Token, LexerSpan)>, Vec
         Err(errors)
     }
 }
+
+pub fn run_parser(id: SourceId, tokens: Vec<(Token, LexerSpan)>) {
+    let parser_result = papyrus_compiler_parser::parse_script(id.clone(), tokens);
+}

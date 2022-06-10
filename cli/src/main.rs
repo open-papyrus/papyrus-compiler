@@ -55,26 +55,26 @@ fn run(args: &Args) -> Result<(), anyhow::Error> {
 
     let tokens = tokens.unwrap();
 
-    let parse_result = papyrus_compiler_parser::parse_script(tokens);
-    match parse_result {
-        Ok(script) => {
-            println!("{:#?}", script)
-        }
-        Err(errors) => {
-            for error in errors {
-                Report::build(ReportKind::Error, (), error.span().start)
-                    .with_message("You fucked up")
-                    .with_label(
-                        Label::new(error.span()).with_message("Look here, this is fucking stupid"),
-                    )
-                    .finish()
-                    .print(Source::from(&script))
-                    .unwrap();
-            }
-
-            // println!("{:#?}", errors)
-        }
-    }
+    // let parse_result = papyrus_compiler_parser::parse_script(tokens);
+    // match parse_result {
+    //     Ok(script) => {
+    //         println!("{:#?}", script)
+    //     }
+    //     Err(errors) => {
+    //         for error in errors {
+    //             Report::build(ReportKind::Error, (), error.span().start)
+    //                 .with_message("You fucked up")
+    //                 .with_label(
+    //                     Label::new(error.span()).with_message("Look here, this is fucking stupid"),
+    //                 )
+    //                 .finish()
+    //                 .print(Source::from(&script))
+    //                 .unwrap();
+    //         }
+    //
+    //         // println!("{:#?}", errors)
+    //     }
+    // }
 
     Ok(())
 }

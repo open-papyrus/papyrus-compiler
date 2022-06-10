@@ -1,4 +1,4 @@
-use crate::span::{union, Span};
+use crate::span::Span;
 use smallbox::{space, SmallBox};
 use std::fmt::{Display, Formatter};
 use std::ops::{Deref, DerefMut};
@@ -30,7 +30,7 @@ impl<T> Node<T> {
     }
 
     pub fn span_union<TOther>(&self, other: &Node<TOther>) -> Span {
-        union(&self.span, &other.span)
+        self.span.union(&other.span)
     }
 
     pub fn map<Other, F: Fn(T) -> Other>(self, map_fn: F) -> Node<Other> {
@@ -71,9 +71,9 @@ mod test {
 
     #[test]
     fn test_span_union() {
-        let a = Node::new("a", 0..1);
-        let b = Node::new("b", 1..2);
+        let a = Node::new("a", (0..1).into());
+        let b = Node::new("b", (1..2).into());
         let res = a.span_union(&b);
-        assert_eq!(res, 0..2);
+        assert_eq!(res, (0..2).into());
     }
 }
