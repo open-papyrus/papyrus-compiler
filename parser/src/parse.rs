@@ -18,6 +18,14 @@ pub(crate) type LexerSpan = Range<usize>;
 pub fn create_token_stream(id: SourceId, tokens: Vec<(Token, LexerSpan)>) -> TokenStream {
     let tokens = tokens
         .into_iter()
+        .filter(|(token, _)| {
+            !matches!(
+                token,
+                Token::SingleLineComment(_)
+                    | Token::MultiLineComment(_)
+                    | Token::DocumentationComment(_)
+            )
+        })
         .map(|(token, lexer_span)| (token, Span::new(id.clone(), lexer_span)))
         .collect::<Vec<_>>();
 
