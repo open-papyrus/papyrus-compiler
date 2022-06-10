@@ -1,5 +1,5 @@
 use crate::source::*;
-use ariadne::{Color, Label, Report, ReportKind};
+use ariadne::{Color, Fmt, Label, Report, ReportKind};
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
@@ -48,14 +48,20 @@ pub fn parser_error_to_report(parser_error: papyrus_compiler_parser::error::Erro
     let message: String = if parser_error.expected().len() == 1 {
         let expected = optional_token_to_string(parser_error.expected().first().unwrap().as_ref());
         format!(
-            "Unexpected Token, found '{}' expected '{}'",
-            found, expected
+            "Unexpected Token, found {} expected {}",
+            found.fg(Color::Red),
+            expected.fg(Color::Cyan)
         )
     } else {
         let strings = parser_error
             .expected()
             .iter()
-            .map(|token| optional_token_to_string(token.as_ref()))
+            .map(|token| {
+                format!(
+                    "{}",
+                    optional_token_to_string(token.as_ref()).fg(Color::Cyan)
+                )
+            })
             .collect::<Vec<_>>();
 
         let capacity = strings
@@ -79,12 +85,16 @@ pub fn parser_error_to_report(parser_error: papyrus_compiler_parser::error::Erro
             }
         }
 
-        format!("Unexpected Token, found '{}' expected {}", found, expected)
+        format!(
+            "Unexpected Token, found {} expected {}",
+            found.fg(Color::Red),
+            expected
+        )
     };
 
     CustomReport::build(ReportKind::Error, source_id.clone(), span.range.start)
         .with_code(ErrorCode::ParserError)
-        .with_message(&message)
+        .with_message("Unexpected Token")
         .with_label(
             Label::new(SourceSpan {
                 id: source_id,
