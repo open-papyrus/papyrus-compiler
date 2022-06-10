@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context};
 use ariadne::{Label, Report, ReportKind, Source};
 use clap::Parser;
-use std::fs;
+use papyrus_compiler_core::cache::SourceCache;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -28,11 +28,32 @@ fn run(args: &Args) -> Result<(), anyhow::Error> {
         ));
     }
 
-    let script = fs::read_to_string(args.input_path.clone())
-        .with_context(|| format!("Unable to read input file {}", args.input_path.display()))?;
+    let mut cache = SourceCache::default();
+    let script = cache.add_file(&args.input_path)?;
 
-    let tokens = papyrus_compiler_lexer::run_lexer(script.as_str());
-    // println!("{:#?}", &tokens);
+    let tokens = papyrus_compiler_core::run_lexer(
+        args.input_path.to_str().unwrap().to_string(),
+        script.as_str(),
+    );
+
+    let tokens = match tokens {
+        Ok(tokens) => Some(tokens),
+        Err(reports) => {
+            for report in reports {
+                report
+                    .print(&mut cache)
+                    .with_context(|| "Unable to print error")?;
+            }
+
+            None
+        }
+    };
+
+    if tokens.is_none() {
+        return Ok(());
+    }
+
+    let tokens = tokens.unwrap();
 
     let parse_result = papyrus_compiler_parser::parse_script(tokens);
     match parse_result {

@@ -9,3 +9,21 @@ pub fn run_lexer<'a>(input: &'a str) -> Vec<(Token<'a>, logos::Span)> {
     let tokens: Vec<_> = iter.collect();
     tokens
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{run_lexer, Token};
+
+    #[test]
+    fn test_run_lexer() {
+        let input = "asd^asd";
+        let expected = vec![
+            (Token::Identifier("asd"), 0..3),
+            (Token::Error, 3..4),
+            (Token::Identifier("asd"), 4..7),
+        ];
+
+        let res = run_lexer(input);
+        assert_eq!(res, expected);
+    }
+}

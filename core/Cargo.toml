@@ -1,5 +1,5 @@
 [package]
-name = "papyrus_compiler_cli"
+name = "papyrus_compiler_core"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,10 +9,6 @@ path = "../lexer"
 [dependencies.papyrus_compiler_parser]
 path = "../parser"
 
-[dependencies.papyrus_compiler_core]
-path = "../core"
-
 [dependencies]
 anyhow = "1.0.57"
-clap = { version = "3.1.18", features = ["derive"] }
 ariadne = "0.1.5"

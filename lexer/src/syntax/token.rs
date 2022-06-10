@@ -289,7 +289,7 @@ mod test {
             ("var", KeywordKind::Var),
             ("While", KeywordKind::While),
         ];
-        
+
         test_data_with_variants(data, Token::Keyword);
     }
 
@@ -437,6 +437,12 @@ mod test {
     fn test_line_terminator() {
         let mut lexer = Token::lexer(r"\");
         assert_eq!(lexer.next(), None);
+    }
+
+    #[test]
+    fn test_error() {
+        let mut lexer = Token::lexer("^");
+        assert_eq!(lexer.next(), Some(Token::Error));
     }
 
     #[test]

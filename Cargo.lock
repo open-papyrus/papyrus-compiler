@@ -233,6 +233,17 @@ dependencies = [
  "anyhow",
  "ariadne",
  "clap",
+ "papyrus_compiler_core",
+ "papyrus_compiler_lexer",
+ "papyrus_compiler_parser",
+]
+
+[[package]]
+name = "papyrus_compiler_core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ariadne",
  "papyrus_compiler_lexer",
  "papyrus_compiler_parser",
 ]
