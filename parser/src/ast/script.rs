@@ -4,6 +4,7 @@ use crate::ast::function::Function;
 use crate::ast::identifier::Identifier;
 use crate::ast::node::Node;
 use crate::ast::property::{Property, PropertyGroup};
+use crate::ast::state::State;
 use crate::ast::structure::Structure;
 use crate::ast::variable::ScriptVariable;
 use std::fmt::{Display, Formatter};
@@ -15,7 +16,7 @@ pub enum ScriptContent<'a> {
     CustomEvent(CustomEvent<'a>),
     Property(Property<'a>),
     PropertyGroup(PropertyGroup<'a>),
-    // TODO: state
+    State(State<'a>),
     Function(Function<'a>),
     Event(Event<'a>),
 }
@@ -28,6 +29,7 @@ impl<'a> Display for ScriptContent<'a> {
             ScriptContent::CustomEvent(content) => write!(f, "{}", content),
             ScriptContent::Property(content) => write!(f, "{}", content),
             ScriptContent::PropertyGroup(content) => write!(f, "{}", content),
+            ScriptContent::State(state) => write!(f, "{}", state),
             ScriptContent::Function(content) => write!(f, "{}", content),
             ScriptContent::Event(content) => write!(f, "{}", content),
         }
