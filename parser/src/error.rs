@@ -1,12 +1,13 @@
 use crate::span::Span;
 use papyrus_compiler_lexer::syntax::token::Token;
+use std::collections::HashSet;
 
 #[derive(Debug)]
 pub struct Error<'a> {
     span: Span,
     label: Option<&'static str>,
-    expected: Vec<Option<Token<'a>>>,
-    found: Option<Token<'a>>
+    expected: HashSet<Option<Token<'a>>>,
+    found: Option<Token<'a>>,
 }
 
 impl<'a> Error<'a> {
@@ -17,11 +18,11 @@ impl<'a> Error<'a> {
     pub fn label(&self) -> Option<&'static str> {
         self.label
     }
-    
-    pub fn expected(&self) -> &Vec<Option<Token<'a>>> {
+
+    pub fn expected(&self) -> &HashSet<Option<Token<'a>>> {
         &self.expected
     }
-    
+
     pub fn found(&self) -> Option<&Token<'a>> {
         self.found.as_ref()
     }
@@ -49,8 +50,11 @@ impl<'a> chumsky::Error<Token<'a>> for Error<'a> {
         self
     }
 
-    fn merge(mut self, mut other: Self) -> Self {
-        self.expected.append(&mut other.expected);
+    fn merge(mut self, other: Self) -> Self {
+        for expected in other.expected {
+            self.expected.insert(expected);
+        }
+
         self
     }
 }

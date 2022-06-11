@@ -1,4 +1,4 @@
-#[derive(PartialEq, Eq, Debug, Copy, Clone, strum_macros::Display)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Hash, strum_macros::Display)]
 pub enum KeywordKind {
     Auto,
     AutoReadOnly,

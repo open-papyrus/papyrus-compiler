@@ -46,7 +46,8 @@ pub fn parser_error_to_report(parser_error: papyrus_compiler_parser::error::Erro
     let found = optional_token_to_string(parser_error.found());
 
     let message: String = if parser_error.expected().len() == 1 {
-        let expected = optional_token_to_string(parser_error.expected().first().unwrap().as_ref());
+        let expected =
+            optional_token_to_string(parser_error.expected().iter().next().unwrap().as_ref());
         format!(
             "Unexpected Token, found {} expected {}",
             found.fg(Color::Red),

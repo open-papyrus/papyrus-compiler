@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Hash)]
 pub enum OperatorKind {
     ParenthesisOpen,
     ParenthesisClose,

@@ -2,6 +2,7 @@ use crate::syntax::keyword_kind::KeywordKind;
 use crate::syntax::operator_kind::OperatorKind;
 use logos::Logos;
 use std::fmt::{Display, Formatter};
+use std::hash::{Hash, Hasher};
 use std::num::{ParseFloatError, ParseIntError};
 use std::str::FromStr;
 
@@ -164,6 +165,27 @@ impl<'a> Display for Token<'a> {
         }
     }
 }
+
+impl<'a> Hash for Token<'a> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Token::Operator(operator) => operator.hash(state),
+            Token::Keyword(keyword) => keyword.hash(state),
+            Token::BooleanLiteral(value) => value.hash(state),
+            Token::IntegerLiteral(value) => value.hash(state),
+            Token::FloatLiteral(value) => state.write_u32(value.to_bits()),
+            Token::StringLiteral(value) => value.hash(state),
+            Token::NoneLiteral => state.write(b"none"),
+            Token::Identifier(value) => value.hash(state),
+            Token::SingleLineComment(comment) => comment.hash(state),
+            Token::MultiLineComment(comment) => comment.hash(state),
+            Token::DocumentationComment(comment) => comment.hash(state),
+            Token::Error => state.write(b"error"),
+        }
+    }
+}
+
+impl<'a> Eq for Token<'a> {}
 
 impl<'a> Token<'a> {
     pub fn error_display(&self) -> String {
