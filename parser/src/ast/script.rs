@@ -1,16 +1,21 @@
-use crate::ast::event::{CustomEvent, Event};
-use crate::ast::flags::{display_flags, ScriptFlag};
-use crate::ast::function::Function;
-use crate::ast::identifier::Identifier;
-use crate::ast::node::Node;
-use crate::ast::property::{Property, PropertyGroup};
-use crate::ast::state::State;
-use crate::ast::structure::Structure;
-use crate::ast::variable::ScriptVariable;
+use crate::ast::event::{custom_event_parser, event_parser, CustomEvent, Event};
+use crate::ast::flags::{display_flags, script_flag_parser, ScriptFlag};
+use crate::ast::function::{function_parser, Function};
+use crate::ast::identifier::{identifier_parser, Identifier};
+use crate::ast::node::{display_optional_nodes, Node};
+use crate::ast::property::{property_group_parser, property_parser, Property, PropertyGroup};
+use crate::ast::state::{state_parser, State};
+use crate::ast::structure::{struct_parser, Structure};
+use crate::ast::variable::{script_variable_parser, ScriptVariable};
+use crate::parse::TokenParser;
+use chumsky::prelude::*;
+use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
+use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ScriptContent<'a> {
+    Import(Identifier<'a>),
     Variable(ScriptVariable<'a>),
     Structure(Structure<'a>),
     CustomEvent(CustomEvent<'a>),
@@ -24,6 +29,7 @@ pub enum ScriptContent<'a> {
 impl<'a> Display for ScriptContent<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            ScriptContent::Import(content) => write!(f, "Import {}", content),
             ScriptContent::Variable(content) => write!(f, "{}", content),
             ScriptContent::Structure(content) => write!(f, "{}", content),
             ScriptContent::CustomEvent(content) => write!(f, "{}", content),
@@ -70,16 +76,90 @@ impl<'a> Display for Script<'a> {
         }
 
         display_flags(&self.flags, f)?;
-
-        match self.contents.as_ref() {
-            Some(contents) => {
-                for content in contents {
-                    write!(f, "\n{}", content)?;
-                }
-            }
-            None => {}
-        }
+        display_optional_nodes(&self.contents, "\n", f)?;
 
         Ok(())
+    }
+}
+
+pub fn import_parser<'a>() -> impl TokenParser<'a, Identifier<'a>> {
+    just(Token::Keyword(KeywordKind::Import)).ignore_then(identifier_parser())
+}
+
+pub fn script_content_parser<'a>() -> impl TokenParser<'a, ScriptContent<'a>> {
+    let import = import_parser().map(ScriptContent::Import);
+    let variable = script_variable_parser().map(ScriptContent::Variable);
+    let structure = struct_parser().map(ScriptContent::Structure);
+    let custom_event = custom_event_parser().map(ScriptContent::CustomEvent);
+    let property = property_parser().map(ScriptContent::Property);
+    let property_group = property_group_parser().map(ScriptContent::PropertyGroup);
+    let state = state_parser().map(ScriptContent::State);
+    let function = function_parser().map(ScriptContent::Function);
+    let event = event_parser().map(ScriptContent::Event);
+
+    choice((
+        import,
+        variable,
+        structure,
+        custom_event,
+        property,
+        property_group,
+        state,
+        function,
+        event,
+    ))
+}
+
+pub fn script_parser<'a>() -> impl TokenParser<'a, Script<'a>> {
+    just(Token::Keyword(KeywordKind::ScriptName))
+        .ignore_then(
+            identifier_parser()
+                .map_with_span(Node::new)
+                .then(
+                    just(Token::Keyword(KeywordKind::Extends))
+                        .ignore_then(identifier_parser().map_with_span(Node::new))
+                        .or_not(),
+                )
+                .then(
+                    script_flag_parser()
+                        .map_with_span(Node::new)
+                        .repeated()
+                        .at_least(1)
+                        .or_not(),
+                ),
+        )
+        .then(
+            script_content_parser()
+                .map_with_span(Node::new)
+                .repeated()
+                .at_least(1)
+                .or_not(),
+        )
+        .then_ignore(end())
+        .map(|output| {
+            let (((name_identifier, extends_identifier), script_flags), contents) = output;
+            Script::new(name_identifier, extends_identifier, script_flags, contents)
+        })
+}
+
+#[cfg(test)]
+mod test {
+    use crate::ast::flags::ScriptFlag;
+    use crate::ast::node::Node;
+    use crate::ast::script::script_parser;
+    use crate::parse::test_utils::run_test;
+    use crate::Script;
+
+    #[test]
+    fn test_script_parser() {
+        let src = "ScriptName MyScript extends OtherScript Native";
+        let expected = Script::new(
+            Node::new("MyScript", (11..19).into()),
+            Some(Node::new("OtherScript", (28..39).into())),
+            Some(vec![Node::new(ScriptFlag::Native, (40..46).into())]),
+            None,
+        );
+
+        run_test(src, expected, script_parser);
     }
 }

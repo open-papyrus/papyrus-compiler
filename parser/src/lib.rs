@@ -16,5 +16,5 @@ pub fn parse_script(
     tokens: Vec<(Token, LexerSpan)>,
 ) -> Result<Script, Vec<error::Error>> {
     let token_stream = parse::create_token_stream(id, tokens);
-    parse::script_parser().parse(token_stream)
+    ast::script::script_parser().parse(token_stream)
 }

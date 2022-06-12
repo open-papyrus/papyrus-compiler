@@ -1,4 +1,7 @@
 use std::fmt::{Display, Formatter};
+use crate::parse::TokenParser;
+use chumsky::prelude::*;
+use papyrus_compiler_lexer::syntax::token::Token;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Literal<'a> {
@@ -7,6 +10,16 @@ pub enum Literal<'a> {
     Float(f32),
     String(&'a str),
     None,
+}
+
+pub fn literal_parser<'a>() -> impl TokenParser<'a, Literal<'a>> {
+    select! {
+        Token::BooleanLiteral(value) => Literal::Boolean(value),
+        Token::IntegerLiteral(value) => Literal::Integer(value),
+        Token::FloatLiteral(value) => Literal::Float(value),
+        Token::StringLiteral(value) => Literal::String(value),
+        Token::NoneLiteral => Literal::None,
+    }
 }
 
 impl<'a> Display for Literal<'a> {

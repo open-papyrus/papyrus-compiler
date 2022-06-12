@@ -2,6 +2,8 @@ use crate::ast::identifier::Identifier;
 use crate::ast::literal::Literal;
 use crate::ast::node::Node;
 use crate::ast::types::TypeName;
+use crate::parse::TokenParser;
+use chumsky::prelude::*;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -58,7 +60,7 @@ pub enum Expression<'a> {
     NewStructure(Node<TypeName<'a>>),
     /// 'DoSomething(a, b, 1, 3, "Hello World")'
     FunctionCall {
-        name: Node<Identifier<'a>>,
+        name: Node<Expression<'a>>,
         arguments: Option<Vec<Node<Expression<'a>>>>,
     },
     /// '1', '"Hello World"', '1.0', 'false', 'none'
@@ -197,4 +199,8 @@ impl Display for BinaryKind {
             BinaryKind::Modulus => write!(f, "%"),
         }
     }
+}
+
+pub fn expression_parser<'a>() -> impl TokenParser<'a, Node<Expression<'a>>> {
+    todo()
 }

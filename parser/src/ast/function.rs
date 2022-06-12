@@ -1,9 +1,14 @@
-use crate::ast::flags::{display_flags, FunctionFlag};
-use crate::ast::identifier::Identifier;
-use crate::ast::literal::Literal;
+use crate::ast::flags::{display_flags, function_flag_parser, FunctionFlag};
+use crate::ast::identifier::{identifier_parser, Identifier};
+use crate::ast::literal::{literal_parser, Literal};
 use crate::ast::node::Node;
-use crate::ast::statement::Statement;
-use crate::ast::types::Type;
+use crate::ast::statement::{display_statements, statement_parser, Statement};
+use crate::ast::types::{type_parser, type_with_identifier_parser, Type};
+use crate::parse::TokenParser;
+use chumsky::prelude::*;
+use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
+use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
+use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -92,18 +97,97 @@ impl<'a> Display for Function<'a> {
         write!(f, ")")?;
 
         display_flags(&self.flags, f)?;
-
-        match self.statements.as_ref() {
-            Some(statements) => {
-                for statement in statements {
-                    write!(f, "\n{}", statement)?;
-                }
-            }
-            None => {}
-        }
+        display_statements(&self.statements, f)?;
 
         write!(f, "\nEndFunction")?;
 
         Ok(())
+    }
+}
+
+/// ```ebnf
+/// <parameter>  ::= <type> <identifier> ['=' <constant>]
+/// ```
+pub fn function_parameter_parser<'a>() -> impl TokenParser<'a, FunctionParameter<'a>> {
+    type_with_identifier_parser()
+        .then(
+            just(Token::Operator(OperatorKind::Assignment))
+                .ignore_then(literal_parser().map_with_span(Node::new))
+                .or_not(),
+        )
+        .map(|output| {
+            let ((type_node, identifier), default_value) = output;
+            FunctionParameter::new(type_node, identifier, default_value)
+        })
+}
+
+/// ```ebnf
+/// <function> ::= <function header> [<function block> 'EndFunction']
+///
+/// <function header> ::= [<type>] 'Function' <identifier> '(' [<parameters>] ')' <flags>*
+/// <function block> ::= <statement>*
+///
+/// <parameters> ::= <parameter> (',' <parameter>)*
+/// ```
+pub fn function_parser<'a>() -> impl TokenParser<'a, Function<'a>> {
+    type_parser()
+        .map_with_span(Node::new)
+        .or_not()
+        .then_ignore(just(Token::Keyword(KeywordKind::Function)))
+        .then(identifier_parser().map_with_span(Node::new))
+        .then_ignore(just(Token::Operator(OperatorKind::ParenthesisOpen)))
+        .then(
+            function_parameter_parser()
+                .map_with_span(Node::new)
+                .separated_by(just(Token::Operator(OperatorKind::Comma)))
+                .map(|parameters| {
+                    if parameters.is_empty() {
+                        None
+                    } else {
+                        Some(parameters)
+                    }
+                }),
+        )
+        .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
+        .then(
+            function_flag_parser()
+                .map_with_span(Node::new)
+                .repeated()
+                .at_least(1)
+                .or_not(),
+        )
+        .then(
+            statement_parser()
+                .map_with_span(Node::new)
+                .repeated()
+                .at_least(1)
+                .then_ignore(just(Token::Keyword(KeywordKind::EndFunction)))
+                .or_not(),
+        )
+        .map(|output| {
+            let ((((return_type, identifier), parameters), flags), statements) = output;
+            Function::new(return_type, identifier, parameters, flags, statements)
+        })
+}
+
+#[cfg(test)]
+mod test {
+    use crate::ast::flags::FunctionFlag;
+    use crate::ast::function::{function_parser, Function};
+    use crate::ast::node::Node;
+    use crate::parse::test_utils::run_test;
+
+    #[test]
+    fn test_function_parser() {
+        let src = "Function MyNativeFunction() Native";
+        let expected = Function::new(
+            None,
+            Node::new("MyNativeFunction", (9..25).into()),
+            None,
+            Some(vec![Node::new(FunctionFlag::Native, (28..34).into())]),
+            None,
+        );
+
+        run_test(src, expected, function_parser);
     }
 }

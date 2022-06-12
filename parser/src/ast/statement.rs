@@ -2,6 +2,8 @@ use crate::ast::expression::Expression;
 use crate::ast::identifier::Identifier;
 use crate::ast::node::Node;
 use crate::ast::types::Type;
+use crate::parse::TokenParser;
+use chumsky::prelude::*;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -21,6 +23,22 @@ pub enum Statement<'a> {
         kind: Node<AssignmentKind>,
         rhs: Node<Expression<'a>>,
     },
+}
+
+pub fn display_statements<'a>(
+    statements: &Option<Vec<Node<Statement<'a>>>>,
+    f: &mut Formatter<'_>,
+) -> std::fmt::Result {
+    match statements.as_ref() {
+        Some(statements) => {
+            for statement in statements {
+                write!(f, "\n{}", statement)?;
+            }
+        }
+        None => {}
+    };
+
+    Ok(())
 }
 
 impl<'a> Display for Statement<'a> {
@@ -70,4 +88,8 @@ impl Display for AssignmentKind {
             AssignmentKind::Modulus => write!(f, "%="),
         }
     }
+}
+
+pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
+    todo()
 }

@@ -17,6 +17,7 @@ impl Span {
     }
 }
 
+#[cfg(test)]
 impl From<Range<usize>> for Span {
     fn from(range: Range<usize>) -> Self {
         Self {

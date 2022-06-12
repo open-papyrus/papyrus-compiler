@@ -65,6 +65,33 @@ impl<T: PartialEq> PartialEq for Node<T> {
     }
 }
 
+pub fn display_optional_nodes<T: Display>(
+    nodes: &Option<Vec<Node<T>>>,
+    prefix: &'static str,
+    f: &mut Formatter<'_>,
+) -> std::fmt::Result {
+    match nodes.as_ref() {
+        Some(nodes) => {
+            display_nodes(nodes, prefix, f)?;
+        }
+        None => {}
+    };
+
+    Ok(())
+}
+
+pub fn display_nodes<T: Display>(
+    nodes: &Vec<Node<T>>,
+    prefix: &'static str,
+    f: &mut Formatter<'_>,
+) -> std::fmt::Result {
+    for node in nodes {
+        write!(f, "{}{}", prefix, node)?;
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod test {
     use crate::ast::node::Node;

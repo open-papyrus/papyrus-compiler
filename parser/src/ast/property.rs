@@ -1,12 +1,17 @@
-use crate::ast::flags::{display_flags, GroupFlag, PropertyFlag};
-use crate::ast::function::Function;
-use crate::ast::identifier::Identifier;
-use crate::ast::literal::Literal;
-use crate::ast::node::Node;
-use crate::ast::types::Type;
+use crate::ast::flags::{
+    display_flags, group_flag_parser, property_flag_parser, GroupFlag, PropertyFlag,
+};
+use crate::ast::function::{function_parser, Function};
+use crate::ast::identifier::{identifier_parser, Identifier};
+use crate::ast::literal::{literal_parser, Literal};
+use crate::ast::node::{display_nodes, Node};
+use crate::ast::types::{type_parser, Type};
+use crate::parse::TokenParser;
+use chumsky::prelude::*;
+use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
+use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
+use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
-
-// TODO: FullProperty
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct PropertyGroup<'a> {
@@ -34,10 +39,7 @@ impl<'a> Display for PropertyGroup<'a> {
         write!(f, "Group {}", self.name)?;
 
         display_flags(&self.flags, f)?;
-
-        for property in &self.properties {
-            write!(f, "\n{}", property)?;
-        }
+        display_nodes(&self.properties, "\n", f)?;
 
         write!(f, "\nEndGroup")?;
 
@@ -64,25 +66,25 @@ impl<'a> Display for Property<'a> {
 pub struct AutoProperty<'a> {
     pub type_node: Node<Type<'a>>,
     pub name: Node<Identifier<'a>>,
-    pub value: Option<Node<Literal<'a>>>,
-    pub flags: Option<Vec<Node<PropertyFlag>>>,
+    pub initial_value: Option<Node<Literal<'a>>>,
     pub is_read_only: bool,
+    pub flags: Option<Vec<Node<PropertyFlag>>>,
 }
 
 impl<'a> AutoProperty<'a> {
     pub fn new(
         type_node: Node<Type<'a>>,
         name: Node<Identifier<'a>>,
-        value: Option<Node<Literal<'a>>>,
-        flags: Option<Vec<Node<PropertyFlag>>>,
+        initial_value: Option<Node<Literal<'a>>>,
         is_read_only: bool,
+        flags: Option<Vec<Node<PropertyFlag>>>,
     ) -> Self {
         Self {
             type_node,
             name,
-            value,
-            flags,
+            initial_value,
             is_read_only,
+            flags,
         }
     }
 }
@@ -90,7 +92,7 @@ impl<'a> AutoProperty<'a> {
 impl<'a> Display for AutoProperty<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} Property {}", self.type_node, self.name)?;
-        match &self.value {
+        match self.initial_value.as_ref() {
             Some(value) => write!(f, " = {}", value)?,
             None => {}
         }
@@ -136,11 +138,300 @@ impl<'a> Display for FullProperty<'a> {
         write!(f, "{} Property {}", self.type_node, self.name)?;
 
         display_flags(&self.flags, f)?;
-
-        for function in &self.functions {
-            write!(f, "\n{}", function)?;
-        }
+        display_nodes(&self.functions, "\n", f)?;
 
         Ok(())
+    }
+}
+
+/// ```ebnf
+/// <auto property> ::= <type> 'Property' <identifier> ['=' <constant>] 'Auto' <flags>*
+/// <auto read-only property> ::= <type> 'Property' <identifier> '=' <constant> 'AutoReadOnly' <flags>*
+/// ```
+pub fn auto_property_parser<'a>() -> impl TokenParser<'a, AutoProperty<'a>> {
+    type_parser()
+        .map_with_span(Node::new)
+        .then_ignore(just(Token::Keyword(KeywordKind::Property)))
+        .then(identifier_parser().map_with_span(Node::new))
+        .then(
+            just(Token::Operator(OperatorKind::Assignment))
+                .ignore_then(literal_parser().map_with_span(Node::new))
+                .or_not(),
+        )
+        .then(
+            just(Token::Keyword(KeywordKind::Auto))
+                .map(|_| false)
+                .or(just(Token::Keyword(KeywordKind::AutoReadOnly)).map(|_| true)),
+        )
+        .then(
+            property_flag_parser()
+                .map_with_span(Node::new)
+                .repeated()
+                .at_least(1)
+                .or_not(),
+        )
+        .map(|output| {
+            let ((((type_node, identifier), default_value), is_read_only), flags) = output;
+            AutoProperty::new(type_node, identifier, default_value, is_read_only, flags)
+        })
+}
+
+/// ```ebnf
+/// <property> ::= <type> 'Property' <identifier> <flags>* <function> [<function>] 'EndProperty'
+/// ```
+pub fn full_property_parser<'a>() -> impl TokenParser<'a, FullProperty<'a>> {
+    type_parser()
+        .map_with_span(Node::new)
+        .then_ignore(just(Token::Keyword(KeywordKind::Property)))
+        .then(identifier_parser().map_with_span(Node::new))
+        .then(
+            property_flag_parser()
+                .map_with_span(Node::new)
+                .repeated()
+                .at_least(1)
+                .or_not(),
+        )
+        .then(
+            function_parser()
+                .map_with_span(Node::new)
+                .repeated()
+                .at_least(1)
+                .at_most(2),
+        )
+        .then_ignore(just(Token::Keyword(KeywordKind::EndProperty)))
+        .map(|output| {
+            let (((type_node, identifier), flags), functions) = output;
+            FullProperty::new(type_node, identifier, flags, functions)
+        })
+}
+
+pub fn property_parser<'a>() -> impl TokenParser<'a, Property<'a>> {
+    auto_property_parser()
+        .map(Property::AutoProperty)
+        .or(full_property_parser().map(Property::FullProperty))
+}
+
+pub fn property_group_parser<'a>() -> impl TokenParser<'a, PropertyGroup<'a>> {
+    just(Token::Keyword(KeywordKind::Group))
+        .ignore_then(identifier_parser().map_with_span(Node::new))
+        .then(
+            group_flag_parser()
+                .map_with_span(Node::new)
+                .repeated()
+                .at_least(1)
+                .or_not(),
+        )
+        .then(
+            property_parser()
+                .map_with_span(Node::new)
+                .repeated()
+                .at_least(1),
+        )
+        .then_ignore(just(Token::Keyword(KeywordKind::EndGroup)))
+        .map(|output| {
+            let ((identifier, flags), properties) = output;
+            PropertyGroup::new(identifier, flags, properties)
+        })
+}
+
+#[cfg(test)]
+mod test {
+    use crate::ast::flags::{GroupFlag, PropertyFlag};
+    use crate::ast::function::{Function, FunctionParameter};
+    use crate::ast::literal::Literal;
+    use crate::ast::node::Node;
+    use crate::ast::property::{
+        auto_property_parser, full_property_parser, property_group_parser, AutoProperty,
+        FullProperty, Property, PropertyGroup,
+    };
+    use crate::ast::types::{BaseType, Type, TypeName};
+    use crate::parse::test_utils::{run_test, run_tests};
+
+    #[test]
+    fn test_auto_property_parser() {
+        let data = vec![
+            (
+                "float Property MyProperty = 1.0 Auto Conditional Const Hidden Mandatory",
+                AutoProperty::new(
+                    Node::new(
+                        Type::new(
+                            Node::new(TypeName::BaseType(BaseType::Float), (0..5).into()),
+                            false,
+                        ),
+                        (0..5).into(),
+                    ),
+                    Node::new("MyProperty", (15..25).into()),
+                    Some(Node::new(Literal::Float(1.0), (28..31).into())),
+                    false,
+                    Some(vec![
+                        Node::new(PropertyFlag::Conditional, (37..48).into()),
+                        Node::new(PropertyFlag::Const, (49..54).into()),
+                        Node::new(PropertyFlag::Hidden, (55..61).into()),
+                        Node::new(PropertyFlag::Mandatory, (62..71).into()),
+                    ]),
+                ),
+            ),
+            (
+                r#"String Property MyProperty = "Hello World!" AutoReadOnly"#,
+                AutoProperty::new(
+                    Node::new(
+                        Type::new(
+                            Node::new(TypeName::BaseType(BaseType::String), (0..6).into()),
+                            false,
+                        ),
+                        (0..6).into(),
+                    ),
+                    Node::new("MyProperty", (16..26).into()),
+                    Some(Node::new(Literal::String("Hello World!"), (29..43).into())),
+                    true,
+                    None,
+                ),
+            ),
+        ];
+
+        run_tests(data, auto_property_parser);
+    }
+
+    #[test]
+    fn test_full_property_parser() {
+        let src = r#"
+        int Property ValueProperty
+            Function Set(int newValue)
+            int Function Get()
+        EndProperty
+        "#;
+
+        let expected = FullProperty::new(
+            Node::new(
+                Type::new(
+                    Node::new(TypeName::BaseType(BaseType::Int), (9..12).into()),
+                    false,
+                ),
+                (9..12).into(),
+            ),
+            Node::new("ValueProperty", (22..35).into()),
+            None,
+            vec![
+                Node::new(
+                    Function::new(
+                        None,
+                        Node::new("Set", (57..60).into()),
+                        Some(vec![Node::new(
+                            FunctionParameter::new(
+                                Node::new(
+                                    Type::new(
+                                        Node::new(
+                                            TypeName::BaseType(BaseType::Int),
+                                            (61..64).into(),
+                                        ),
+                                        false,
+                                    ),
+                                    (61..64).into(),
+                                ),
+                                Node::new("newValue", (65..73).into()),
+                                None,
+                            ),
+                            (61..73).into(),
+                        )]),
+                        None,
+                        None,
+                    ),
+                    (48..74).into(),
+                ),
+                Node::new(
+                    Function::new(
+                        Some(Node::new(
+                            Type::new(
+                                Node::new(TypeName::BaseType(BaseType::Int), (87..90).into()),
+                                false,
+                            ),
+                            (87..90).into(),
+                        )),
+                        Node::new("Get", (100..103).into()),
+                        None,
+                        None,
+                        None,
+                    ),
+                    (87..105).into(),
+                ),
+            ],
+        );
+
+        run_test(src, expected, full_property_parser);
+    }
+
+    #[test]
+    fn test_property_group_parser() {
+        let src = r#"
+        Group MyGroup CollapsedOnRef CollapsedOnBase Collapsed
+            int Property FirstProperty auto
+
+            float Property SecondProperty
+                float Function Get()
+            EndProperty
+        EndGroup
+        "#;
+
+        let expected = PropertyGroup::new(
+            Node::new("MyGroup", (15..22).into()),
+            Some(vec![
+                Node::new(GroupFlag::CollapsedOnRef, (23..37).into()),
+                Node::new(GroupFlag::CollapsedOnBase, (38..53).into()),
+                Node::new(GroupFlag::Collapsed, (54..63).into()),
+            ]),
+            vec![
+                Node::new(
+                    Property::AutoProperty(AutoProperty::new(
+                        Node::new(
+                            Type::new(
+                                Node::new(TypeName::BaseType(BaseType::Int), (76..79).into()),
+                                false,
+                            ),
+                            (76..79).into(),
+                        ),
+                        Node::new("FirstProperty", (89..102).into()),
+                        None,
+                        false,
+                        None,
+                    )),
+                    (76..107).into(),
+                ),
+                Node::new(
+                    Property::FullProperty(FullProperty::new(
+                        Node::new(
+                            Type::new(
+                                Node::new(TypeName::BaseType(BaseType::Float), (121..126).into()),
+                                false,
+                            ),
+                            (121..126).into(),
+                        ),
+                        Node::new("SecondProperty", (136..150).into()),
+                        None,
+                        vec![Node::new(
+                            Function::new(
+                                Some(Node::new(
+                                    Type::new(
+                                        Node::new(
+                                            TypeName::BaseType(BaseType::Float),
+                                            (167..172).into(),
+                                        ),
+                                        false,
+                                    ),
+                                    (167..172).into(),
+                                )),
+                                Node::new("Get", (182..185).into()),
+                                None,
+                                None,
+                                None,
+                            ),
+                            (167..187).into(),
+                        )],
+                    )),
+                    (121..211).into(),
+                ),
+            ],
+        );
+
+        run_test(src, expected, property_group_parser);
     }
 }
