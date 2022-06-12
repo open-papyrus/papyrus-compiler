@@ -173,15 +173,15 @@ pub fn assignment_kind_parser<'a>() -> impl TokenParser<'a, AssignmentKind> {
 ///
 /// 'Return' [<expression>]
 ///
-/// <if statement> ::= 'If' <expression>
+/// <if statement> ::= 'If' '(' <expression> ')'
 ///                      <statement>*
-///                    ['ElseIf' <expression>
+///                    ['ElseIf' '(' <expression> ')'
 ///                      <statement>*]*
 ///                    ['Else'
 ///                      <statement>*]
 ///                    'EndIf'
 ///
-/// 'While' <expression>
+/// 'While' '(' <expression> ')'
 ///   <statement>*
 /// 'EndWhile'
 /// ```
@@ -190,7 +190,7 @@ pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
         let define_statement = type_with_identifier_parser()
             .then(
                 just(Token::Operator(OperatorKind::Assignment))
-                    .ignore_then(expression_parser())
+                    .ignore_then(expression_parser().map_with_span(Node::new))
                     .or_not(),
             )
             .map(|output| {
@@ -203,6 +203,7 @@ pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
             });
 
         let l_value = expression_parser()
+            .map_with_span(Node::new)
             .then_ignore(just(Token::Operator(OperatorKind::Access)))
             .or_not()
             .then(identifier_parser().map_with_span(Node::new))
@@ -219,8 +220,9 @@ pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
                 }
             })
             .or(expression_parser()
+                .map_with_span(Node::new)
                 .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsOpen)))
-                .then(expression_parser())
+                .then(expression_parser().map_with_span(Node::new))
                 .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsClose)))
                 .map(|output| {
                     let (array, index) = output;
@@ -231,18 +233,18 @@ pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
         let assignment_statement = l_value
             .map_with_span(Node::new)
             .then(assignment_kind_parser().map_with_span(Node::new))
-            .then(expression_parser())
+            .then(expression_parser().map_with_span(Node::new))
             .map(|output| {
                 let ((lhs, kind), rhs) = output;
                 Statement::Assignment { lhs, kind, rhs }
             });
 
         let return_statement = just(Token::Keyword(KeywordKind::Return))
-            .ignore_then(expression_parser().or_not())
+            .ignore_then(expression_parser().map_with_span(Node::new).or_not())
             .map(Statement::Return);
 
         let conditional_path = just(Token::Operator(OperatorKind::ParenthesisOpen))
-            .ignore_then(expression_parser())
+            .ignore_then(expression_parser().map_with_span(Node::new))
             .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
             .then(
                 statement
@@ -274,10 +276,16 @@ pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
                             .clone()
                             .map_with_span(Node::new)
                             .repeated()
-                            .at_least(1),
+                            .at_least(1)
+                            .or_not(),
                     )
-                    .or_not(),
+                    .or_not()
+                    .map(|else_statements| match else_statements {
+                        Some(else_statements) => else_statements,
+                        None => None,
+                    }),
             )
+            .then_ignore(just(Token::Keyword(KeywordKind::EndIf)))
             .map(|output| {
                 let ((if_path, other_paths), else_path) = output;
                 Statement::If {
@@ -317,15 +325,15 @@ mod test {
         let expected = Statement::VariableDefinition {
             type_node: Node::new(
                 Type::new(
-                    Node::new(TypeName::BaseType(BaseType::Int), (0..0).into()),
+                    Node::new(TypeName::BaseType(BaseType::Int), (0..3).into()),
                     false,
                 ),
-                (0..0).into(),
+                (0..3).into(),
             ),
-            name: Node::new("x", (0..0).into()),
+            name: Node::new("x", (4..5).into()),
             expression: Some(Node::new(
-                Expression::Literal(Node::new(Literal::Integer(1), (0..0).into())),
-                (0..0).into(),
+                Expression::Literal(Node::new(Literal::Integer(1), (8..9).into())),
+                (8..9).into(),
             )),
         };
 
@@ -421,40 +429,40 @@ mod test {
     fn test_if_statement() {
         let data = vec![
             (
-                "If true EndIf",
+                "If (true) EndIf",
                 Statement::If {
                     if_path: Node::new(
                         ConditionalPath {
                             condition: Node::new(
                                 Expression::Literal(Node::new(
                                     Literal::Boolean(true),
-                                    (3..7).into(),
+                                    (4..8).into(),
                                 )),
-                                (3..7).into(),
+                                (4..8).into(),
                             ),
                             statements: None,
                         },
-                        (0..0).into(),
+                        (3..9).into(),
                     ),
                     other_paths: None,
                     else_path: None,
                 },
             ),
             (
-                "If true ElseIf true ElseIf false Else EndIf",
+                "If (true) ElseIf (true) ElseIf (false) Else EndIf",
                 Statement::If {
                     if_path: Node::new(
                         ConditionalPath {
                             condition: Node::new(
                                 Expression::Literal(Node::new(
                                     Literal::Boolean(true),
-                                    (3..7).into(),
+                                    (4..8).into(),
                                 )),
-                                (3..7).into(),
+                                (4..8).into(),
                             ),
                             statements: None,
                         },
-                        (0..0).into(),
+                        (3..9).into(),
                     ),
                     other_paths: Some(vec![
                         Node::new(
@@ -462,26 +470,26 @@ mod test {
                                 condition: Node::new(
                                     Expression::Literal(Node::new(
                                         Literal::Boolean(true),
-                                        (0..0).into(),
+                                        (18..22).into(),
                                     )),
-                                    (0..0).into(),
+                                    (18..22).into(),
                                 ),
                                 statements: None,
                             },
-                            (0..0).into(),
+                            (17..23).into(),
                         ),
                         Node::new(
                             ConditionalPath {
                                 condition: Node::new(
                                     Expression::Literal(Node::new(
                                         Literal::Boolean(false),
-                                        (0..0).into(),
+                                        (32..37).into(),
                                     )),
-                                    (0..0).into(),
+                                    (32..37).into(),
                                 ),
                                 statements: None,
                             },
-                            (0..0).into(),
+                            (31..38).into(),
                         ),
                     ]),
                     else_path: None,
@@ -494,16 +502,16 @@ mod test {
 
     #[test]
     fn test_while_statement() {
-        let src = "While true EndWhile";
+        let src = "While (true) EndWhile";
         let expected = Statement::While(Node::new(
             ConditionalPath {
                 condition: Node::new(
-                    Expression::Literal(Node::new(Literal::Boolean(true), (0..0).into())),
-                    (0..0).into(),
+                    Expression::Literal(Node::new(Literal::Boolean(true), (7..11).into())),
+                    (7..11).into(),
                 ),
                 statements: None,
             },
-            (0..0).into(),
+            (6..12).into(),
         ));
 
         run_test(src, expected, statement_parser);

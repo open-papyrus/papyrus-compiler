@@ -1,9 +1,8 @@
 use crate::ast::identifier::Identifier;
-use crate::ast::literal::Literal;
+use crate::ast::literal::{literal_parser, Literal};
 use crate::ast::node::Node;
 use crate::ast::types::TypeName;
 use crate::parse::TokenParser;
-use chumsky::prelude::*;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -201,6 +200,24 @@ impl Display for BinaryKind {
     }
 }
 
-pub fn expression_parser<'a>() -> impl TokenParser<'a, Node<Expression<'a>>> {
-    todo()
+/// ```ebnf
+/// <expression>       ::= <and expression> ('||' <and expression>)*
+/// <and expression>   ::= <bool expression> ('&&' <bool expression>)*
+/// <bool expression>  ::= <add expression> (<comparison operator> <add expression>)*
+/// <add expression>   ::= <mult expression> (('+' | '-') <mult expression>)*
+/// <mult expression>  ::= <unary expression> (('*' | '/' | '%') <unary expression>)*
+/// <unary expression> ::= ['-' | '!'] <cast atom>
+/// <cast atom>        ::= <dot atom> ['as' <type>]
+/// <dot atom>         ::= (<array atom> ('.' <array func or id>)*) | <constant>
+/// <array atom>       ::= <atom> ['[' <expression> ']']
+/// <atom>             ::= ('(' <expression> ')') | ('new' <type> '[' <int> ']') | <func or id>
+/// <array func or id> ::= <func or id> ['[' <expression> ']']
+/// <func or id>       ::= <function call> | <scriptType> | 'length'
+/// ```
+pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
+    let literal = literal_parser()
+        .map_with_span(Node::new)
+        .map(Expression::Literal);
+
+    literal
 }
