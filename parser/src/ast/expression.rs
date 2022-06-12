@@ -64,7 +64,7 @@ pub enum Expression<'a> {
         arguments: Option<Vec<Node<Expression<'a>>>>,
     },
     /// '1', '"Hello World"', '1.0', 'false', 'none'
-    Constant(Node<Literal<'a>>),
+    Literal(Node<Literal<'a>>),
     Identifier(Node<Identifier<'a>>),
 }
 
@@ -106,7 +106,7 @@ impl<'a> Display for Expression<'a> {
 
                 Ok(())
             }
-            Expression::Constant(value) => write!(f, "{}", value),
+            Expression::Literal(value) => write!(f, "{}", value),
             Expression::Identifier(value) => write!(f, "{}", value),
         }
     }

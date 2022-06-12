@@ -324,7 +324,7 @@ mod test {
             ),
             name: Node::new("x", (0..0).into()),
             expression: Some(Node::new(
-                Expression::Constant(Node::new(Literal::Integer(1), (0..0).into())),
+                Expression::Literal(Node::new(Literal::Integer(1), (0..0).into())),
                 (0..0).into(),
             )),
         };
@@ -339,7 +339,7 @@ mod test {
             (
                 "Return 1",
                 Statement::Return(Some(Node::new(
-                    Expression::Constant(Node::new(Literal::Integer(1), (7..8).into())),
+                    Expression::Literal(Node::new(Literal::Integer(1), (7..8).into())),
                     (7..8).into(),
                 ))),
             ),
@@ -356,7 +356,7 @@ mod test {
         );
 
         let rhs = Node::new(
-            Expression::Constant(Node::new(Literal::Integer(1), (5..6).into())),
+            Expression::Literal(Node::new(Literal::Integer(1), (5..6).into())),
             (5..6).into(),
         );
 
@@ -367,7 +367,7 @@ mod test {
                     lhs: lhs.clone(),
                     kind: Node::new(AssignmentKind::Normal, (2..3).into()),
                     rhs: Node::new(
-                        Expression::Constant(Node::new(Literal::Integer(1), (4..5).into())),
+                        Expression::Literal(Node::new(Literal::Integer(1), (4..5).into())),
                         (4..5).into(),
                     ),
                 },
@@ -426,7 +426,7 @@ mod test {
                     if_path: Node::new(
                         ConditionalPath {
                             condition: Node::new(
-                                Expression::Constant(Node::new(
+                                Expression::Literal(Node::new(
                                     Literal::Boolean(true),
                                     (3..7).into(),
                                 )),
@@ -446,7 +446,7 @@ mod test {
                     if_path: Node::new(
                         ConditionalPath {
                             condition: Node::new(
-                                Expression::Constant(Node::new(
+                                Expression::Literal(Node::new(
                                     Literal::Boolean(true),
                                     (3..7).into(),
                                 )),
@@ -460,7 +460,7 @@ mod test {
                         Node::new(
                             ConditionalPath {
                                 condition: Node::new(
-                                    Expression::Constant(Node::new(
+                                    Expression::Literal(Node::new(
                                         Literal::Boolean(true),
                                         (0..0).into(),
                                     )),
@@ -473,7 +473,7 @@ mod test {
                         Node::new(
                             ConditionalPath {
                                 condition: Node::new(
-                                    Expression::Constant(Node::new(
+                                    Expression::Literal(Node::new(
                                         Literal::Boolean(false),
                                         (0..0).into(),
                                     )),
@@ -498,7 +498,7 @@ mod test {
         let expected = Statement::While(Node::new(
             ConditionalPath {
                 condition: Node::new(
-                    Expression::Constant(Node::new(Literal::Boolean(true), (0..0).into())),
+                    Expression::Literal(Node::new(Literal::Boolean(true), (0..0).into())),
                     (0..0).into(),
                 ),
                 statements: None,
