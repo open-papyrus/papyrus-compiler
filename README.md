@@ -4,9 +4,10 @@
 
 See [CONTRIBUTING](CONTRIBUTING.md) for more information.
 
-## Credits
+## Credits and Resources
 
 - [Orvid/Caprica](https://github.com/Orvid/Caprica): Existing Papyrus compiler for F04, written in C++
+- [cadpnq/papyrith](https://github.com/cadpnq/papyrith): Existing Papyrus compiler, written in Common Lisp
 - [papyrus-lang](https://github.com/joelday/papyrus-lang/wiki/Papyrus): Papyrus Wiki
 - [Creation Kit](https://www.creationkit.com/index.php?title=Category:Papyrus): Papyrus Wiki
 - [blu3mania/npp-papyrus](https://github.com/blu3mania/npp-papyrus): Notepad++ Plugins for Papyrus
