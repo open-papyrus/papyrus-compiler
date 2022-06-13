@@ -29,3 +29,5 @@ jobs:
         with:
           branch: gh-pages
           folder: docs/book
+          single-commit: true
+          force: true
