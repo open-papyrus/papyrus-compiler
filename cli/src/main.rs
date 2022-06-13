@@ -28,12 +28,9 @@ fn run(args: &Args) -> Result<(), anyhow::Error> {
     }
 
     let mut cache = SourceCache::default();
-    let script = cache.add_file(&args.input_path)?;
+    let (id, script) = cache.add_file(&args.input_path)?;
 
-    let res = papyrus_compiler_core::compile_string(
-        args.input_path.to_str().unwrap().to_string(),
-        script.as_str(),
-    );
+    let res = papyrus_compiler_core::compile_string(id, script.as_str());
 
     match res {
         Ok(script) => println!("{:#?}", script),

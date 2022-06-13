@@ -20,12 +20,12 @@ pub fn create_token_stream(id: SourceId, tokens: Vec<(Token, LexerSpan)>) -> Tok
                     | Token::DocumentationComment(_)
             )
         })
-        .map(|(token, lexer_span)| (token, Span::new(id.clone(), lexer_span)))
+        .map(|(token, lexer_span)| (token, Span::new(id, lexer_span)))
         .collect::<Vec<_>>();
 
     let eoi = match tokens.last() {
         Some((_, span)) => span.clone(),
-        None => Span::new(id.clone(), 0..1),
+        None => Span::new(id, 0..1),
     };
 
     chumsky::Stream::from_iter(eoi, tokens.into_iter())
@@ -48,7 +48,7 @@ pub mod test_utils {
         P: TokenParser<'a, O>,
         O: PartialEq + Debug,
     {
-        let token_stream = run_lexer_and_get_stream("repl".to_string(), src);
+        let token_stream = run_lexer_and_get_stream(u32::MAX, src);
         let res = parser_fn().then_ignore(end()).parse(token_stream).unwrap();
         assert_eq!(res, expected);
     }

@@ -7,7 +7,7 @@ pub mod error;
 pub mod source;
 
 pub fn compile_string(id: SourceId, src: &str) -> Result<Script, Vec<CustomReport>> {
-    let lexer_res = run_lexer(id.clone(), src)?;
+    let lexer_res = run_lexer(id, src)?;
     let parser_res = run_parser(id, lexer_res)?;
     Ok(parser_res)
 }
@@ -20,7 +20,7 @@ pub fn run_lexer(id: SourceId, src: &str) -> Result<Vec<(Token, LexerSpan)>, Vec
             if !matches!(token, Token::Error) {
                 None
             } else {
-                Some(lexer_error_to_report(id.clone(), span.clone()))
+                Some(lexer_error_to_report(id, span.clone()))
             }
         })
         .collect::<Vec<_>>();

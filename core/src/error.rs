@@ -22,7 +22,7 @@ impl Display for ErrorCode {
 pub type LexerSpan = core::ops::Range<usize>;
 
 pub fn lexer_error_to_report(id: SourceId, span: LexerSpan) -> CustomReport {
-    CustomReport::build(ReportKind::Error, id.clone(), span.start)
+    CustomReport::build(ReportKind::Error, id, span.start)
         .with_code(ErrorCode::LexerError)
         .with_message("Unknown Token")
         .with_label(
@@ -93,7 +93,7 @@ pub fn parser_error_to_report(parser_error: papyrus_compiler_parser::error::Erro
         )
     };
 
-    CustomReport::build(ReportKind::Error, source_id.clone(), span.range.start)
+    CustomReport::build(ReportKind::Error, source_id, span.range.start)
         .with_code(ErrorCode::ParserError)
         .with_message("Unexpected Token")
         .with_label(

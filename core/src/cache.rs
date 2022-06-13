@@ -7,12 +7,14 @@ use std::path::Path;
 
 #[derive(Default)]
 pub struct SourceCache {
-    sources: HashMap<SourceId, ariadne::Source>,
+    sources: HashMap<u32, ariadne::Source>,
+    paths: HashMap<u32, String>,
+    next_id: u32,
 }
 
 impl SourceCache {
-    pub fn add_file<P: AsRef<Path>>(&mut self, path: P) -> Result<String, anyhow::Error> {
-        let id = path
+    pub fn add_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(u32, String), anyhow::Error> {
+        let path_string = path
             .as_ref()
             .to_str()
             .with_context(|| format!("Path {} is not valid UTF8!", path.as_ref().display()))?
@@ -21,9 +23,13 @@ impl SourceCache {
         let script = fs::read_to_string(path)?;
         let source = ariadne::Source::from(&script);
 
-        self.sources.insert(id, source);
+        let id = self.next_id;
+        self.next_id += 1;
 
-        Ok(script)
+        self.sources.insert(id, source);
+        self.paths.insert(id, path_string);
+
+        Ok((id, script))
     }
 }
 
@@ -37,6 +43,10 @@ impl ariadne::Cache<SourceId> for SourceCache {
     }
 
     fn display<'a>(&self, id: &'a SourceId) -> Option<Box<dyn Display + 'a>> {
-        Some(Box::new(id))
+        let path = self.paths.get(id);
+        match path {
+            Some(path) => Some(Box::new(path.clone())),
+            None => None,
+        }
     }
 }

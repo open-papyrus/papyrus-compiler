@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
-pub type SourceId = String;
+pub type SourceId = u32;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Span {
@@ -11,7 +11,7 @@ pub struct Span {
 impl Span {
     pub fn union(&self, other: &Self) -> Self {
         Self {
-            id: self.id.clone(),
+            id: self.id,
             range: self.range.start.min(other.range.start)..self.range.end.max(other.range.end),
         }
     }
@@ -21,7 +21,7 @@ impl Span {
 impl From<Range<usize>> for Span {
     fn from(range: Range<usize>) -> Self {
         Self {
-            id: "repl".to_string(),
+            id: u32::MAX,
             range,
         }
     }
@@ -42,7 +42,7 @@ impl chumsky::Span for Span {
     }
 
     fn context(&self) -> Self::Context {
-        self.id.clone()
+        self.id
     }
 
     fn start(&self) -> Self::Offset {

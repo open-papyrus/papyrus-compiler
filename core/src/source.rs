@@ -1,4 +1,4 @@
-pub type SourceId = String;
+pub type SourceId = u32;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SourceSpan {
