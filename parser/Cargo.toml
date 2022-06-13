@@ -11,5 +11,5 @@ path = "../lexer"
 
 [dependencies]
 chumsky = "0.8.0"
-strum_macros = "0.24.0"
+strum_macros = "0.24.1"
 smallbox = "0.8.1"
