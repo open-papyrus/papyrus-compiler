@@ -1,9 +1,3 @@
-# Hi
+# Open Papyrus Compiler
 
-Hello
-
-```papyrus
-Function MyFunc()
-    Return 1
-EndFunction
-```
+This documentation is still being worked on.
