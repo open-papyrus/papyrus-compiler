@@ -76,10 +76,12 @@ pub enum Token<'a> {
     #[token("Mandatory", callback = |_| KeywordKind::Mandatory, ignore(ascii_case))]
     #[token("Native", callback = |_| KeywordKind::Native, ignore(ascii_case))]
     #[token("new", callback = |_| KeywordKind::New, ignore(ascii_case))]
+    #[token("Parent", callback = |_| KeywordKind::Parent, ignore(ascii_case))]
     #[token("Property", callback = |_| KeywordKind::Property, ignore(ascii_case))]
     #[token("return", callback = |_| KeywordKind::Return, ignore(ascii_case))]
     #[token("ScriptName", callback = |_| KeywordKind::ScriptName, ignore(ascii_case))]
     #[token("ScriptEventName", callback = |_| KeywordKind::ScriptEventName, ignore(ascii_case))]
+    #[token("Self", callback = |_| KeywordKind::Self_, ignore(ascii_case))]
     #[token("State", callback = |_| KeywordKind::State, ignore(ascii_case))]
     #[token("string", callback = |_| KeywordKind::String, ignore(ascii_case))]
     #[token("Struct", callback = |_| KeywordKind::Struct, ignore(ascii_case))]
@@ -319,10 +321,12 @@ mod test {
             ("Mandatory", KeywordKind::Mandatory),
             ("Native", KeywordKind::Native),
             ("new", KeywordKind::New),
+            ("Parent", KeywordKind::Parent),
             ("Property", KeywordKind::Property),
             ("return", KeywordKind::Return),
             ("ScriptName", KeywordKind::ScriptName),
             ("ScriptEventName", KeywordKind::ScriptEventName),
+            ("Self", KeywordKind::Self_),
             ("State", KeywordKind::State),
             ("string", KeywordKind::String),
             ("Struct", KeywordKind::Struct),
