@@ -1,8 +1,12 @@
-use crate::ast::identifier::Identifier;
+use crate::ast::identifier::{identifier_parser, Identifier};
 use crate::ast::literal::{literal_parser, Literal};
 use crate::ast::node::Node;
-use crate::ast::types::TypeName;
+use crate::ast::types::{type_name_parser, TypeName};
 use crate::parse::TokenParser;
+use chumsky::prelude::*;
+use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
+use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
+use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -65,6 +69,8 @@ pub enum Expression<'a> {
     /// '1', '"Hello World"', '1.0', 'false', 'none'
     Literal(Node<Literal<'a>>),
     Identifier(Node<Identifier<'a>>),
+    Self_,
+    Parent,
 }
 
 impl<'a> Display for Expression<'a> {
@@ -107,6 +113,8 @@ impl<'a> Display for Expression<'a> {
             }
             Expression::Literal(value) => write!(f, "{}", value),
             Expression::Identifier(value) => write!(f, "{}", value),
+            Expression::Parent => write!(f, "Parent"),
+            Expression::Self_ => write!(f, "Self"),
         }
     }
 }
@@ -210,14 +218,241 @@ impl Display for BinaryKind {
 /// <cast atom>        ::= <dot atom> ['as' <type>]
 /// <dot atom>         ::= (<array atom> ('.' <array func or id>)*) | <constant>
 /// <array atom>       ::= <atom> ['[' <expression> ']']
-/// <atom>             ::= ('(' <expression> ')') | ('new' <type> '[' <int> ']') | <func or id>
-/// <array func or id> ::= <func or id> ['[' <expression> ']']
-/// <func or id>       ::= <function call> | <scriptType> | 'length'
+/// <atom>             ::= ('(' <expression> ')') | ('new' <type> '[' <expression> ']') | <func or id>
+/// <func or id>       ::= <function call> | 'self' | 'parent'
 /// ```
 pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
-    let literal = literal_parser()
-        .map_with_span(Node::new)
-        .map(Expression::Literal);
+    recursive(|expr| {
+        let literal = literal_parser()
+            .map_with_span(Node::new)
+            .map(Expression::Literal);
 
-    literal
+        let identifier = identifier_parser()
+            .map_with_span(Node::new)
+            .map(Expression::Identifier);
+
+        let func_or_id = select! {
+            Token::Keyword(KeywordKind::Parent) => Expression::Parent,
+            Token::Keyword(KeywordKind::Self_) => Expression::Self_
+        }
+        .or(identifier
+            .clone()
+            .map_with_span(Node::new)
+            .then(
+                just(Token::Operator(OperatorKind::ParenthesisOpen))
+                    .ignore_then(
+                        expr.clone()
+                            .map_with_span(Node::new)
+                            .separated_by(just(Token::Operator(OperatorKind::Comma)))
+                            .map(|parameters| {
+                                if parameters.is_empty() {
+                                    None
+                                } else {
+                                    Some(parameters)
+                                }
+                            }),
+                    )
+                    .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
+                    .or_not()
+                    .map(|option| match option {
+                        Some(option) => option,
+                        None => None,
+                    }),
+            )
+            .map(|output| {
+                let (identifier, function_call_arguments) = output;
+                match function_call_arguments {
+                    Some(function_call_arguments) => Expression::FunctionCall {
+                        name: identifier,
+                        arguments: Some(function_call_arguments),
+                    },
+                    None => identifier.into_inner(),
+                }
+            }));
+
+        let atom = just(Token::Operator(OperatorKind::ParenthesisOpen))
+            .ignore_then(expr.clone())
+            .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
+            .or(just(Token::Keyword(KeywordKind::New))
+                .ignore_then(
+                    type_name_parser().map_with_span(Node::new).then(
+                        just(Token::Operator(OperatorKind::SquareBracketsOpen))
+                            .ignore_then(expr.clone().map_with_span(Node::new))
+                            .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsClose)))
+                            .or_not(),
+                    ),
+                )
+                .map(|output| {
+                    let (type_name, array_length) = output;
+                    match array_length {
+                        Some(array_length) => Expression::NewArray {
+                            element_type: type_name,
+                            size: array_length,
+                        },
+                        None => Expression::NewStructure(type_name),
+                    }
+                }))
+            .or(func_or_id);
+
+        let array_atom = atom
+            .map_with_span(Node::new)
+            .then(
+                just(Token::Operator(OperatorKind::SquareBracketsOpen))
+                    .ignore_then(expr.clone().map_with_span(Node::new))
+                    .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsClose)))
+                    .or_not(),
+            )
+            .map(|output| {
+                let (lhs, array_index) = output;
+                match array_index {
+                    Some(array_index) => Expression::ArrayAccess {
+                        array: lhs,
+                        index: array_index,
+                    },
+                    None => lhs.into_inner(),
+                }
+            });
+
+        array_atom.or(literal)
+    })
+}
+
+#[cfg(test)]
+mod test {
+    use crate::ast::expression::{expression_parser, Expression};
+    use crate::ast::literal::Literal;
+    use crate::ast::node::Node;
+    use crate::ast::types::{BaseType, TypeName};
+    use crate::parse::test_utils::{run_test, run_tests};
+
+    #[test]
+    fn test_literal_expression() {
+        let data = vec![
+            (
+                "none",
+                Expression::Literal(Node::new(Literal::None, (0..4).into())),
+            ),
+            (
+                "1",
+                Expression::Literal(Node::new(Literal::Integer(1), (0..1).into())),
+            ),
+            (
+                "1.0",
+                Expression::Literal(Node::new(Literal::Float(1.0), (0..3).into())),
+            ),
+            (
+                "false",
+                Expression::Literal(Node::new(Literal::Boolean(false), (0..5).into())),
+            ),
+            (
+                r#""Hello World!""#,
+                Expression::Literal(Node::new(Literal::String("Hello World!"), (0..14).into())),
+            ),
+        ];
+
+        run_tests(data, expression_parser);
+    }
+
+    #[test]
+    fn test_self_parent_expression() {
+        let data = vec![("self", Expression::Self_), ("parent", Expression::Parent)];
+
+        run_tests(data, expression_parser);
+    }
+
+    #[test]
+    fn test_function_call_expression() {
+        let src = r#"MyFunc(someArgument, anotherArgument, 1, 1.0, false, "Hi!", none)"#;
+        let expected = Expression::FunctionCall {
+            name: Node::new(
+                Expression::Identifier(Node::new("MyFunc", (0..6).into())),
+                (0..6).into(),
+            ),
+            arguments: Some(vec![
+                Node::new(
+                    Expression::Identifier(Node::new("someArgument", (7..19).into())),
+                    (7..19).into(),
+                ),
+                Node::new(
+                    Expression::Identifier(Node::new("anotherArgument", (21..36).into())),
+                    (21..36).into(),
+                ),
+                Node::new(
+                    Expression::Literal(Node::new(Literal::Integer(1), (38..39).into())),
+                    (38..39).into(),
+                ),
+                Node::new(
+                    Expression::Literal(Node::new(Literal::Float(1.0), (41..44).into())),
+                    (41..44).into(),
+                ),
+                Node::new(
+                    Expression::Literal(Node::new(Literal::Boolean(false), (46..51).into())),
+                    (46..51).into(),
+                ),
+                Node::new(
+                    Expression::Literal(Node::new(Literal::String("Hi!"), (53..58).into())),
+                    (53..58).into(),
+                ),
+                Node::new(
+                    Expression::Literal(Node::new(Literal::None, (60..64).into())),
+                    (60..64).into(),
+                ),
+            ]),
+        };
+
+        run_test(src, expected, expression_parser);
+    }
+
+    #[test]
+    fn test_nested_parentheses() {
+        let src = r#"(((((((((("Help I'm Stuck!"))))))))))"#;
+        let expected = Expression::Literal(Node::new(
+            Literal::String("Help I'm Stuck!"),
+            (10..27).into(),
+        ));
+
+        run_test(src, expected, expression_parser);
+    }
+
+    #[test]
+    fn test_new_array_expression() {
+        let src = "new int[100]";
+        let expected = Expression::NewArray {
+            element_type: Node::new(TypeName::BaseType(BaseType::Int), (4..7).into()),
+            size: Node::new(
+                Expression::Literal(Node::new(Literal::Integer(100), (8..11).into())),
+                (8..11).into(),
+            ),
+        };
+
+        run_test(src, expected, expression_parser);
+    }
+
+    #[test]
+    fn test_new_structure_expression() {
+        let src = "new CoolStruct";
+        let expected = Expression::NewStructure(Node::new(
+            TypeName::Identifier("CoolStruct"),
+            (4..14).into(),
+        ));
+
+        run_test(src, expected, expression_parser);
+    }
+
+    #[test]
+    fn test_array_access_expression() {
+        let src = "myCoolArray[10]";
+        let expected = Expression::ArrayAccess {
+            array: Node::new(
+                Expression::Identifier(Node::new("myCoolArray", (0..11).into())),
+                (0..11).into(),
+            ),
+            index: Node::new(
+                Expression::Literal(Node::new(Literal::Integer(10), (12..14).into())),
+                (12..14).into(),
+            ),
+        };
+
+        run_test(src, expected, expression_parser);
+    }
 }

@@ -25,6 +25,10 @@ impl<T> Node<T> {
         self.inner.deref_mut()
     }
 
+    pub fn into_inner(self) -> T {
+        self.inner.into_inner()
+    }
+
     pub fn span(&self) -> Span {
         self.span.clone()
     }
