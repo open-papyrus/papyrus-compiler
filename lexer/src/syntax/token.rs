@@ -72,7 +72,6 @@ pub enum Token<'a> {
     #[token("If", callback = |_| KeywordKind::If, ignore(ascii_case))]
     #[token("Import", callback = |_| KeywordKind::Import, ignore(ascii_case))]
     #[token("int", callback = |_| KeywordKind::Int, ignore(ascii_case))]
-    #[token("Length", callback = |_| KeywordKind::Length, ignore(ascii_case))]
     #[token("Mandatory", callback = |_| KeywordKind::Mandatory, ignore(ascii_case))]
     #[token("Native", callback = |_| KeywordKind::Native, ignore(ascii_case))]
     #[token("new", callback = |_| KeywordKind::New, ignore(ascii_case))]
@@ -317,7 +316,6 @@ mod test {
             ("If", KeywordKind::If),
             ("Import", KeywordKind::Import),
             ("int", KeywordKind::Int),
-            ("Length", KeywordKind::Length),
             ("Mandatory", KeywordKind::Mandatory),
             ("Native", KeywordKind::Native),
             ("new", KeywordKind::New),

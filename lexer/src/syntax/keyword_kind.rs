@@ -33,7 +33,6 @@ pub enum KeywordKind {
     If,
     Import,
     Int,
-    Length,
     Mandatory,
     Native,
     New,
