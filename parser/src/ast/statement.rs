@@ -311,7 +311,7 @@ pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
 
 #[cfg(test)]
 mod test {
-    use crate::ast::expression::Expression;
+    use crate::ast::expression::{ComparisonKind, Expression};
     use crate::ast::literal::Literal;
     use crate::ast::node::Node;
     use crate::ast::statement::{statement_parser, AssignmentKind, ConditionalPath, Statement};
@@ -437,7 +437,7 @@ mod test {
                                     Literal::Boolean(true),
                                     (4..8).into(),
                                 )),
-                                (4..8).into(),
+                                (3..9).into(),
                             ),
                             statements: None,
                         },
@@ -457,7 +457,7 @@ mod test {
                                     Literal::Boolean(true),
                                     (4..8).into(),
                                 )),
-                                (4..8).into(),
+                                (3..9).into(),
                             ),
                             statements: None,
                         },
@@ -471,7 +471,7 @@ mod test {
                                         Literal::Boolean(true),
                                         (18..22).into(),
                                     )),
-                                    (18..22).into(),
+                                    (17..23).into(),
                                 ),
                                 statements: None,
                             },
@@ -484,7 +484,7 @@ mod test {
                                         Literal::Boolean(false),
                                         (32..37).into(),
                                     )),
-                                    (32..37).into(),
+                                    (31..38).into(),
                                 ),
                                 statements: None,
                             },
@@ -492,6 +492,82 @@ mod test {
                         ),
                     ]),
                     else_path: None,
+                },
+            ),
+            (
+                r#"if x == 0
+    Return y
+elseif x == 1
+    Return y
+else
+    Return y
+endif"#,
+                Statement::If {
+                    if_path: Node::new(
+                        ConditionalPath::new(
+                            Node::new(
+                                Expression::Comparison {
+                                    lhs: Node::new(
+                                        Expression::Identifier(Node::new("x", (3..4).into())),
+                                        (3..4).into(),
+                                    ),
+                                    kind: Node::new(ComparisonKind::EqualTo, (5..7).into()),
+                                    rhs: Node::new(
+                                        Expression::Literal(Node::new(
+                                            Literal::Integer(0),
+                                            (8..9).into(),
+                                        )),
+                                        (8..9).into(),
+                                    ),
+                                },
+                                (3..9).into(),
+                            ),
+                            Some(vec![Node::new(
+                                Statement::Return(Some(Node::new(
+                                    Expression::Identifier(Node::new("y", (21..22).into())),
+                                    (21..22).into(),
+                                ))),
+                                (14..22).into(),
+                            )]),
+                        ),
+                        (3..22).into(),
+                    ),
+                    other_paths: Some(vec![Node::new(
+                        ConditionalPath::new(
+                            Node::new(
+                                Expression::Comparison {
+                                    lhs: Node::new(
+                                        Expression::Identifier(Node::new("x", (30..31).into())),
+                                        (30..31).into(),
+                                    ),
+                                    kind: Node::new(ComparisonKind::EqualTo, (32..34).into()),
+                                    rhs: Node::new(
+                                        Expression::Literal(Node::new(
+                                            Literal::Integer(1),
+                                            (35..36).into(),
+                                        )),
+                                        (35..36).into(),
+                                    ),
+                                },
+                                (30..36).into(),
+                            ),
+                            Some(vec![Node::new(
+                                Statement::Return(Some(Node::new(
+                                    Expression::Identifier(Node::new("y", (48..49).into())),
+                                    (48..49).into(),
+                                ))),
+                                (41..49).into(),
+                            )]),
+                        ),
+                        (30..49).into(),
+                    )]),
+                    else_path: Some(vec![Node::new(
+                        Statement::Return(Some(Node::new(
+                            Expression::Identifier(Node::new("y", (66..67).into())),
+                            (66..67).into(),
+                        ))),
+                        (59..67).into(),
+                    )]),
                 },
             ),
         ];
@@ -506,7 +582,7 @@ mod test {
             ConditionalPath {
                 condition: Node::new(
                     Expression::Literal(Node::new(Literal::Boolean(true), (7..11).into())),
-                    (7..11).into(),
+                    (6..12).into(),
                 ),
                 statements: None,
             },
