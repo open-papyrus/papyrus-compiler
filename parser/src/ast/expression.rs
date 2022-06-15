@@ -334,7 +334,7 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                 }
             })
             .boxed();
-        
+
         let dot_atom = literal
             .or(array_atom
                 .clone()
@@ -351,7 +351,23 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                 .map(|x| x.into_inner()))
             .or(array_atom.clone());
 
-        dot_atom
+        let cast_as = dot_atom
+            .clone()
+            .map_with_span(Node::new)
+            .then_ignore(just(Token::Operator(OperatorKind::CastAs)))
+            .then(type_name_parser().map_with_span(Node::new))
+            .map(|(lhs, rhs)| Expression::Cast { lhs, rhs });
+
+        let cast_is = dot_atom
+            .clone()
+            .map_with_span(Node::new)
+            .then_ignore(just(Token::Operator(OperatorKind::CastIs)))
+            .then(type_name_parser().map_with_span(Node::new))
+            .map(|(lhs, rhs)| Expression::TypeCheck { lhs, rhs });
+
+        let cast_atom = cast_as.or(cast_is).or(dot_atom.clone());
+
+        cast_atom
     })
 }
 
@@ -515,6 +531,34 @@ mod test {
                 Expression::Identifier(Node::new("MyProperty", (23..33).into())),
                 (23..33).into(),
             ),
+        };
+
+        run_test(src, expected, expression_parser);
+    }
+
+    #[test]
+    fn test_cast() {
+        let src = "x as int";
+        let expected = Expression::Cast {
+            lhs: Node::new(
+                Expression::Identifier(Node::new("x", (0..1).into())),
+                (0..1).into(),
+            ),
+            rhs: Node::new(TypeName::BaseType(BaseType::Int), (5..8).into()),
+        };
+
+        run_test(src, expected, expression_parser);
+    }
+
+    #[test]
+    fn test_type_check() {
+        let src = "x is int";
+        let expected = Expression::TypeCheck {
+            lhs: Node::new(
+                Expression::Identifier(Node::new("x", (0..1).into())),
+                (0..1).into(),
+            ),
+            rhs: Node::new(TypeName::BaseType(BaseType::Int), (5..8).into()),
         };
 
         run_test(src, expected, expression_parser);
