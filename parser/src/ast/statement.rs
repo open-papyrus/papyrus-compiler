@@ -212,7 +212,7 @@ pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
                 let identifier = Expression::Identifier(identifier);
 
                 match expression {
-                    Some(lhs) => Expression::Access {
+                    Some(lhs) => Expression::MemberAccess {
                         lhs,
                         rhs: Node::new(identifier, identifier_span),
                     },

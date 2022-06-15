@@ -40,7 +40,7 @@ pub enum Expression<'a> {
         index: Node<Expression<'a>>,
     },
     /// 'MyObject.MyProperty'
-    Access {
+    MemberAccess {
         lhs: Node<Expression<'a>>,
         rhs: Node<Expression<'a>>,
     },
@@ -83,7 +83,7 @@ impl<'a> Display for Expression<'a> {
             Expression::Unary { kind, rhs } => write!(f, "{}{}", kind, rhs),
             Expression::Binary { lhs, kind, rhs } => write!(f, "{} {} {}", lhs, kind, rhs),
             Expression::ArrayAccess { array, index } => write!(f, "{}[{}]", array, index),
-            Expression::Access { lhs, rhs } => write!(f, "{}.{}", lhs, rhs),
+            Expression::MemberAccess { lhs, rhs } => write!(f, "{}.{}", lhs, rhs),
             Expression::Cast { lhs, rhs } => write!(f, "{} as {}", lhs, rhs),
             Expression::TypeCheck { lhs, rhs } => write!(f, "{} is {}", lhs, rhs),
             Expression::NewArray { element_type, size } => {
@@ -219,6 +219,7 @@ impl Display for BinaryKind {
 /// <dot atom>         ::= (<array atom> ('.' <array func or id>)*) | <constant>
 /// <array atom>       ::= <atom> ['[' <expression> ']']
 /// <atom>             ::= ('(' <expression> ')') | ('new' <type> '[' <expression> ']') | <func or id>
+/// <array func or id> ::= <func or id> ['[' <expression> ']']
 /// <func or id>       ::= <function call> | 'self' | 'parent'
 /// ```
 pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
@@ -270,6 +271,26 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                 }
             }));
 
+        let array_func_or_id = func_or_id
+            .clone()
+            .map_with_span(Node::new)
+            .then(
+                just(Token::Operator(OperatorKind::SquareBracketsOpen))
+                    .ignore_then(expr.clone().map_with_span(Node::new))
+                    .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsClose)))
+                    .or_not(),
+            )
+            .map(|output| {
+                let (lhs, array_index) = output;
+                match array_index {
+                    Some(array_index) => Expression::ArrayAccess {
+                        array: lhs,
+                        index: array_index,
+                    },
+                    None => lhs.into_inner(),
+                }
+            });
+
         let atom = just(Token::Operator(OperatorKind::ParenthesisOpen))
             .ignore_then(expr.clone())
             .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
@@ -292,7 +313,7 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                         None => Expression::NewStructure(type_name),
                     }
                 }))
-            .or(func_or_id);
+            .or(func_or_id.clone());
 
         let array_atom = atom
             .map_with_span(Node::new)
@@ -311,9 +332,26 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                     },
                     None => lhs.into_inner(),
                 }
-            });
+            })
+            .boxed();
+        
+        let dot_atom = literal
+            .or(array_atom
+                .clone()
+                .map_with_span(Node::new)
+                .then(
+                    just(Token::Operator(OperatorKind::Access))
+                        .ignore_then(array_func_or_id.map_with_span(Node::new))
+                        .repeated(),
+                )
+                .foldl(|lhs, rhs| {
+                    let span = lhs.span_union(&rhs);
+                    Node::new(Expression::MemberAccess { lhs, rhs }, span)
+                })
+                .map(|x| x.into_inner()))
+            .or(array_atom.clone());
 
-        array_atom.or(literal)
+        dot_atom
     })
 }
 
@@ -450,6 +488,32 @@ mod test {
             index: Node::new(
                 Expression::Literal(Node::new(Literal::Integer(10), (12..14).into())),
                 (12..14).into(),
+            ),
+        };
+
+        run_test(src, expected, expression_parser);
+    }
+
+    #[test]
+    fn test_member_access_expression() {
+        let src = "MyObject.AnotherObject.MyProperty";
+        let expected = Expression::MemberAccess {
+            lhs: Node::new(
+                Expression::MemberAccess {
+                    lhs: Node::new(
+                        Expression::Identifier(Node::new("MyObject", (0..8).into())),
+                        (0..8).into(),
+                    ),
+                    rhs: Node::new(
+                        Expression::Identifier(Node::new("AnotherObject", (9..22).into())),
+                        (9..22).into(),
+                    ),
+                },
+                (0..22).into(),
+            ),
+            rhs: Node::new(
+                Expression::Identifier(Node::new("MyProperty", (23..33).into())),
+                (23..33).into(),
             ),
         };
 
