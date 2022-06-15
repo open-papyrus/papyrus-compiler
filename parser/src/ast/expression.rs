@@ -375,15 +375,27 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                     }
                 }
                 None => lhs.into_inner(),
+            })
+            .boxed();
+
+        let unary_expression = just(Token::Operator(OperatorKind::Subtraction))
+            .to(UnaryKind::Negative)
+            .or(just(Token::Operator(OperatorKind::LogicalNot)).to(UnaryKind::LogicalNot))
+            .map_with_span(Node::new)
+            .or_not()
+            .then(cast_atom.map_with_span(Node::new))
+            .map(|(kind, rhs)| match kind {
+                Some(kind) => Expression::Unary { kind, rhs },
+                None => rhs.into_inner(),
             });
 
-        cast_atom
+        unary_expression
     })
 }
 
 #[cfg(test)]
 mod test {
-    use crate::ast::expression::{expression_parser, Expression};
+    use crate::ast::expression::{expression_parser, Expression, UnaryKind};
     use crate::ast::literal::Literal;
     use crate::ast::node::Node;
     use crate::ast::types::{BaseType, TypeName};
@@ -547,7 +559,7 @@ mod test {
     }
 
     #[test]
-    fn test_cast() {
+    fn test_cast_expression() {
         let src = "x as int";
         let expected = Expression::Cast {
             lhs: Node::new(
@@ -561,7 +573,7 @@ mod test {
     }
 
     #[test]
-    fn test_type_check() {
+    fn test_type_check_expression() {
         let src = "x is int";
         let expected = Expression::TypeCheck {
             lhs: Node::new(
@@ -572,5 +584,33 @@ mod test {
         };
 
         run_test(src, expected, expression_parser);
+    }
+
+    #[test]
+    fn test_unary_expression() {
+        let data = vec![
+            (
+                "!x",
+                Expression::Unary {
+                    kind: Node::new(UnaryKind::LogicalNot, (0..1).into()),
+                    rhs: Node::new(
+                        Expression::Identifier(Node::new("x", (1..2).into())),
+                        (1..2).into(),
+                    ),
+                },
+            ),
+            (
+                "-x",
+                Expression::Unary {
+                    kind: Node::new(UnaryKind::Negative, (0..1).into()),
+                    rhs: Node::new(
+                        Expression::Identifier(Node::new("x", (1..2).into())),
+                        (1..2).into(),
+                    ),
+                },
+            ),
+        ];
+
+        run_tests(data, expression_parser);
     }
 }
