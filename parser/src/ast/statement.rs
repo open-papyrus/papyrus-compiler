@@ -31,6 +31,7 @@ pub enum Statement<'a> {
         else_path: Option<Vec<Node<Statement<'a>>>>,
     },
     While(Node<ConditionalPath<'a>>),
+    Expression(Node<Expression<'a>>),
 }
 
 pub fn display_statements<'a>(
@@ -87,6 +88,7 @@ impl<'a> Display for Statement<'a> {
                 Ok(())
             }
             Statement::While(path) => write!(f, "While {}\nEndWhile", path),
+            Statement::Expression(expression) => write!(f, "{}", expression),
         }
     }
 }
@@ -299,12 +301,17 @@ pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
             .then_ignore(just(Token::Keyword(KeywordKind::EndWhile)))
             .map(Statement::While);
 
+        let expression_statement = expression_parser()
+            .map_with_span(Node::new)
+            .map(Statement::Expression);
+
         choice((
             define_statement,
             assignment_statement,
             return_statement,
             if_statement,
             while_statement,
+            expression_statement,
         ))
     })
 }
@@ -587,6 +594,35 @@ endif"#,
                 statements: None,
             },
             (6..12).into(),
+        ));
+
+        run_test(src, expected, statement_parser);
+    }
+
+    #[test]
+    fn test_expression_statement() {
+        let src = "Debug.Trace(msg)";
+        let expected = Statement::Expression(Node::new(
+            Expression::MemberAccess {
+                lhs: Node::new(
+                    Expression::Identifier(Node::new("Debug", (0..5).into())),
+                    (0..5).into(),
+                ),
+                rhs: Node::new(
+                    Expression::FunctionCall {
+                        name: Node::new(
+                            Expression::Identifier(Node::new("Trace", (6..11).into())),
+                            (6..11).into(),
+                        ),
+                        arguments: Some(vec![Node::new(
+                            Expression::Identifier(Node::new("msg", (12..15).into())),
+                            (12..15).into(),
+                        )]),
+                    },
+                    (6..16).into(),
+                ),
+            },
+            (0..16).into(),
         ));
 
         run_test(src, expected, statement_parser);
