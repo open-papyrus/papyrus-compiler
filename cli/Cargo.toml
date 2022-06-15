@@ -14,5 +14,5 @@ path = "../core"
 
 [dependencies]
 anyhow = "1.0.57"
-clap = { version = "3.2.1", features = ["derive"] }
+clap = { version = "3.2.4", features = ["derive"] }
 ariadne = "0.1.5"
