@@ -18,3 +18,8 @@ rustup component add clippy rustfmt
 ```
 
 You can configure your IDE to automatically run these two tools on save. I will not accept un-formatted code and clippy will also run as part of the CI.
+
+## Documentation
+
+The documentation is written in Markdown and be found [here](./docs). We use [mdBook](https://rust-lang.github.io/mdBook/) to create the documentation site from Markdown.
+
