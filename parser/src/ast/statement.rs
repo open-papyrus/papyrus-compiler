@@ -243,9 +243,8 @@ pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
             .ignore_then(expression_parser().map_with_span(Node::new).or_not())
             .map(Statement::Return);
 
-        let conditional_path = just(Token::Operator(OperatorKind::ParenthesisOpen))
-            .ignore_then(expression_parser().map_with_span(Node::new))
-            .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
+        let conditional_path = expression_parser()
+            .map_with_span(Node::new)
             .then(
                 statement
                     .clone()
