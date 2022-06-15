@@ -386,13 +386,106 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                 None => rhs.into_inner(),
             });
 
-        unary_expression
+        let mult_expression = unary_expression
+            .clone()
+            .map_with_span(Node::new)
+            .then(
+                select! {
+                    Token::Operator(OperatorKind::Multiplication) => BinaryKind::Multiplication,
+                    Token::Operator(OperatorKind::Division) => BinaryKind::Division,
+                    Token::Operator(OperatorKind::Modulus) => BinaryKind::Modulus,
+                }
+                .map_with_span(Node::new)
+                .then(unary_expression.clone().map_with_span(Node::new))
+                .repeated(),
+            )
+            .foldl(|lhs, (kind, rhs)| {
+                let span = lhs.span_union(&rhs);
+                Node::new(Expression::Binary { lhs, kind, rhs }, span)
+            })
+            .map(|x| x.into_inner());
+
+        let add_expression = mult_expression
+            .clone()
+            .map_with_span(Node::new)
+            .then(
+                select! {
+                    Token::Operator(OperatorKind::Addition) => BinaryKind::Addition,
+                    Token::Operator(OperatorKind::Subtraction) => BinaryKind::Subtraction,
+                }
+                .map_with_span(Node::new)
+                .then(mult_expression.clone().map_with_span(Node::new))
+                .repeated(),
+            )
+            .foldl(|lhs, (kind, rhs)| {
+                let span = lhs.span_union(&rhs);
+                Node::new(Expression::Binary { lhs, kind, rhs }, span)
+            })
+            .map(|x| x.into_inner());
+
+        let comparison_expression = add_expression
+            .clone()
+            .map_with_span(Node::new)
+            .then(
+                select! {
+                    Token::Operator(OperatorKind::EqualTo) => ComparisonKind::EqualTo,
+                    Token::Operator(OperatorKind::NotEqualTo) => ComparisonKind::NotEqualTo,
+                    Token::Operator(OperatorKind::GreaterThan) => ComparisonKind::GreaterThan,
+                    Token::Operator(OperatorKind::LessThan) => ComparisonKind::LessThan,
+                    Token::Operator(OperatorKind::GreaterThanOrEqualTo) => ComparisonKind::GreaterThanOrEqualTo,
+                    Token::Operator(OperatorKind::LessThanOrEqualTo) => ComparisonKind::LessThanOrEqualTo,
+                }
+                    .map_with_span(Node::new)
+                    .then(add_expression.clone().map_with_span(Node::new))
+                    .repeated(),
+            )
+            .foldl(|lhs, (kind, rhs)| {
+                let span = lhs.span_union(&rhs);
+                Node::new(Expression::Comparison { lhs, kind, rhs }, span)
+            })
+            .map(|x| x.into_inner()).boxed();
+
+        let and_expression = comparison_expression
+            .clone()
+            .map_with_span(Node::new)
+            .then(
+                just(Token::Operator(OperatorKind::LogicalAnd))
+                    .to(LogicalKind::And)
+                    .map_with_span(Node::new)
+                    .then(comparison_expression.clone().map_with_span(Node::new))
+                    .repeated(),
+            )
+            .foldl(|lhs, (kind, rhs)| {
+                let span = lhs.span_union(&rhs);
+                Node::new(Expression::LogicalOperation { lhs, kind, rhs }, span)
+            })
+            .map(|x| x.into_inner());
+
+        let or_expression = and_expression
+            .clone()
+            .map_with_span(Node::new)
+            .then(
+                just(Token::Operator(OperatorKind::LogicalOr))
+                    .to(LogicalKind::Or)
+                    .map_with_span(Node::new)
+                    .then(and_expression.clone().map_with_span(Node::new))
+                    .repeated(),
+            )
+            .foldl(|lhs, (kind, rhs)| {
+                let span = lhs.span_union(&rhs);
+                Node::new(Expression::LogicalOperation { lhs, kind, rhs }, span)
+            })
+            .map(|x| x.into_inner());
+
+        or_expression
     })
 }
 
 #[cfg(test)]
 mod test {
-    use crate::ast::expression::{expression_parser, Expression, UnaryKind};
+    use crate::ast::expression::{
+        expression_parser, BinaryKind, ComparisonKind, Expression, LogicalKind, UnaryKind,
+    };
     use crate::ast::literal::Literal;
     use crate::ast::node::Node;
     use crate::ast::types::{BaseType, TypeName};
@@ -621,6 +714,167 @@ mod test {
                         Expression::Identifier(Node::new("x", (1..2).into())),
                         (1..2).into(),
                     ),
+                },
+            ),
+        ];
+
+        run_tests(data, expression_parser);
+    }
+
+    #[test]
+    fn test_binary_expression() {
+        let lhs = Node::new(
+            Expression::Identifier(Node::new("x", (0..1).into())),
+            (0..1).into(),
+        );
+        let rhs = Node::new(
+            Expression::Identifier(Node::new("y", (4..5).into())),
+            (4..5).into(),
+        );
+
+        let data = vec![
+            (
+                "x * y",
+                Expression::Binary {
+                    lhs: lhs.clone(),
+                    kind: Node::new(BinaryKind::Multiplication, (2..3).into()),
+                    rhs: rhs.clone(),
+                },
+            ),
+            (
+                "x / y",
+                Expression::Binary {
+                    lhs: lhs.clone(),
+                    kind: Node::new(BinaryKind::Division, (2..3).into()),
+                    rhs: rhs.clone(),
+                },
+            ),
+            (
+                "x % y",
+                Expression::Binary {
+                    lhs: lhs.clone(),
+                    kind: Node::new(BinaryKind::Modulus, (2..3).into()),
+                    rhs: rhs.clone(),
+                },
+            ),
+            (
+                "x + y",
+                Expression::Binary {
+                    lhs: lhs.clone(),
+                    kind: Node::new(BinaryKind::Addition, (2..3).into()),
+                    rhs: rhs.clone(),
+                },
+            ),
+            (
+                "x - y",
+                Expression::Binary {
+                    lhs: lhs.clone(),
+                    kind: Node::new(BinaryKind::Subtraction, (2..3).into()),
+                    rhs: rhs.clone(),
+                },
+            ),
+        ];
+
+        run_tests(data, expression_parser);
+    }
+
+    #[test]
+    fn test_comparison_expression() {
+        let lhs = Node::new(
+            Expression::Identifier(Node::new("x", (0..1).into())),
+            (0..1).into(),
+        );
+
+        let single_rhs = Node::new(
+            Expression::Identifier(Node::new("y", (4..5).into())),
+            (4..5).into(),
+        );
+
+        let double_rhs = Node::new(
+            Expression::Identifier(Node::new("y", (5..6).into())),
+            (5..6).into(),
+        );
+
+        let data = vec![
+            (
+                "x == y",
+                Expression::Comparison {
+                    lhs: lhs.clone(),
+                    kind: Node::new(ComparisonKind::EqualTo, (2..4).into()),
+                    rhs: double_rhs.clone(),
+                },
+            ),
+            (
+                "x != y",
+                Expression::Comparison {
+                    lhs: lhs.clone(),
+                    kind: Node::new(ComparisonKind::NotEqualTo, (2..4).into()),
+                    rhs: double_rhs.clone(),
+                },
+            ),
+            (
+                "x > y",
+                Expression::Comparison {
+                    lhs: lhs.clone(),
+                    kind: Node::new(ComparisonKind::GreaterThan, (2..3).into()),
+                    rhs: single_rhs.clone(),
+                },
+            ),
+            (
+                "x < y",
+                Expression::Comparison {
+                    lhs: lhs.clone(),
+                    kind: Node::new(ComparisonKind::LessThan, (2..3).into()),
+                    rhs: single_rhs.clone(),
+                },
+            ),
+            (
+                "x >= y",
+                Expression::Comparison {
+                    lhs: lhs.clone(),
+                    kind: Node::new(ComparisonKind::GreaterThanOrEqualTo, (2..4).into()),
+                    rhs: double_rhs.clone(),
+                },
+            ),
+            (
+                "x <= y",
+                Expression::Comparison {
+                    lhs: lhs.clone(),
+                    kind: Node::new(ComparisonKind::LessThanOrEqualTo, (2..4).into()),
+                    rhs: double_rhs.clone(),
+                },
+            ),
+        ];
+
+        run_tests(data, expression_parser);
+    }
+
+    #[test]
+    fn test_logical_operation_expression() {
+        let lhs = Node::new(
+            Expression::Identifier(Node::new("x", (0..1).into())),
+            (0..1).into(),
+        );
+        let rhs = Node::new(
+            Expression::Identifier(Node::new("y", (5..6).into())),
+            (5..6).into(),
+        );
+
+        let data = vec![
+            (
+                "x && y",
+                Expression::LogicalOperation {
+                    lhs: lhs.clone(),
+                    kind: Node::new(LogicalKind::And, (2..4).into()),
+                    rhs: rhs.clone(),
+                },
+            ),
+            (
+                "x || y",
+                Expression::LogicalOperation {
+                    lhs: lhs.clone(),
+                    kind: Node::new(LogicalKind::Or, (2..4).into()),
+                    rhs: rhs.clone(),
                 },
             ),
         ];
