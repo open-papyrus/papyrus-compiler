@@ -351,21 +351,31 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                 .map(|x| x.into_inner()))
             .or(array_atom.clone());
 
-        let cast_as = dot_atom
-            .clone()
+        let cast_atom = dot_atom
             .map_with_span(Node::new)
-            .then_ignore(just(Token::Operator(OperatorKind::CastAs)))
-            .then(type_name_parser().map_with_span(Node::new))
-            .map(|(lhs, rhs)| Expression::Cast { lhs, rhs });
-
-        let cast_is = dot_atom
-            .clone()
-            .map_with_span(Node::new)
-            .then_ignore(just(Token::Operator(OperatorKind::CastIs)))
-            .then(type_name_parser().map_with_span(Node::new))
-            .map(|(lhs, rhs)| Expression::TypeCheck { lhs, rhs });
-
-        let cast_atom = cast_as.or(cast_is).or(dot_atom.clone());
+            .then(
+                just(Token::Operator(OperatorKind::CastAs))
+                    .to(true)
+                    .or(just(Token::Operator(OperatorKind::CastIs)).to(false))
+                    .then(type_name_parser().map_with_span(Node::new))
+                    .or_not(),
+            )
+            .map(|(lhs, rhs)| match rhs {
+                Some((is_cast_as, type_name)) => {
+                    if is_cast_as {
+                        Expression::Cast {
+                            lhs,
+                            rhs: type_name,
+                        }
+                    } else {
+                        Expression::TypeCheck {
+                            lhs,
+                            rhs: type_name,
+                        }
+                    }
+                }
+                None => lhs.into_inner(),
+            });
 
         cast_atom
     })
