@@ -335,21 +335,18 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
             })
             .boxed();
 
-        let dot_atom = literal
-            .or(array_atom
-                .clone()
-                .map_with_span(Node::new)
-                .then(
-                    just(Token::Operator(OperatorKind::Access))
-                        .ignore_then(array_func_or_id.map_with_span(Node::new))
-                        .repeated(),
-                )
-                .foldl(|lhs, rhs| {
-                    let span = lhs.span_union(&rhs);
-                    Node::new(Expression::MemberAccess { lhs, rhs }, span)
-                })
-                .map(|x| x.into_inner()))
-            .or(array_atom.clone());
+        let dot_atom = literal.or(array_atom
+            .map_with_span(Node::new)
+            .then(
+                just(Token::Operator(OperatorKind::Access))
+                    .ignore_then(array_func_or_id.map_with_span(Node::new))
+                    .repeated(),
+            )
+            .foldl(|lhs, rhs| {
+                let span = lhs.span_union(&rhs);
+                Node::new(Expression::MemberAccess { lhs, rhs }, span)
+            })
+            .map(|x| x.into_inner()));
 
         let cast_atom = dot_atom
             .map_with_span(Node::new)
@@ -534,28 +531,45 @@ mod test {
 
     #[test]
     fn test_member_access_expression() {
-        let src = "MyObject.AnotherObject.MyProperty";
-        let expected = Expression::MemberAccess {
-            lhs: Node::new(
+        let data = vec![
+            (
+                "MyObject.AnotherObject.MyProperty",
+                Expression::MemberAccess {
+                    lhs: Node::new(
+                        Expression::MemberAccess {
+                            lhs: Node::new(
+                                Expression::Identifier(Node::new("MyObject", (0..8).into())),
+                                (0..8).into(),
+                            ),
+                            rhs: Node::new(
+                                Expression::Identifier(Node::new("AnotherObject", (9..22).into())),
+                                (9..22).into(),
+                            ),
+                        },
+                        (0..22).into(),
+                    ),
+                    rhs: Node::new(
+                        Expression::Identifier(Node::new("MyProperty", (23..33).into())),
+                        (23..33).into(),
+                    ),
+                },
+            ),
+            (
+                "MyObject.MyProperty",
                 Expression::MemberAccess {
                     lhs: Node::new(
                         Expression::Identifier(Node::new("MyObject", (0..8).into())),
                         (0..8).into(),
                     ),
                     rhs: Node::new(
-                        Expression::Identifier(Node::new("AnotherObject", (9..22).into())),
-                        (9..22).into(),
+                        Expression::Identifier(Node::new("MyProperty", (9..19).into())),
+                        (9..19).into(),
                     ),
                 },
-                (0..22).into(),
             ),
-            rhs: Node::new(
-                Expression::Identifier(Node::new("MyProperty", (23..33).into())),
-                (23..33).into(),
-            ),
-        };
+        ];
 
-        run_test(src, expected, expression_parser);
+        run_tests(data, expression_parser);
     }
 
     #[test]
