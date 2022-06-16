@@ -516,6 +516,50 @@ mod test {
                 "MrOctopus/nl_mcm/main/source/nl_mcm_playerloadalias.psc",
                 63,
             ),
+            (
+                "schlangster/skyui/dist/Data/Scripts/Source/SKI_ActiveEffectsWidget.psc",
+                448,
+            ),
+            (
+                "schlangster/skyui/dist/Data/Scripts/Source/SKI_ConfigBase.psc",
+                4127,
+            ),
+            (
+                "schlangster/skyui/dist/Data/Scripts/Source/SKI_ConfigManager.psc",
+                1302,
+            ),
+            (
+                "schlangster/skyui/dist/Data/Scripts/Source/SKI_ConfigMenu.psc",
+                6556,
+            ),
+            (
+                "schlangster/skyui/dist/Data/Scripts/Source/SKI_Main.psc",
+                1097,
+            ),
+            (
+                "schlangster/skyui/dist/Data/Scripts/Source/SKI_PLayerLoadGameAlias.psc",
+                21,
+            ),
+            (
+                "schlangster/skyui/dist/Data/Scripts/Source/SKI_QF_ConfigManagerInstance.psc",
+                43,
+            ),
+            (
+                "schlangster/skyui/dist/Data/Scripts/Source/SKI_QuestBase.psc",
+                80,
+            ),
+            (
+                "schlangster/skyui/dist/Data/Scripts/Source/SKI_SettingsManager.psc",
+                431,
+            ),
+            (
+                "schlangster/skyui/dist/Data/Scripts/Source/SKI_WidgetBase.psc",
+                920,
+            ),
+            (
+                "schlangster/skyui/dist/Data/Scripts/Source/SKI_WidgetManager.psc",
+                617,
+            ),
         ];
 
         for (script_path, expected_count) in data {

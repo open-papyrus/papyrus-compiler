@@ -82,7 +82,6 @@ pub mod test_utils {
             "schlangster/skyui/dist/Data/Scripts/Source/SKI_ConfigBase.psc",
             "schlangster/skyui/dist/Data/Scripts/Source/SKI_ConfigManager.psc",
             "schlangster/skyui/dist/Data/Scripts/Source/SKI_ConfigMenu.psc",
-            "schlangster/skyui/dist/Data/Scripts/Source/SKI_FavoritesManager.psc",
             "schlangster/skyui/dist/Data/Scripts/Source/SKI_Main.psc",
             "schlangster/skyui/dist/Data/Scripts/Source/SKI_PLayerLoadGameAlias.psc",
             "schlangster/skyui/dist/Data/Scripts/Source/SKI_QF_ConfigManagerInstance.psc",
