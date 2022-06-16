@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context};
 use clap::Parser;
 use papyrus_compiler_core::cache::SourceCache;
+use std::fs;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -28,17 +29,44 @@ fn run(args: &Args) -> Result<(), anyhow::Error> {
     }
 
     let mut cache = SourceCache::default();
-    let (id, script) = cache.add_file(&args.input_path)?;
 
-    let res = papyrus_compiler_core::compile_string(id, script.as_str());
+    let files: Vec<PathBuf> = if args.input_path.is_dir() {
+        let dir = fs::read_dir(&args.input_path)
+            .with_context(|| format!("Unable to read dir {}", args.input_path.display()))?;
 
-    match res {
-        Ok(script) => println!("{:#?}", script),
-        Err(reports) => {
-            for report in reports {
-                report
-                    .print(&mut cache)
-                    .with_context(|| "Unable to print error")?;
+        dir.filter_map(|file| match file {
+            Ok(file) => match file.path().extension() {
+                Some(extension) => match extension.to_ascii_lowercase().to_str() {
+                    Some("psc") => Some(file.path()),
+                    _ => None,
+                },
+                None => None,
+            },
+            Err(_) => None,
+        })
+        .collect()
+    } else {
+        vec![args.input_path.clone()]
+    };
+
+    if files.is_empty() {
+        println!("Found no files in {}", args.input_path.display());
+        return Ok(());
+    }
+
+    for file in files {
+        println!("Compiling file {}", file.display());
+        let (id, script) = cache.add_file(&file)?;
+        let res = papyrus_compiler_core::compile_string(id, script.as_str());
+
+        match res {
+            Ok(script) => println!("{:#?}", script),
+            Err(reports) => {
+                for report in reports {
+                    report
+                        .print(&mut cache)
+                        .with_context(|| "Unable to print error")?;
+                }
             }
         }
     }
