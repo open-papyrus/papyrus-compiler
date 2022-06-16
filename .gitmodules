@@ -1,3 +1,6 @@
 [submodule "extern/MrOctopus/nl_mcm"]
 	path = extern/MrOctopus/nl_mcm
 	url = https://github.com/MrOctopus/nl_mcm.git
+[submodule "extern/schlangster/skyui"]
+	path = extern/schlangster/skyui
+	url = https://github.com/schlangster/skyui.git

@@ -70,10 +70,26 @@ pub mod test_utils {
     #[cfg(feature = "test-external-scripts")]
     fn test_scripts() {
         let files = vec![
+            "MrOctopus/nl_mcm/main/source/nl_mcm.psc",
+            "MrOctopus/nl_mcm/main/source/nl_mcm_globalinfo.psc",
+            "MrOctopus/nl_mcm/main/source/nl_mcm_module.psc",
+            "MrOctopus/nl_mcm/main/source/nl_mcm_playerloadalias.psc",
             "MrOctopus/nl_mcm/main/scripts/source/nl_mcm.psc",
             "MrOctopus/nl_mcm/main/scripts/source/nl_mcm_globalinfo.psc",
             "MrOctopus/nl_mcm/main/scripts/source/nl_mcm_module.psc",
             "MrOctopus/nl_mcm/main/scripts/source/nl_mcm_playerloadalias.psc",
+            "schlangster/skyui/dist/Data/Scripts/Source/SKI_ActiveEffectsWidget.psc",
+            "schlangster/skyui/dist/Data/Scripts/Source/SKI_ConfigBase.psc",
+            "schlangster/skyui/dist/Data/Scripts/Source/SKI_ConfigManager.psc",
+            "schlangster/skyui/dist/Data/Scripts/Source/SKI_ConfigMenu.psc",
+            "schlangster/skyui/dist/Data/Scripts/Source/SKI_FavoritesManager.psc",
+            "schlangster/skyui/dist/Data/Scripts/Source/SKI_Main.psc",
+            "schlangster/skyui/dist/Data/Scripts/Source/SKI_PLayerLoadGameAlias.psc",
+            "schlangster/skyui/dist/Data/Scripts/Source/SKI_QF_ConfigManagerInstance.psc",
+            "schlangster/skyui/dist/Data/Scripts/Source/SKI_QuestBase.psc",
+            "schlangster/skyui/dist/Data/Scripts/Source/SKI_SettingsManager.psc",
+            "schlangster/skyui/dist/Data/Scripts/Source/SKI_WidgetBase.psc",
+            "schlangster/skyui/dist/Data/Scripts/Source/SKI_WidgetManager.psc",
         ];
 
         for script_path in files {
