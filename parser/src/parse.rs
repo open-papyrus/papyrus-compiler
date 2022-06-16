@@ -38,8 +38,10 @@ pub fn run_lexer_and_get_stream(id: SourceId, input: &str) -> TokenStream {
 
 #[cfg(test)]
 pub mod test_utils {
+    use crate::ast::script::script_parser;
     use crate::parse::{run_lexer_and_get_stream, TokenParser};
-    use chumsky::prelude::end;
+    use chumsky::prelude::*;
+    use std::assert_matches::assert_matches;
     use std::fmt::Debug;
 
     pub fn run_test<'a, F, P, O>(src: &'a str, expected: O, parser_fn: F)
@@ -50,7 +52,7 @@ pub mod test_utils {
     {
         let token_stream = run_lexer_and_get_stream(u32::MAX, src);
         let res = parser_fn().then_ignore(end()).parse(token_stream).unwrap();
-        assert_eq!(res, expected);
+        assert_eq!(res, expected, "{}", src);
     }
 
     pub fn run_tests<'a, F, P, O>(data: Vec<(&'a str, O)>, parser_fn: F)
@@ -61,6 +63,29 @@ pub mod test_utils {
     {
         for (src, expected) in data {
             run_test(src, expected, &parser_fn);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "test-external-scripts")]
+    fn test_scripts() {
+        let files = vec![
+            "MrOctopus/nl_mcm/main/scripts/source/nl_mcm.psc",
+            "MrOctopus/nl_mcm/main/scripts/source/nl_mcm_globalinfo.psc",
+            "MrOctopus/nl_mcm/main/scripts/source/nl_mcm_module.psc",
+            "MrOctopus/nl_mcm/main/scripts/source/nl_mcm_playerloadalias.psc",
+        ];
+
+        for script_path in files {
+            let script_path = format!("../extern/{}", script_path);
+            let path = std::path::Path::new(script_path.as_str());
+            assert!(path.exists());
+
+            let script = std::fs::read_to_string(path).unwrap();
+
+            let token_stream = run_lexer_and_get_stream(u32::MAX, script.as_str());
+            let res = script_parser().then_ignore(end()).parse(token_stream);
+            assert_matches!(res, Ok(_), "Script with errors: \"{}\"", script_path);
         }
     }
 }

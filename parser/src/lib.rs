@@ -1,4 +1,7 @@
 #![feature(trait_alias)]
+#![feature(assert_matches)]
+
+extern crate core;
 
 use crate::ast::script::Script;
 use crate::parse::LexerSpan;
