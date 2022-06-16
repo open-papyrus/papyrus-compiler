@@ -100,7 +100,7 @@ pub enum Token<'a> {
     #[regex(r"-?\d+\.\d+", callback = parse_float)]
     FloatLiteral(f32),
 
-    #[regex(r#""([^"\\]|\\t|\\u|\\n|\\")*""#, callback = parse_string)]
+    #[regex(r#""([^"\\]|\\t|\\u|\\n|\\"|\\\\)*""#, callback = parse_string)]
     StringLiteral(&'a str),
 
     #[token("none", ignore(ascii_case))]
@@ -222,8 +222,8 @@ mod test {
             let expected = transform(expected);
 
             let mut lex: Lexer<Token> = Token::lexer(input);
-            assert_eq!(lex.next(), Some(expected));
-            assert_eq!(lex.next(), None)
+            assert_eq!(lex.next(), Some(expected), "{}", input);
+            assert_eq!(lex.next(), None, "{}", input)
         }
     }
 
@@ -237,8 +237,8 @@ mod test {
 
             for variant in variants {
                 let mut lex: Lexer<Token> = Token::lexer(variant.as_str());
-                assert_eq!(lex.next(), Some(expected));
-                assert_eq!(lex.next(), None)
+                assert_eq!(lex.next(), Some(expected), "{}", input);
+                assert_eq!(lex.next(), None, "{}", input)
             }
         }
     }
@@ -394,6 +394,10 @@ mod test {
             (r#""""#, Token::StringLiteral("")),
             (r#""Hello World!""#, Token::StringLiteral("Hello World!")),
             (r#""\t\u\n\"""#, Token::StringLiteral(r#"\t\u\n\""#)),
+            (
+                r#""skyui\\icons_category_psychosteve.swf""#,
+                Token::StringLiteral(r#"skyui\\icons_category_psychosteve.swf"#),
+            ),
         ];
 
         test_data(data, |x| x);
