@@ -1,5 +1,5 @@
 use crate::ast::expression::{expression_parser, Expression};
-use crate::ast::identifier::{identifier_parser, Identifier};
+use crate::ast::identifier::Identifier;
 use crate::ast::node::{display_nodes, display_optional_nodes, Node};
 use crate::ast::types::{type_with_identifier_parser, Type};
 use crate::parse::TokenParser;
@@ -204,35 +204,7 @@ pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
                 }
             });
 
-        let l_value = expression_parser()
-            .map_with_span(Node::new)
-            .then_ignore(just(Token::Operator(OperatorKind::Access)))
-            .or_not()
-            .then(identifier_parser().map_with_span(Node::new))
-            .map(|(expression, identifier)| {
-                let identifier_span = identifier.span();
-                let identifier = Expression::Identifier(identifier);
-
-                match expression {
-                    Some(lhs) => Expression::MemberAccess {
-                        lhs,
-                        rhs: Node::new(identifier, identifier_span),
-                    },
-                    None => identifier,
-                }
-            })
-            .or(expression_parser()
-                .map_with_span(Node::new)
-                .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsOpen)))
-                .then(expression_parser().map_with_span(Node::new))
-                .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsClose)))
-                .map(|output| {
-                    let (array, index) = output;
-                    Expression::ArrayAccess { array, index }
-                }))
-            .boxed();
-
-        let assignment_statement = l_value
+        let assignment_statement = expression_parser()
             .map_with_span(Node::new)
             .then(assignment_kind_parser().map_with_span(Node::new))
             .then(expression_parser().map_with_span(Node::new))
@@ -424,6 +396,38 @@ mod test {
                     lhs: lhs.clone(),
                     kind: Node::new(AssignmentKind::Modulus, (2..4).into()),
                     rhs: rhs.clone(),
+                },
+            ),
+            (
+                "Pages[i] = Pages[j]",
+                Statement::Assignment {
+                    lhs: Node::new(
+                        Expression::ArrayAccess {
+                            array: Node::new(
+                                Expression::Identifier(Node::new("Pages", (0..5).into())),
+                                (0..5).into(),
+                            ),
+                            index: Node::new(
+                                Expression::Identifier(Node::new("i", (6..7).into())),
+                                (6..7).into(),
+                            ),
+                        },
+                        (0..8).into(),
+                    ),
+                    kind: Node::new(AssignmentKind::Normal, (9..10).into()),
+                    rhs: Node::new(
+                        Expression::ArrayAccess {
+                            array: Node::new(
+                                Expression::Identifier(Node::new("Pages", (11..16).into())),
+                                (11..16).into(),
+                            ),
+                            index: Node::new(
+                                Expression::Identifier(Node::new("j", (17..18).into())),
+                                (17..18).into(),
+                            ),
+                        },
+                        (11..19).into(),
+                    ),
                 },
             ),
         ];
