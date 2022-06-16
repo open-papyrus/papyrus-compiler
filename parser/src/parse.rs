@@ -44,6 +44,28 @@ pub mod test_utils {
     use std::assert_matches::assert_matches;
     use std::fmt::Debug;
 
+    pub fn run_test_expect_no_errors<'a, F, P, O>(src: &'a str, parser_fn: F)
+    where
+        F: Fn() -> P,
+        P: TokenParser<'a, O>,
+        O: PartialEq + Debug,
+    {
+        let token_stream = run_lexer_and_get_stream(u32::MAX, src);
+        let res = parser_fn().then_ignore(end()).parse(token_stream);
+        assert_matches!(res, Ok(_), "{}", src);
+    }
+
+    pub fn run_tests_expect_no_errors<'a, F, P, O>(data: Vec<&'a str>, parser_fn: F)
+    where
+        F: Fn() -> P,
+        P: TokenParser<'a, O>,
+        O: PartialEq + Debug,
+    {
+        for src in data {
+            run_test_expect_no_errors(src, &parser_fn);
+        }
+    }
+
     pub fn run_test<'a, F, P, O>(src: &'a str, expected: O, parser_fn: F)
     where
         F: Fn() -> P,

@@ -35,8 +35,8 @@ pub enum Token<'a> {
     #[token("*=", callback = |_| OperatorKind::MultiplicationAssignment)]
     #[token("/=", callback = |_| OperatorKind::DivisionAssignment)]
     #[token("%=", callback = |_| OperatorKind::ModulusAssignment)]
-    #[token("as", callback = |_| OperatorKind::CastAs)]
-    #[token("is", callback = |_| OperatorKind::CastIs)]
+    #[token("as", callback = |_| OperatorKind::CastAs, ignore(ascii_case))]
+    #[token("is", callback = |_| OperatorKind::CastIs, ignore(ascii_case))]
     Operator(OperatorKind),
 
     #[token("Auto", callback = |_| KeywordKind::Auto, ignore(ascii_case))]
@@ -277,7 +277,7 @@ mod test {
             ("is", OperatorKind::CastIs),
         ];
 
-        test_data(data, Token::Operator);
+        test_data_with_variants(data, Token::Operator);
     }
 
     #[test]
