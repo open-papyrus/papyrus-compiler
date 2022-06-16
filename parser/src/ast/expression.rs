@@ -269,7 +269,7 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                             .or_not()
                             .then(expr.clone().map_with_span(Node::new))
                             .map(|(name, value)| match name {
-                                Some(name) => FunctionArgument::Named { name, value: value },
+                                Some(name) => FunctionArgument::Named { name, value },
                                 None => FunctionArgument::Positional(value),
                             })
                             .map_with_span(Node::new)

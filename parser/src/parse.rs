@@ -83,7 +83,7 @@ pub mod test_utils {
             "schlangster/skyui/dist/Data/Scripts/Source/SKI_ConfigManager.psc",
             "schlangster/skyui/dist/Data/Scripts/Source/SKI_ConfigMenu.psc",
             "schlangster/skyui/dist/Data/Scripts/Source/SKI_Main.psc",
-            "schlangster/skyui/dist/Data/Scripts/Source/SKI_PLayerLoadGameAlias.psc",
+            "schlangster/skyui/dist/Data/Scripts/Source/SKI_PlayerLoadGameAlias.psc",
             "schlangster/skyui/dist/Data/Scripts/Source/SKI_QF_ConfigManagerInstance.psc",
             "schlangster/skyui/dist/Data/Scripts/Source/SKI_QuestBase.psc",
             "schlangster/skyui/dist/Data/Scripts/Source/SKI_SettingsManager.psc",
@@ -94,7 +94,7 @@ pub mod test_utils {
         for script_path in files {
             let script_path = format!("../extern/{}", script_path);
             let path = std::path::Path::new(script_path.as_str());
-            assert!(path.exists());
+            assert!(path.exists(), "{}", script_path);
 
             let script = std::fs::read_to_string(path).unwrap();
 

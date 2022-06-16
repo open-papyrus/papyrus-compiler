@@ -537,7 +537,7 @@ mod test {
                 1097,
             ),
             (
-                "schlangster/skyui/dist/Data/Scripts/Source/SKI_PLayerLoadGameAlias.psc",
+                "schlangster/skyui/dist/Data/Scripts/Source/SKI_PlayerLoadGameAlias.psc",
                 21,
             ),
             (
