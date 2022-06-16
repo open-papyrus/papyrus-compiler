@@ -290,7 +290,7 @@ pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
 
 #[cfg(test)]
 mod test {
-    use crate::ast::expression::{ComparisonKind, Expression};
+    use crate::ast::expression::{ComparisonKind, Expression, FunctionArgument};
     use crate::ast::literal::Literal;
     use crate::ast::node::Node;
     use crate::ast::statement::{statement_parser, AssignmentKind, ConditionalPath, Statement};
@@ -619,7 +619,10 @@ endif"#,
                             (6..11).into(),
                         ),
                         arguments: Some(vec![Node::new(
-                            Expression::Identifier(Node::new("msg", (12..15).into())),
+                            FunctionArgument::Positional(Node::new(
+                                Expression::Identifier(Node::new("msg", (12..15).into())),
+                                (12..15).into(),
+                            )),
                             (12..15).into(),
                         )]),
                     },

@@ -64,7 +64,7 @@ pub enum Expression<'a> {
     /// 'DoSomething(a, b, 1, 3, "Hello World")'
     FunctionCall {
         name: Node<Expression<'a>>,
-        arguments: Option<Vec<Node<Expression<'a>>>>,
+        arguments: Option<Vec<Node<FunctionArgument<'a>>>>,
     },
     /// '1', '"Hello World"', '1.0', 'false', 'none'
     Literal(Node<Literal<'a>>),
@@ -115,6 +115,27 @@ impl<'a> Display for Expression<'a> {
             Expression::Identifier(value) => write!(f, "{}", value),
             Expression::Parent => write!(f, "Parent"),
             Expression::Self_ => write!(f, "Self"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum FunctionArgument<'a> {
+    Positional(Node<Expression<'a>>),
+    Named {
+        name: Node<Identifier<'a>>,
+        value: Node<Expression<'a>>,
+    },
+}
+
+impl<'a> Display for FunctionArgument<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FunctionArgument::Positional(expr) => write!(f, "{}", expr),
+            FunctionArgument::Named {
+                name,
+                value: expression,
+            } => write!(f, "{} = {}", name, expression),
         }
     }
 }
@@ -242,7 +263,15 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
             .then(
                 just(Token::Operator(OperatorKind::ParenthesisOpen))
                     .ignore_then(
-                        expr.clone()
+                        identifier_parser()
+                            .map_with_span(Node::new)
+                            .then_ignore(just(Token::Operator(OperatorKind::Assignment)))
+                            .or_not()
+                            .then(expr.clone().map_with_span(Node::new))
+                            .map(|(name, value)| match name {
+                                Some(name) => FunctionArgument::Named { name, value: value },
+                                None => FunctionArgument::Positional(value),
+                            })
                             .map_with_span(Node::new)
                             .separated_by(just(Token::Operator(OperatorKind::Comma)))
                             .map(|parameters| {
@@ -484,7 +513,8 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
 #[cfg(test)]
 mod test {
     use crate::ast::expression::{
-        expression_parser, BinaryKind, ComparisonKind, Expression, LogicalKind, UnaryKind,
+        expression_parser, BinaryKind, ComparisonKind, Expression, FunctionArgument, LogicalKind,
+        UnaryKind,
     };
     use crate::ast::literal::Literal;
     use crate::ast::node::Node;
@@ -528,7 +558,7 @@ mod test {
 
     #[test]
     fn test_function_call_expression() {
-        let src = r#"MyFunc(someArgument, anotherArgument, 1, 1.0, false, "Hi!", none)"#;
+        let src = r#"MyFunc(someArgument, anotherArgument, 1, 1.0, false, "Hi!", name = none)"#;
         let expected = Expression::FunctionCall {
             name: Node::new(
                 Expression::Identifier(Node::new("MyFunc", (0..6).into())),
@@ -536,32 +566,56 @@ mod test {
             ),
             arguments: Some(vec![
                 Node::new(
-                    Expression::Identifier(Node::new("someArgument", (7..19).into())),
+                    FunctionArgument::Positional(Node::new(
+                        Expression::Identifier(Node::new("someArgument", (7..19).into())),
+                        (7..19).into(),
+                    )),
                     (7..19).into(),
                 ),
                 Node::new(
-                    Expression::Identifier(Node::new("anotherArgument", (21..36).into())),
+                    FunctionArgument::Positional(Node::new(
+                        Expression::Identifier(Node::new("anotherArgument", (21..36).into())),
+                        (21..36).into(),
+                    )),
                     (21..36).into(),
                 ),
                 Node::new(
-                    Expression::Literal(Node::new(Literal::Integer(1), (38..39).into())),
+                    FunctionArgument::Positional(Node::new(
+                        Expression::Literal(Node::new(Literal::Integer(1), (38..39).into())),
+                        (38..39).into(),
+                    )),
                     (38..39).into(),
                 ),
                 Node::new(
-                    Expression::Literal(Node::new(Literal::Float(1.0), (41..44).into())),
+                    FunctionArgument::Positional(Node::new(
+                        Expression::Literal(Node::new(Literal::Float(1.0), (41..44).into())),
+                        (41..44).into(),
+                    )),
                     (41..44).into(),
                 ),
                 Node::new(
-                    Expression::Literal(Node::new(Literal::Boolean(false), (46..51).into())),
+                    FunctionArgument::Positional(Node::new(
+                        Expression::Literal(Node::new(Literal::Boolean(false), (46..51).into())),
+                        (46..51).into(),
+                    )),
                     (46..51).into(),
                 ),
                 Node::new(
-                    Expression::Literal(Node::new(Literal::String("Hi!"), (53..58).into())),
+                    FunctionArgument::Positional(Node::new(
+                        Expression::Literal(Node::new(Literal::String("Hi!"), (53..58).into())),
+                        (53..58).into(),
+                    )),
                     (53..58).into(),
                 ),
                 Node::new(
-                    Expression::Literal(Node::new(Literal::None, (60..64).into())),
-                    (60..64).into(),
+                    FunctionArgument::Named {
+                        name: Node::new("name", (60..64).into()),
+                        value: Node::new(
+                            Expression::Literal(Node::new(Literal::None, (67..71).into())),
+                            (67..71).into(),
+                        ),
+                    },
+                    (60..71).into(),
                 ),
             ]),
         };
