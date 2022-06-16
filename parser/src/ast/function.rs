@@ -160,9 +160,18 @@ pub fn function_parser<'a>() -> impl TokenParser<'a, Function<'a>> {
             statement_parser()
                 .map_with_span(Node::new)
                 .repeated()
-                .at_least(1)
                 .then_ignore(just(Token::Keyword(KeywordKind::EndFunction)))
-                .or_not(),
+                .or_not()
+                .map(|statements| match statements {
+                    Some(statements) => {
+                        if statements.is_empty() {
+                            Some(statements)
+                        } else {
+                            None
+                        }
+                    }
+                    None => None,
+                }),
         )
         .map(|output| {
             let ((((return_type, identifier), parameters), flags), statements) = output;

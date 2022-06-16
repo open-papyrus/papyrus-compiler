@@ -383,9 +383,18 @@ pub fn event_parser<'a>() -> impl TokenParser<'a, Event<'a>> {
             statement_parser()
                 .map_with_span(Node::new)
                 .repeated()
-                .at_least(1)
                 .then_ignore(just(Token::Keyword(KeywordKind::EndEvent)))
-                .or_not(),
+                .or_not()
+                .map(|statements| match statements {
+                    Some(statements) => {
+                        if statements.is_empty() {
+                            Some(statements)
+                        } else {
+                            None
+                        }
+                    }
+                    None => None,
+                }),
         )
         .map(|output| {
             let (header, statements) = output;
