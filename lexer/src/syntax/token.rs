@@ -565,7 +565,7 @@ mod test {
         for (script_path, expected_count) in data {
             let script_path = format!("../extern/{}", script_path);
             let path = std::path::Path::new(script_path.as_str());
-            assert!(path.exists());
+            assert!(path.exists(), "{}", script_path);
 
             let script = std::fs::read_to_string(path).unwrap();
 
