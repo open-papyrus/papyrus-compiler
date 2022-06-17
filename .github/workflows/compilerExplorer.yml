@@ -1,0 +1,33 @@
+name: Compiler Explorer Deployment
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'compiler-explorer/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deployment
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Build
+        working-directory: compiler-explorer
+        run: |
+          npm ci
+          npm install
+          npm run build
+
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@4.1.7
+        with:
+          branch: heroku
+          folder: compiler-explorer/dist
+          single-commit: true
+          force: true
