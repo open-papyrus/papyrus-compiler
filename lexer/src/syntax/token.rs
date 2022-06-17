@@ -94,7 +94,7 @@ pub enum Token<'a> {
     BooleanLiteral(bool),
 
     #[regex(r"-?\d+", callback = parse_integer)]
-    #[regex(r"0[xX][a-zA-Z0-9]+", callback = parse_hex_integer)]
+    #[regex(r"0[xX][0-9a-fA-F]+", callback = parse_hex_integer)]
     IntegerLiteral(i32),
 
     #[regex(r"-?\d+\.\d+", callback = parse_float)]
