@@ -1,8 +1,10 @@
 import { Component, createEffect, onCleanup, onMount } from 'solid-js';
 import * as monaco from 'monaco-editor';
 import useZoom from '../../hooks/useZoom';
+import '../../language/monarch';
 
 import styles from './CodeEditor.module.css';
+import exampleCode from '../../../../extern/MrOctopus/nl_mcm/main/source/nl_mcm.psc?raw'
 
 const CodeEditor: Component = () => {
     let parent!: HTMLDivElement;
@@ -15,7 +17,7 @@ const CodeEditor: Component = () => {
             automaticLayout: true,
             mouseWheelZoom: true,
             fontSize: zoomState.fontSize,
-            value: 'ScriptName MyCoolScript',
+            value: exampleCode,
             language: 'papyrus',
             theme: 'vs-dark'
         });
