@@ -19,6 +19,20 @@ rustup component add clippy rustfmt
 
 You can configure your IDE to automatically run these two tools on save. I will not accept un-formatted code and clippy will also run as part of the CI.
 
+The [WASM project](wasm) uses `wasm-bindgen` so you need the following:
+
+```bash
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli
+```
+
+From the root directly you can use these two commands to export the WASM bindings:
+
+```bash
+cargo build -p "papyrus_compiler_wasm" --target wasm32-unknown-unknown --release
+wasm-bindgen ./target/wasm32-unknown-unknown/release/papyrus_compiler_wasm.wasm --target web --out-dir ./compiler-explorer/src/wasm
+```
+
 ## Documentation
 
 The documentation is written in Markdown and be found [here](./docs). We use [mdBook](https://rust-lang.github.io/mdBook/) to create the documentation site from Markdown.
