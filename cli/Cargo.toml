@@ -3,12 +3,6 @@ name = "papyrus_compiler_cli"
 version = "0.1.0"
 edition = "2021"
 
-[dependencies.papyrus_compiler_lexer]
-path = "../lexer"
-
-[dependencies.papyrus_compiler_parser]
-path = "../parser"
-
 [dependencies.papyrus_compiler_core]
 path = "../core"
 

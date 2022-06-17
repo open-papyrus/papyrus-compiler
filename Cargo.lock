@@ -255,8 +255,6 @@ dependencies = [
  "ariadne",
  "clap",
  "papyrus_compiler_core",
- "papyrus_compiler_lexer",
- "papyrus_compiler_parser",
 ]
 
 [[package]]
@@ -292,8 +290,6 @@ name = "papyrus_compiler_wasm"
 version = "0.1.0"
 dependencies = [
  "papyrus_compiler_core",
- "papyrus_compiler_lexer",
- "papyrus_compiler_parser",
  "wasm-bindgen",
 ]
 

@@ -6,12 +6,6 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib"]
 
-[dependencies.papyrus_compiler_lexer]
-path = "../lexer"
-
-[dependencies.papyrus_compiler_parser]
-path = "../parser"
-
 [dependencies.papyrus_compiler_core]
 path = "../core"
 
