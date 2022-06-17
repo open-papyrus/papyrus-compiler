@@ -3,8 +3,9 @@ name: Compiler Explorer Deployment
 on:
   push:
     branches: [ master ]
-    paths:
-      - 'compiler-explorer/**'
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
   workflow_dispatch:
 
 jobs:
@@ -17,7 +18,40 @@ jobs:
           fetch-depth: 0
           submodules: true
 
-      - name: Build
+      - name: Install Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+
+      - name: Cache cargo dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build WASM Project
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: -p "papyrus_compiler_wasm" --target wasm32-unknown-unknown --release
+
+      - name: Install wasm-bindgen-cli
+        run: |
+          mkdir wasm-bindgen-cli
+          curl -sSL https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.81/wasm-bindgen-0.2.81-x86_64-unknown-linux-musl.tar.gz | tar -xz --directory=./wasm-bindgen-cli
+          mv wasm-bindgen-cli/wasm-bindgen-0.2.81-x86_64-unknown-linux-musl/* wasm-bindgen-cli
+          rm wasm-bindgen-cli/wasm-bindgen-0.2.81-x86_64-unknown-linux-musl -d
+          echo `pwd`/wasm-bindgen-cli >> $GITHUB_PATH
+
+      - name: Create WASM Bindings
+        run: wasm-bindgen ./target/wasm32-unknown-unknown/release/papyrus_compiler_wasm.wasm --target web --out-dir ./compiler-explorer/src/wasm
+
+      - name: Build Compiler Explorer
         working-directory: compiler-explorer
         run: |
           npm ci
