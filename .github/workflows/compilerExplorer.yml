@@ -39,7 +39,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: -p "papyrus_compiler_wasm" --target wasm32-unknown-unknown --release
+          args: -p "papyrus_compiler_wasm" --target wasm32-unknown-unknown --release --locked
 
       - name: Install wasm-bindgen-cli
         run: |
