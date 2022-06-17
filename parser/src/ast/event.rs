@@ -388,9 +388,9 @@ pub fn event_parser<'a>() -> impl TokenParser<'a, Event<'a>> {
                 .map(|statements| match statements {
                     Some(statements) => {
                         if statements.is_empty() {
-                            Some(statements)
-                        } else {
                             None
+                        } else {
+                            Some(statements)
                         }
                     }
                     None => None,
@@ -405,11 +405,12 @@ pub fn event_parser<'a>() -> impl TokenParser<'a, Event<'a>> {
 #[cfg(test)]
 mod test {
     use crate::ast::event::{
-        custom_event_header_parser, custom_event_parser, event_header_parser,
-        remote_event_header_parser, CustomEvent, CustomEventHeader, EventHeader, EventParameter,
-        RemoteEventHeader,
+        custom_event_header_parser, custom_event_parser, event_header_parser, event_parser,
+        remote_event_header_parser, CustomEvent, CustomEventHeader, Event, EventHeader,
+        EventHeaderKind, EventParameter, RemoteEventHeader,
     };
     use crate::ast::node::Node;
+    use crate::ast::statement::Statement;
     use crate::ast::types::{Type, TypeName};
     use crate::parse::test_utils::run_test;
 
@@ -514,5 +515,38 @@ mod test {
         );
 
         run_test(src, expected, custom_event_header_parser);
+    }
+
+    #[test]
+    fn test_event_parser() {
+        let src = "Event OnActivate(ObjectReference akActivator)\nReturn\nEndEvent";
+        let expected = Event::new(
+            Node::new(
+                EventHeaderKind::EventHeader(EventHeader::new(
+                    Node::new("OnActivate", (6..16).into()),
+                    Some(vec![Node::new(
+                        EventParameter::new(
+                            Node::new(
+                                Type::new(
+                                    Node::new(
+                                        TypeName::Identifier("ObjectReference"),
+                                        (17..32).into(),
+                                    ),
+                                    false,
+                                ),
+                                (17..32).into(),
+                            ),
+                            Node::new("akActivator", (33..44).into()),
+                        ),
+                        (17..44).into(),
+                    )]),
+                    None,
+                )),
+                (0..45).into(),
+            ),
+            Some(vec![Node::new(Statement::Return(None), (46..52).into())]),
+        );
+
+        run_test(src, expected, event_parser);
     }
 }

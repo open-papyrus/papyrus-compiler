@@ -165,9 +165,9 @@ pub fn function_parser<'a>() -> impl TokenParser<'a, Function<'a>> {
                 .map(|statements| match statements {
                     Some(statements) => {
                         if statements.is_empty() {
-                            Some(statements)
-                        } else {
                             None
+                        } else {
+                            Some(statements)
                         }
                     }
                     None => None,
@@ -181,22 +181,65 @@ pub fn function_parser<'a>() -> impl TokenParser<'a, Function<'a>> {
 
 #[cfg(test)]
 mod test {
+    use crate::ast::expression::Expression;
     use crate::ast::flags::FunctionFlag;
-    use crate::ast::function::{function_parser, Function};
+    use crate::ast::function::{function_parser, Function, FunctionParameter};
+    use crate::ast::literal::Literal;
     use crate::ast::node::Node;
-    use crate::parse::test_utils::run_test;
+    use crate::ast::statement::Statement;
+    use crate::ast::types::{BaseType, Type, TypeName};
+    use crate::parse::test_utils::run_tests;
 
     #[test]
     fn test_function_parser() {
-        let src = "Function MyNativeFunction() Native";
-        let expected = Function::new(
-            None,
-            Node::new("MyNativeFunction", (9..25).into()),
-            None,
-            Some(vec![Node::new(FunctionFlag::Native, (28..34).into())]),
-            None,
-        );
+        let data = vec![
+            (
+                "Function MyNativeFunction() Native",
+                Function::new(
+                    None,
+                    Node::new("MyNativeFunction", (9..25).into()),
+                    None,
+                    Some(vec![Node::new(FunctionFlag::Native, (28..34).into())]),
+                    None,
+                ),
+            ),
+            (
+                "int Function GetVersion(int version = 1)\nreturn version\nEndFunction",
+                Function::new(
+                    Some(Node::new(
+                        Type::new(
+                            Node::new(TypeName::BaseType(BaseType::Int), (0..3).into()),
+                            false,
+                        ),
+                        (0..3).into(),
+                    )),
+                    Node::new("GetVersion", (13..23).into()),
+                    Some(vec![Node::new(
+                        FunctionParameter::new(
+                            Node::new(
+                                Type::new(
+                                    Node::new(TypeName::BaseType(BaseType::Int), (24..27).into()),
+                                    false,
+                                ),
+                                (24..27).into(),
+                            ),
+                            Node::new("version", (28..35).into()),
+                            Some(Node::new(Literal::Integer(1), (38..39).into())),
+                        ),
+                        (24..39).into(),
+                    )]),
+                    None,
+                    Some(vec![Node::new(
+                        Statement::Return(Some(Node::new(
+                            Expression::Identifier(Node::new("version", (48..55).into())),
+                            (48..55).into(),
+                        ))),
+                        (41..55).into(),
+                    )]),
+                ),
+            ),
+        ];
 
-        run_test(src, expected, function_parser);
+        run_tests(data, function_parser);
     }
 }
