@@ -14,6 +14,9 @@ test-external-scripts = []
 [dependencies.papyrus_compiler_lexer]
 path = "../lexer"
 
+[dependencies.papyrus_compiler_diagnostics]
+path = "../diagnostics"
+
 [dependencies]
 chumsky = "0.8.0"
 strum_macros = "0.24.0"

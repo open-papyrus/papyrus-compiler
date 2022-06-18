@@ -12,3 +12,10 @@ pub trait Diagnostic {
 
     fn range(&self) -> SourceRange;
 }
+
+pub fn convert_diagnostics<'a, T: Diagnostic + 'a>(items: Vec<T>) -> Vec<Box<dyn Diagnostic + 'a>> {
+    items
+        .into_iter()
+        .map(|item| Box::new(item) as Box<dyn Diagnostic>)
+        .collect::<Vec<Box<dyn Diagnostic>>>()
+}

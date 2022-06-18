@@ -3,6 +3,7 @@ extern crate core;
 use crate::lexer_diagnostics::{LexerDiagnostics, LexerDiagnosticsKind};
 use crate::syntax::token::{LexerExtras, Token};
 use logos::Logos;
+use papyrus_compiler_diagnostics::SourceId;
 
 pub mod lexer_diagnostics;
 pub mod syntax;
@@ -37,6 +38,7 @@ impl<'a> Iterator for CustomSpannedIterator<'a> {
 }
 
 pub fn run_lexer_with_result<'a>(
+    source_id: SourceId,
     input: &'a str,
 ) -> Result<Vec<(Token, logos::Span)>, Vec<LexerDiagnostics>> {
     let lexer: logos::Lexer<'a, Token<'a>> = Token::lexer(input);
@@ -54,8 +56,8 @@ pub fn run_lexer_with_result<'a>(
                     .iter()
                     .find(|(_, other_span)| other_span == &span);
                 let res = match parsing_error {
-                    Some((kind, _)) => LexerDiagnostics::new(kind.clone(), span),
-                    _ => LexerDiagnostics::new(LexerDiagnosticsKind::UnknownToken, span),
+                    Some((kind, _)) => LexerDiagnostics::new(kind.clone(), source_id, span),
+                    _ => LexerDiagnostics::new(LexerDiagnosticsKind::UnknownToken, source_id, span),
                 };
 
                 diagnostics.push(res);
@@ -92,11 +94,11 @@ mod test {
     #[test]
     fn test_lexer_with_result() {
         let src = "^ 2147483648 3402823470000000000000000000000000000000.0";
-        let res = run_lexer_with_result(src).unwrap_err();
+        let res = run_lexer_with_result(0, src).unwrap_err();
 
         assert_eq!(
             res[0],
-            LexerDiagnostics::new(LexerDiagnosticsKind::UnknownToken, 0..1)
+            LexerDiagnostics::new(LexerDiagnosticsKind::UnknownToken, 0, 0..1)
         );
 
         assert!(matches!(
@@ -104,11 +106,11 @@ mod test {
             LexerDiagnosticsKind::ParseIntError(_)
         ));
 
-        assert_eq!(res[1].span(), 2..12);
+        assert_eq!(res[1].range(), 2..12);
 
         assert_eq!(
             res[2],
-            LexerDiagnostics::new(LexerDiagnosticsKind::FloatNotFinite, 13..55)
+            LexerDiagnostics::new(LexerDiagnosticsKind::FloatNotFinite, 0, 13..55)
         )
     }
 }

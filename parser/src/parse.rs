@@ -1,15 +1,13 @@
 use crate::{error::*, span::*};
 use chumsky::prelude::*;
+use papyrus_compiler_diagnostics::{SourceId, SourceRange};
 use papyrus_compiler_lexer::syntax::token::Token;
-use std::ops::Range;
 use std::vec::IntoIter;
 
 pub trait TokenParser<'a, O> = Parser<Token<'a>, O, Error = Error<'a>> + Clone;
 pub type TokenStream<'a> = chumsky::Stream<'a, Token<'a>, Span, IntoIter<(Token<'a>, Span)>>;
 
-pub(crate) type LexerSpan = Range<usize>;
-
-pub fn create_token_stream(id: SourceId, tokens: Vec<(Token, LexerSpan)>) -> TokenStream {
+pub fn create_token_stream(id: SourceId, tokens: Vec<(Token, SourceRange)>) -> TokenStream {
     let tokens = tokens
         .into_iter()
         .filter(|(token, _)| {

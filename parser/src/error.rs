@@ -1,3 +1,4 @@
+use crate::parser_diagnostics::{ParserDiagnostics, ParserDiagnosticsKind};
 use crate::span::Span;
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::collections::HashSet;
@@ -6,7 +7,7 @@ use std::collections::HashSet;
 pub struct Error<'a> {
     span: Span,
     label: Option<&'static str>,
-    expected: HashSet<Option<Token<'a>>>,
+    expected: HashSet<Token<'a>>,
     found: Option<Token<'a>>,
 }
 
@@ -19,12 +20,31 @@ impl<'a> Error<'a> {
         self.label
     }
 
-    pub fn expected(&self) -> &HashSet<Option<Token<'a>>> {
+    pub fn expected(&self) -> &HashSet<Token<'a>> {
         &self.expected
     }
 
     pub fn found(&self) -> Option<&Token<'a>> {
         self.found.as_ref()
+    }
+
+    pub fn to_diagnostics(self) -> ParserDiagnostics<'a> {
+        let kind = if self.expected.is_empty() {
+            ParserDiagnosticsKind::ExpectedNothing { found: self.found }
+        } else if self.expected.len() == 1 {
+            let expected = self.expected.into_iter().next().unwrap();
+            ParserDiagnosticsKind::ExpectedOne {
+                found: self.found,
+                expected,
+            }
+        } else {
+            ParserDiagnosticsKind::ExpectedOneOf {
+                found: self.found,
+                expected: self.expected,
+            }
+        };
+
+        ParserDiagnostics::new(kind, self.span.id, self.span.range)
     }
 }
 
@@ -40,7 +60,7 @@ impl<'a> chumsky::Error<Token<'a>> for Error<'a> {
         Self {
             span,
             label: None,
-            expected: expected.into_iter().collect(),
+            expected: expected.into_iter().filter_map(|item| item).collect(),
             found,
         }
     }

@@ -472,6 +472,7 @@ dependencies = [
  "ariadne",
  "clap 3.2.5",
  "papyrus_compiler_core",
+ "papyrus_compiler_diagnostics",
 ]
 
 [[package]]
@@ -480,6 +481,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "ariadne",
+ "papyrus_compiler_diagnostics",
  "papyrus_compiler_lexer",
  "papyrus_compiler_parser",
 ]
@@ -504,6 +506,7 @@ version = "0.1.0"
 dependencies = [
  "chumsky",
  "criterion",
+ "papyrus_compiler_diagnostics",
  "papyrus_compiler_lexer",
  "smallbox",
  "strum_macros",

@@ -1,6 +1,9 @@
+mod cache;
+
+use crate::cache::SourceCache;
 use anyhow::{anyhow, Context};
+use ariadne::{Label, Report, ReportKind};
 use clap::Parser;
-use papyrus_compiler_core::cache::SourceCache;
 use std::fs;
 use std::path::PathBuf;
 
@@ -61,11 +64,21 @@ fn run(args: &Args) -> Result<(), anyhow::Error> {
 
         match res {
             Ok(script) => println!("{:#?}", script),
-            Err(reports) => {
-                for report in reports {
-                    report
-                        .print(&mut cache)
-                        .with_context(|| "Unable to print error")?;
+            Err(diagnostics) => {
+                for diagnostic in diagnostics {
+                    Report::build(
+                        ReportKind::Error,
+                        diagnostic.source_id(),
+                        diagnostic.range().start,
+                    )
+                    .with_code(format!("{}{:03}", diagnostic.prefix(), diagnostic.id()))
+                    .with_label(
+                        Label::new((diagnostic.source_id(), diagnostic.range()))
+                            .with_message(diagnostic.message()),
+                    )
+                    .finish()
+                    .print(&mut cache)
+                    .with_context(|| "Unable to print error")?;
                 }
             }
         }

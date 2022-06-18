@@ -11,6 +11,9 @@ homepage = "https://erri120.github.io/papyrus-compiler/"
 [dependencies.papyrus_compiler_core]
 path = "../core"
 
+[dependencies.papyrus_compiler_diagnostics]
+path = "../diagnostics"
+
 [dependencies]
 anyhow = "1.0.57"
 clap = { version = "3.2.5", features = ["derive"] }

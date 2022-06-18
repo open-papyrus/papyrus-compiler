@@ -1,11 +1,11 @@
+use papyrus_compiler_diagnostics::{SourceId, SourceRange};
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
-pub type SourceId = u32;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Span {
     pub id: SourceId,
-    pub range: Range<usize>,
+    pub range: SourceRange,
 }
 
 impl Span {

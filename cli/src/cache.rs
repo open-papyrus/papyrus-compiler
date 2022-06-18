@@ -1,5 +1,5 @@
-use crate::SourceId;
 use anyhow::Context;
+use papyrus_compiler_diagnostics::SourceId;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::fs;
@@ -7,13 +7,13 @@ use std::path::Path;
 
 #[derive(Default)]
 pub struct SourceCache {
-    sources: HashMap<u32, ariadne::Source>,
-    paths: HashMap<u32, String>,
-    next_id: u32,
+    sources: HashMap<SourceId, ariadne::Source>,
+    paths: HashMap<SourceId, String>,
+    next_id: SourceId,
 }
 
 impl SourceCache {
-    pub fn add_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(u32, String), anyhow::Error> {
+    pub fn add_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(SourceId, String), anyhow::Error> {
         let path_string = path
             .as_ref()
             .to_str()
