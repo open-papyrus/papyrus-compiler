@@ -1,8 +1,8 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use papyrus_compiler_parser::ast::script::Script;
-use papyrus_compiler_parser::error::Error;
+use papyrus_compiler_parser::parser_diagnostics::ParserDiagnostics;
 
-fn run_parser(src: &str) -> Result<Script, Vec<Error>> {
+fn run_parser(src: &str) -> Result<Script, Vec<ParserDiagnostics>> {
     let lexer_res = papyrus_compiler_lexer::run_lexer(src);
     papyrus_compiler_parser::parse_script(0, lexer_res)
 }
