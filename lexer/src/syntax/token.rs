@@ -1,24 +1,14 @@
 use crate::syntax::keyword_kind::KeywordKind;
 use crate::syntax::operator_kind::OperatorKind;
+use crate::LexerDiagnosticsKind;
 use logos::Logos;
-use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
-use std::num::ParseIntError;
 use std::str::FromStr;
-
-#[derive(Debug, Clone)]
-pub struct FloatNotFiniteError {}
-impl Error for FloatNotFiniteError {}
-impl Display for FloatNotFiniteError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "float is not finite")
-    }
-}
 
 #[derive(Default, Debug)]
 pub struct LexerExtras {
-    pub parsing_errors: Vec<(Box<dyn Error>, logos::Span)>,
+    pub parsing_errors: Vec<(LexerDiagnosticsKind, logos::Span)>,
 }
 
 #[derive(Logos, Debug, PartialEq, Copy, Clone)]
@@ -141,54 +131,58 @@ pub enum Token<'a> {
     Error,
 }
 
-fn set_error<'a, TOk, TError: Error + Clone + 'static>(
-    lex: &mut logos::Lexer<'a, Token<'a>>,
-    res: Result<TOk, TError>,
-) -> Result<TOk, TError> {
+fn parse_integer<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> Option<i32> {
+    let slice: &'a str = lex.slice();
+    let res = i32::from_str(slice);
     match res {
-        Ok(res) => Ok(res),
+        Ok(value) => Some(value),
         Err(err) => {
             lex.extras
                 .parsing_errors
-                .push((Box::new(err.clone()), lex.span()));
-            Err(err)
+                .push((LexerDiagnosticsKind::ParseIntError(err), lex.span()));
+
+            None
         }
     }
 }
 
-fn parse_integer<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> Result<i32, ParseIntError> {
-    let slice: &'a str = lex.slice();
-    let res = i32::from_str(slice);
-    set_error(lex, res)
-}
-
-fn parse_hex_integer<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> Result<i32, ParseIntError> {
+fn parse_hex_integer<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> Option<i32> {
     let slice: &'a str = lex.slice();
     // slice without the leading '0x'
     let res = i32::from_str_radix(&slice[2..], 16);
-    set_error(lex, res)
+    match res {
+        Ok(value) => Some(value),
+        Err(err) => {
+            lex.extras
+                .parsing_errors
+                .push((LexerDiagnosticsKind::ParseIntError(err), lex.span()));
+
+            None
+        }
+    }
 }
 
-fn parse_float<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> Result<f32, Box<dyn Error>> {
+fn parse_float<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> Option<f32> {
     let slice: &'a str = lex.slice();
     let res = f32::from_str(slice);
     match res {
         Ok(value) => {
             if value.is_finite() {
-                Ok(value)
+                Some(value)
             } else {
-                let err = FloatNotFiniteError {};
                 lex.extras
                     .parsing_errors
-                    .push((Box::new(err.clone()), lex.span()));
-                Err(Box::new(err))
+                    .push((LexerDiagnosticsKind::FloatNotFinite, lex.span()));
+
+                None
             }
         }
         Err(err) => {
             lex.extras
                 .parsing_errors
-                .push((Box::new(err.clone()), lex.span()));
-            Err(Box::new(err))
+                .push((LexerDiagnosticsKind::ParseFloatError(err), lex.span()));
+
+            None
         }
     }
 }

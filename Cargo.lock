@@ -485,11 +485,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "papyrus_compiler_diagnostics"
+version = "0.1.0"
+
+[[package]]
 name = "papyrus_compiler_lexer"
 version = "0.1.0"
 dependencies = [
  "criterion",
  "logos",
+ "papyrus_compiler_diagnostics",
  "strum_macros",
 ]
 
