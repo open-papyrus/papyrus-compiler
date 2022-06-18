@@ -1,4 +1,4 @@
-use papyrus_compiler_diagnostics::{Diagnostic, Range, SourceId};
+use papyrus_compiler_diagnostics::{Diagnostic, SourceId, SourceRange};
 use std::num::{ParseFloatError, ParseIntError};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,7 +58,7 @@ impl Diagnostic for LexerDiagnostics {
         self.source_id
     }
 
-    fn range(&self) -> Range {
+    fn range(&self) -> SourceRange {
         self.logos_span.clone()
     }
 }

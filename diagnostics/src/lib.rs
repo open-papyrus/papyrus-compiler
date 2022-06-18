@@ -1,5 +1,5 @@
 pub type SourceId = u32;
-pub type Range = std::ops::Range<usize>;
+pub type SourceRange = std::ops::Range<usize>;
 
 pub trait Diagnostic {
     fn id(&self) -> u32;
@@ -10,5 +10,5 @@ pub trait Diagnostic {
 
     fn source_id(&self) -> SourceId;
 
-    fn range(&self) -> Range;
+    fn range(&self) -> SourceRange;
 }
