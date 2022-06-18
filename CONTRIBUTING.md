@@ -43,7 +43,12 @@ You should also install and use [clippy](https://github.com/rust-lang/rust-clipp
 rustup component add clippy rustfmt
 ```
 
-You can configure your IDE to automatically run these two tools on save. We will not accept un-formatted code and clippy will also run as part of the CI.
+If you add or change any dependencies you should run [cargo-deny](https://github.com/EmbarkStudios/cargo-deny) and make sure there are no issues:
+
+```bash
+cargo install cargo-deny
+cargo deny check
+```
 
 ### Compiler Explorer
 
@@ -61,3 +66,9 @@ cargo build -p "papyrus_compiler_wasm" --target wasm32-unknown-unknown --release
 wasm-bindgen ./target/wasm32-unknown-unknown/release/papyrus_compiler_wasm.wasm --target web --out-dir ./compiler-explorer/src/wasm
 ```
 
+### Useful commands
+
+- clippy: `cargo clippy`
+- rustfmt: `cargo fmt`
+- benchmark: `cargo bench`
+- cargo-deny: `cargo deny check`

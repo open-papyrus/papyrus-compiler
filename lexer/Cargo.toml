@@ -14,3 +14,10 @@ strum_macros = "0.24.0"
 
 [features]
 test-external-scripts = []
+
+[dev-dependencies]
+criterion = "0.3.5"
+
+[[bench]]
+name = "lexer_benchmark"
+harness = false
