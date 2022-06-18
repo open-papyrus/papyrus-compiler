@@ -2,10 +2,15 @@
 name = "papyrus_compiler_lexer"
 version = "0.1.0"
 edition = "2021"
+authors = ["erri120 <erri120@protonmail.com>"]
+license = "MIT"
+readme = "../README.md"
+repository = "https://github.com/erri120/papyrus-compiler"
+homepage = "https://erri120.github.io/papyrus-compiler/"
 
 [dependencies]
 logos = "0.12.1"
-strum_macros = "0.24.1"
+strum_macros = "0.24.0"
 
 [features]
 test-external-scripts = []

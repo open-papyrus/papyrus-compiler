@@ -2,6 +2,11 @@
 name = "papyrus_compiler_parser"
 version = "0.1.0"
 edition = "2021"
+authors = ["erri120 <erri120@protonmail.com>"]
+license = "MIT"
+readme = "../README.md"
+repository = "https://github.com/erri120/papyrus-compiler"
+homepage = "https://erri120.github.io/papyrus-compiler/"
 
 [features]
 test-external-scripts = []
@@ -11,5 +16,5 @@ path = "../lexer"
 
 [dependencies]
 chumsky = "0.8.0"
-strum_macros = "0.24.1"
+strum_macros = "0.24.0"
 smallbox = "0.8.1"
