@@ -1,6 +1,6 @@
 # Open Papyrus Compiler
 
-> This project is still **WORK IN PROGRESS**. If you have any feature requests, head over to the [Issues](https://github.com/erri120/papyrus-compiler) tab and describe your needs. They [Compiler Explorer](https://papyrus-compiler-explorer.herokuapp.com/) website is also live however still very barebones.
+> This project is still **WORK IN PROGRESS**. If you have any feature requests, head over to the [Issues](https://github.com/erri120/papyrus-compiler) tab and describe your needs. The [Compiler Explorer](https://papyrus-compiler-explorer.herokuapp.com/) website is also live however still very barebones.
 
 The "official" Papyrus compiler that comes with the Creation Kit has some issues:
 
