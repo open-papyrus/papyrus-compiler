@@ -273,29 +273,27 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                                 None => FunctionArgument::Positional(value),
                             })
                             .map_with_span(Node::new)
-                            .separated_by(just(Token::Operator(OperatorKind::Comma)))
-                            .map(|parameters| {
-                                if parameters.is_empty() {
-                                    None
-                                } else {
-                                    Some(parameters)
-                                }
-                            }),
+                            .separated_by(just(Token::Operator(OperatorKind::Comma))),
                     )
                     .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
-                    .or_not()
-                    .map(|option| match option {
-                        Some(option) => option,
-                        None => None,
-                    }),
+                    .or_not(),
             )
             .map(|output| {
                 let (identifier, function_call_arguments) = output;
                 match function_call_arguments {
-                    Some(function_call_arguments) => Expression::FunctionCall {
-                        name: identifier,
-                        arguments: Some(function_call_arguments),
-                    },
+                    Some(function_call_arguments) => {
+                        if function_call_arguments.is_empty() {
+                            Expression::FunctionCall {
+                                name: identifier,
+                                arguments: None,
+                            }
+                        } else {
+                            Expression::FunctionCall {
+                                name: identifier,
+                                arguments: Some(function_call_arguments),
+                            }
+                        }
+                    }
                     None => identifier.into_inner(),
                 }
             }));
@@ -558,69 +556,98 @@ mod test {
 
     #[test]
     fn test_function_call_expression() {
-        let src = r#"MyFunc(someArgument, anotherArgument, 1, 1.0, false, "Hi!", name = none)"#;
-        let expected = Expression::FunctionCall {
-            name: Node::new(
-                Expression::Identifier(Node::new("MyFunc", (0..6).into())),
-                (0..6).into(),
-            ),
-            arguments: Some(vec![
-                Node::new(
-                    FunctionArgument::Positional(Node::new(
-                        Expression::Identifier(Node::new("someArgument", (7..19).into())),
-                        (7..19).into(),
-                    )),
-                    (7..19).into(),
-                ),
-                Node::new(
-                    FunctionArgument::Positional(Node::new(
-                        Expression::Identifier(Node::new("anotherArgument", (21..36).into())),
-                        (21..36).into(),
-                    )),
-                    (21..36).into(),
-                ),
-                Node::new(
-                    FunctionArgument::Positional(Node::new(
-                        Expression::Literal(Node::new(Literal::Integer(1), (38..39).into())),
-                        (38..39).into(),
-                    )),
-                    (38..39).into(),
-                ),
-                Node::new(
-                    FunctionArgument::Positional(Node::new(
-                        Expression::Literal(Node::new(Literal::Float(1.0), (41..44).into())),
-                        (41..44).into(),
-                    )),
-                    (41..44).into(),
-                ),
-                Node::new(
-                    FunctionArgument::Positional(Node::new(
-                        Expression::Literal(Node::new(Literal::Boolean(false), (46..51).into())),
-                        (46..51).into(),
-                    )),
-                    (46..51).into(),
-                ),
-                Node::new(
-                    FunctionArgument::Positional(Node::new(
-                        Expression::Literal(Node::new(Literal::String("Hi!"), (53..58).into())),
-                        (53..58).into(),
-                    )),
-                    (53..58).into(),
-                ),
-                Node::new(
-                    FunctionArgument::Named {
-                        name: Node::new("name", (60..64).into()),
-                        value: Node::new(
-                            Expression::Literal(Node::new(Literal::None, (67..71).into())),
-                            (67..71).into(),
+        let data = vec![
+            (
+                r#"MyFunc(someArgument, anotherArgument, 1, 1.0, false, "Hi!", name = none)"#,
+                Expression::FunctionCall {
+                    name: Node::new(
+                        Expression::Identifier(Node::new("MyFunc", (0..6).into())),
+                        (0..6).into(),
+                    ),
+                    arguments: Some(vec![
+                        Node::new(
+                            FunctionArgument::Positional(Node::new(
+                                Expression::Identifier(Node::new("someArgument", (7..19).into())),
+                                (7..19).into(),
+                            )),
+                            (7..19).into(),
                         ),
-                    },
-                    (60..71).into(),
-                ),
-            ]),
-        };
+                        Node::new(
+                            FunctionArgument::Positional(Node::new(
+                                Expression::Identifier(Node::new(
+                                    "anotherArgument",
+                                    (21..36).into(),
+                                )),
+                                (21..36).into(),
+                            )),
+                            (21..36).into(),
+                        ),
+                        Node::new(
+                            FunctionArgument::Positional(Node::new(
+                                Expression::Literal(Node::new(
+                                    Literal::Integer(1),
+                                    (38..39).into(),
+                                )),
+                                (38..39).into(),
+                            )),
+                            (38..39).into(),
+                        ),
+                        Node::new(
+                            FunctionArgument::Positional(Node::new(
+                                Expression::Literal(Node::new(
+                                    Literal::Float(1.0),
+                                    (41..44).into(),
+                                )),
+                                (41..44).into(),
+                            )),
+                            (41..44).into(),
+                        ),
+                        Node::new(
+                            FunctionArgument::Positional(Node::new(
+                                Expression::Literal(Node::new(
+                                    Literal::Boolean(false),
+                                    (46..51).into(),
+                                )),
+                                (46..51).into(),
+                            )),
+                            (46..51).into(),
+                        ),
+                        Node::new(
+                            FunctionArgument::Positional(Node::new(
+                                Expression::Literal(Node::new(
+                                    Literal::String("Hi!"),
+                                    (53..58).into(),
+                                )),
+                                (53..58).into(),
+                            )),
+                            (53..58).into(),
+                        ),
+                        Node::new(
+                            FunctionArgument::Named {
+                                name: Node::new("name", (60..64).into()),
+                                value: Node::new(
+                                    Expression::Literal(Node::new(Literal::None, (67..71).into())),
+                                    (67..71).into(),
+                                ),
+                            },
+                            (60..71).into(),
+                        ),
+                    ]),
+                },
+            ),
+            (
+                "MyFunc()",
+                Expression::FunctionCall {
+                    name: Node::new(
+                        Expression::Identifier(Node::new("MyFunc", (0..6).into())),
+                        (0..6).into(),
+                    ),
+                    arguments: None,
+                },
+            ),
+        ];
 
-        run_test(src, expected, expression_parser);
+        run_tests(data, expression_parser);
     }
 
     #[test]
