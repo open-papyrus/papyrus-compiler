@@ -1,12 +1,28 @@
 use crate::syntax::keyword_kind::KeywordKind;
 use crate::syntax::operator_kind::OperatorKind;
 use logos::Logos;
+use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
-use std::num::{ParseFloatError, ParseIntError};
+use std::num::ParseIntError;
 use std::str::FromStr;
 
+#[derive(Debug, Clone)]
+pub struct FloatNotFiniteError {}
+impl Error for FloatNotFiniteError {}
+impl Display for FloatNotFiniteError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "float is not finite")
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct LexerExtras {
+    pub parsing_errors: Vec<(Box<dyn Error>, logos::Span)>,
+}
+
 #[derive(Logos, Debug, PartialEq, Copy, Clone)]
+#[logos(extras = LexerExtras)]
 pub enum Token<'a> {
     #[token("(", callback = |_| OperatorKind::ParenthesisOpen)]
     #[token(")", callback = |_| OperatorKind::ParenthesisClose)]
@@ -125,20 +141,56 @@ pub enum Token<'a> {
     Error,
 }
 
+fn set_error<'a, TOk, TError: Error + Clone + 'static>(
+    lex: &mut logos::Lexer<'a, Token<'a>>,
+    res: Result<TOk, TError>,
+) -> Result<TOk, TError> {
+    match res {
+        Ok(res) => Ok(res),
+        Err(err) => {
+            lex.extras
+                .parsing_errors
+                .push((Box::new(err.clone()), lex.span()));
+            Err(err)
+        }
+    }
+}
+
 fn parse_integer<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> Result<i32, ParseIntError> {
     let slice: &'a str = lex.slice();
-    i32::from_str(slice)
+    let res = i32::from_str(slice);
+    set_error(lex, res)
 }
 
 fn parse_hex_integer<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> Result<i32, ParseIntError> {
     let slice: &'a str = lex.slice();
     // slice without the leading '0x'
-    i32::from_str_radix(&slice[2..], 16)
+    let res = i32::from_str_radix(&slice[2..], 16);
+    set_error(lex, res)
 }
 
-fn parse_float<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> Result<f32, ParseFloatError> {
+fn parse_float<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> Result<f32, Box<dyn Error>> {
     let slice: &'a str = lex.slice();
-    f32::from_str(slice)
+    let res = f32::from_str(slice);
+    match res {
+        Ok(value) => {
+            if value.is_finite() {
+                Ok(value)
+            } else {
+                let err = FloatNotFiniteError {};
+                lex.extras
+                    .parsing_errors
+                    .push((Box::new(err.clone()), lex.span()));
+                Err(Box::new(err))
+            }
+        }
+        Err(err) => {
+            lex.extras
+                .parsing_errors
+                .push((Box::new(err.clone()), lex.span()));
+            Err(Box::new(err))
+        }
+    }
 }
 
 fn parse_string<'a>(lex: &mut logos::Lexer<'a, Token<'a>>) -> &'a str {
@@ -211,7 +263,7 @@ impl<'a> Token<'a> {
 mod test {
     use crate::syntax::keyword_kind::KeywordKind;
     use crate::syntax::operator_kind::OperatorKind;
-    use crate::syntax::token::Token;
+    use crate::syntax::token::{LexerExtras, Token};
     use logos::{Lexer, Logos};
 
     fn test_data<'a, T, F>(data: Vec<(&'a str, T)>, transform: F)
@@ -490,6 +542,25 @@ mod test {
     fn test_error() {
         let mut lexer = Token::lexer("^");
         assert_eq!(lexer.next(), Some(Token::Error));
+    }
+
+    #[test]
+    fn test_extra_errors() {
+        let data = vec![
+            "2147483648",                                  // max int + 1
+            "0x80000000",                                  // max int + 1 in hex
+            "3402823470000000000000000000000000000000.0",  // max float * 10
+            "-2147483649",                                 // min int - 1
+            "-3402823470000000000000000000000000000000.0", // min float * 10
+        ];
+
+        for src in data {
+            let mut lexer = Token::lexer(src);
+            assert_eq!(lexer.next(), Some(Token::Error), "{}", src);
+
+            let extra: LexerExtras = lexer.extras;
+            assert!(!extra.parsing_errors.is_empty(), "{}", src);
+        }
     }
 
     #[test]
