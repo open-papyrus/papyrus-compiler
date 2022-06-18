@@ -50,7 +50,7 @@ impl Diagnostic for LexerDiagnostics {
             LexerDiagnosticsKind::UnknownToken => "Unknown token".to_string(),
             LexerDiagnosticsKind::ParseIntError(err) => format!("{}", err),
             LexerDiagnosticsKind::ParseFloatError(err) => format!("{}", err),
-            LexerDiagnosticsKind::FloatNotFinite => "number is not finite".to_string(),
+            LexerDiagnosticsKind::FloatNotFinite => "Number is not finite".to_string(),
         }
     }
 

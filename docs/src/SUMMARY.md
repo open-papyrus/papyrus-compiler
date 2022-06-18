@@ -9,7 +9,10 @@
 
 # Compiler Reference
 
-- [Diagnostics]()
+- [Compiler Terminology](./Compiler_Reference/Compiler_Terminology.md)
+- [Diagnostics](./Compiler_Reference/Diagnostics.md)
+  - [Lexer Diagnostics](./Compiler_Reference/Lexer_Diagnostics.md)
+  - [Parser Diagnostics](./Compiler_Reference/Parser_Diagnostics.md)
 
 # Papyrus Language Reference
 
