@@ -60,7 +60,7 @@ impl<'a> chumsky::Error<Token<'a>> for Error<'a> {
         Self {
             span,
             label: None,
-            expected: expected.into_iter().filter_map(|item| item).collect(),
+            expected: expected.into_iter().flatten().collect(),
             found,
         }
     }
