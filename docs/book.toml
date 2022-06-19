@@ -12,7 +12,7 @@ create-missing = false
 [output.html]
 git-repository-url = "https://github.com/erri120/papyrus-compiler"
 edit-url-template = "https://github.com/erri120/papyrus-compiler/edit/master/docs/{path}"
-additional-js = ["papyrus.min.js"]
+additional-js = ["papyrus.min.js", "x86asm.min.js"]
 
 [output.html.print]
 enable = false

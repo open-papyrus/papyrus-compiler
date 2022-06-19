@@ -10,9 +10,14 @@
 # Compiler Reference
 
 - [Compiler Terminology](./Compiler_Reference/Compiler_Terminology.md)
-- [Diagnostics](./Compiler_Reference/Diagnostics.md)
-  - [Lexer Diagnostics](./Compiler_Reference/Lexer_Diagnostics.md)
-  - [Parser Diagnostics](./Compiler_Reference/Parser_Diagnostics.md)
+- [Diagnostics](./Compiler_Reference/Diagnostics/index.md)
+  - [Lexer Diagnostics](./Compiler_Reference/Diagnostics/Lexer_Diagnostics.md)
+  - [Parser Diagnostics](./Compiler_Reference/Diagnostics/Parser_Diagnostics.md)
+- [Optimizations](./Compiler_Reference/Optimizations/index.md)
+  - [Constant Folding](./Compiler_Reference/Optimizations/Constant_Folding.md)
+  - [Constant Propagation](./Compiler_Reference/Optimizations/Constant_Propagation.md)
+  - [Function Inlining](./Compiler_Reference/Optimizations/Function_Inlining.md)
+  - [Expression Simplification](./Compiler_Reference/Optimizations/Expression_Simplification.md)
 
 # Papyrus Language Reference
 

@@ -4,7 +4,7 @@ Prefix for all diagnostics produces by the Lexer: `L`
 
 ## `L001`: Unknown Token
 
-Level: [Error](./Diagnostics.md#error)
+Level: [Error](./index.md#error)
 
 The Lexer encountered an unknown token.
 
@@ -16,7 +16,7 @@ Example:
 
 ## `L001`: ParseIntError
 
-Level: [Error](./Diagnostics.md#error)
+Level: [Error](./index.md#error)
 
 An integer could not be parsed. This error is part of the Rust Standard Library: [std::num::ParseIntError](https://doc.rust-lang.org/std/num/struct.ParseIntError.html).
 
@@ -29,13 +29,13 @@ x = -2147483649 ; negative integer overflow
 
 ## `L002`: ParseFloatError
 
-Level: [Error](./Diagnostics.md#error)
+Level: [Error](./index.md#error)
 
 A floating point number could not be parsed. This error is part of the Rust Standard Library: [std::num::ParseFloatError](https://doc.rust-lang.org/std/num/struct.ParseFloatError.html)
 
 ## `L003`: Number is not finite
 
-Level: [Error](./Diagnostics.md#error)
+Level: [Error](./index.md#error)
 
 A floating point number could not be parsed because it is either Infinite or Not-a-Number (NaN).
 
