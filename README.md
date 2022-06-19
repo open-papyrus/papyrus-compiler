@@ -1,13 +1,6 @@
 # Open Papyrus Compiler
 
-> This project is still **WORK IN PROGRESS**. If you have any feature requests, head over to the [Issues](https://github.com/erri120/papyrus-compiler) tab and describe your needs. The [Compiler Explorer](https://papyrus-compiler-explorer.herokuapp.com/) website is also live however still very barebones.
-
-The "official" Papyrus compiler that comes with the Creation Kit has some issues:
-
-1) each game has a different language version (eg: F04 supports structs while Skyrim doesn't, F04 has `DebugOnly` and `BetaOnly` function flags and release modes but Skyrim has none of that)
-2) the compiler does the minimum amount of work required to produce an output 
-
-The CK compiler provides no meaningful errors, has no code analysis, does not optimize the output and requires the CK to be installed. The Open Papyrus Compiler will have a strong focus on analysis and optimization to produce high performance scripts.
+> This project is still **WORK IN PROGRESS**. If you have any feature requests, head over to the [Issues](https://github.com/erri120/papyrus-compiler) tab and describe your needs. You can try the current version of the compiler with the [Compiler Explorer](https://papyrus-compiler-explorer.herokuapp.com/) website however that is also still very much work in progress.
 
 ## Documentation
 
