@@ -492,6 +492,7 @@ version = "0.1.0"
 dependencies = [
  "ariadne",
  "strum_macros",
+ "yansi",
 ]
 
 [[package]]
@@ -521,6 +522,7 @@ name = "papyrus_compiler_wasm"
 version = "0.1.0"
 dependencies = [
  "papyrus_compiler_core",
+ "papyrus_compiler_diagnostics",
  "wasm-bindgen",
 ]
 

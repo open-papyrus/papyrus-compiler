@@ -1,7 +1,10 @@
+use papyrus_compiler_diagnostics::disable_paint;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub fn run_parser(src: &str) -> String {
+    disable_paint();
+
     let res = papyrus_compiler_core::compile_string(0, src);
     match res {
         Ok(script) => format!("{:#?}", script),

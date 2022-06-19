@@ -1,3 +1,5 @@
+use yansi::Paint;
+
 #[cfg(feature = "ariadne-support")]
 pub mod ariadne_support;
 
@@ -12,17 +14,37 @@ pub enum SeverityLevel {
 }
 
 pub trait Diagnostic {
-    fn id(&self) -> u32;
-
     fn prefix(&self) -> &'static str;
+
+    fn documentation_section(&self) -> &'static str;
+
+    fn id(&self) -> u32;
 
     fn message(&self) -> String;
 
     fn level(&self) -> SeverityLevel;
 
+    fn documentation_heading(&self) -> &'static str;
+
     fn source_id(&self) -> SourceId;
 
     fn range(&self) -> SourceRange;
+}
+
+pub fn error_paint<T>(item: T) -> Paint<T> {
+    Paint::red(item)
+}
+
+pub fn good_paint<T>(item: T) -> Paint<T> {
+    Paint::cyan(item)
+}
+
+pub fn disable_paint() {
+    Paint::disable()
+}
+
+pub fn enable_paint() {
+    Paint::enable()
 }
 
 pub fn convert_diagnostics<'a, T: Diagnostic + 'a>(items: Vec<T>) -> Vec<Box<dyn Diagnostic + 'a>> {

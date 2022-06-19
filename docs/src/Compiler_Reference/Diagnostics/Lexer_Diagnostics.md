@@ -14,7 +14,7 @@ Example:
 ^
 ```
 
-## `L001`: ParseIntError
+## `L002`: ParseIntError
 
 Level: [Error](./index.md#error)
 
@@ -27,13 +27,13 @@ x = 2147483648  ; positive integer overflow
 x = -2147483649 ; negative integer overflow
 ```
 
-## `L002`: ParseFloatError
+## `L003`: ParseFloatError
 
 Level: [Error](./index.md#error)
 
 A floating point number could not be parsed. This error is part of the Rust Standard Library: [std::num::ParseFloatError](https://doc.rust-lang.org/std/num/struct.ParseFloatError.html)
 
-## `L003`: Number is not finite
+## `L004`: Number is not finite
 
 Level: [Error](./index.md#error)
 

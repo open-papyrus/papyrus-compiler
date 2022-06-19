@@ -1,4 +1,4 @@
-use papyrus_compiler_diagnostics::{Diagnostic, SeverityLevel, SourceId, SourceRange};
+use papyrus_compiler_diagnostics::{error_paint, Diagnostic, SeverityLevel, SourceId, SourceRange};
 use std::num::{ParseFloatError, ParseIntError};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,6 +32,14 @@ impl LexerDiagnostics {
 }
 
 impl Diagnostic for LexerDiagnostics {
+    fn prefix(&self) -> &'static str {
+        "L"
+    }
+
+    fn documentation_section(&self) -> &'static str {
+        "Lexer_Diagnostics"
+    }
+
     fn id(&self) -> u32 {
         match &self.kind {
             LexerDiagnosticsKind::UnknownToken => 1,
@@ -41,22 +49,29 @@ impl Diagnostic for LexerDiagnostics {
         }
     }
 
-    fn prefix(&self) -> &'static str {
-        "L"
-    }
-
     fn message(&self) -> String {
         match &self.kind {
-            LexerDiagnosticsKind::UnknownToken => "Unknown token".to_string(),
-            LexerDiagnosticsKind::ParseIntError(err) => format!("{}", err),
-            LexerDiagnosticsKind::ParseFloatError(err) => format!("{}", err),
-            LexerDiagnosticsKind::FloatNotFinite => "Number is not finite".to_string(),
+            LexerDiagnosticsKind::UnknownToken => format!("{}", error_paint("Unknown token")),
+            LexerDiagnosticsKind::ParseIntError(err) => format!("{}", error_paint(err)),
+            LexerDiagnosticsKind::ParseFloatError(err) => format!("{}", error_paint(err)),
+            LexerDiagnosticsKind::FloatNotFinite => {
+                format!("{}", error_paint("Number is not finite"))
+            }
         }
     }
 
     fn level(&self) -> SeverityLevel {
         // all lexer diagnostics are errors
         SeverityLevel::Error
+    }
+
+    fn documentation_heading(&self) -> &'static str {
+        match &self.kind {
+            LexerDiagnosticsKind::UnknownToken => "l001-unknown-token",
+            LexerDiagnosticsKind::ParseIntError(_) => "l002-parseinterror",
+            LexerDiagnosticsKind::ParseFloatError(_) => "l003-parsefloaterror",
+            LexerDiagnosticsKind::FloatNotFinite => "l004-number-is-not-finite",
+        }
     }
 
     fn source_id(&self) -> SourceId {

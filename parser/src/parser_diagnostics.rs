@@ -1,4 +1,6 @@
-use papyrus_compiler_diagnostics::{Diagnostic, SeverityLevel, SourceId, SourceRange};
+use papyrus_compiler_diagnostics::{
+    error_paint, good_paint, Diagnostic, SeverityLevel, SourceId, SourceRange,
+};
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::collections::HashSet;
 
@@ -44,33 +46,42 @@ fn optional_token_to_string(token: Option<&Token>) -> String {
 }
 
 impl<'a> Diagnostic for ParserDiagnostics<'a> {
-    fn id(&self) -> u32 {
+    fn prefix(&self) -> &'static str {
+        "P"
+    }
+
+    fn documentation_section(&self) -> &'static str {
         match &self.kind {
-            ParserDiagnosticsKind::ExpectedNothing { .. } => 1,
-            ParserDiagnosticsKind::ExpectedOne { .. } => 2,
-            ParserDiagnosticsKind::ExpectedOneOf { .. } => 3,
+            ParserDiagnosticsKind::ExpectedNothing { .. } => "p001-unexpected-token",
+            ParserDiagnosticsKind::ExpectedOne { .. } => "p001-unexpected-token",
+            ParserDiagnosticsKind::ExpectedOneOf { .. } => "p001-unexpected-token",
         }
     }
 
-    fn prefix(&self) -> &'static str {
-        "P"
+    fn id(&self) -> u32 {
+        match &self.kind {
+            ParserDiagnosticsKind::ExpectedNothing { .. } => 1,
+            ParserDiagnosticsKind::ExpectedOne { .. } => 1,
+            ParserDiagnosticsKind::ExpectedOneOf { .. } => 1,
+        }
     }
 
     fn message(&self) -> String {
         match &self.kind {
             ParserDiagnosticsKind::ExpectedNothing { found } => format!(
-                "Unexpected Token, found {} expected Nothing",
-                optional_token_to_string(found.as_ref())
+                "Unexpected Token, found {} expected {}",
+                error_paint(optional_token_to_string(found.as_ref())),
+                good_paint("Nothing")
             ),
             ParserDiagnosticsKind::ExpectedOne { found, expected } => format!(
                 "Unexpected Token, found {} expected {}",
-                optional_token_to_string(found.as_ref()),
-                expected.error_display()
+                error_paint(optional_token_to_string(found.as_ref())),
+                good_paint(expected.error_display())
             ),
             ParserDiagnosticsKind::ExpectedOneOf { found, expected } => {
                 let strings = expected
                     .iter()
-                    .map(|token| token.error_display())
+                    .map(|token| format!("{}", good_paint(token.error_display())))
                     .collect::<Vec<_>>();
 
                 let capacity = strings
@@ -96,7 +107,7 @@ impl<'a> Diagnostic for ParserDiagnostics<'a> {
 
                 format!(
                     "Unexpected Token, found {} expected {}",
-                    optional_token_to_string(found.as_ref()),
+                    error_paint(optional_token_to_string(found.as_ref())),
                     expected
                 )
             }
@@ -106,6 +117,10 @@ impl<'a> Diagnostic for ParserDiagnostics<'a> {
     fn level(&self) -> SeverityLevel {
         // all parser diagnostics are errors
         SeverityLevel::Error
+    }
+
+    fn documentation_heading(&self) -> &'static str {
+        "Parser_Diagnostics"
     }
 
     fn source_id(&self) -> SourceId {
