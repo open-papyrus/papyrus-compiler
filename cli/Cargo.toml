@@ -13,6 +13,7 @@ path = "../core"
 
 [dependencies.papyrus_compiler_diagnostics]
 path = "../diagnostics"
+features = ["ariadne-support"]
 
 [dependencies]
 anyhow = "1.0.57"

@@ -489,6 +489,10 @@ dependencies = [
 [[package]]
 name = "papyrus_compiler_diagnostics"
 version = "0.1.0"
+dependencies = [
+ "ariadne",
+ "strum_macros",
+]
 
 [[package]]
 name = "papyrus_compiler_lexer"

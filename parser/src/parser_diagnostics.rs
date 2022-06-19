@@ -1,4 +1,4 @@
-use papyrus_compiler_diagnostics::{Diagnostic, SourceId, SourceRange};
+use papyrus_compiler_diagnostics::{Diagnostic, SeverityLevel, SourceId, SourceRange};
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::collections::HashSet;
 
@@ -101,6 +101,11 @@ impl<'a> Diagnostic for ParserDiagnostics<'a> {
                 )
             }
         }
+    }
+
+    fn level(&self) -> SeverityLevel {
+        // all parser diagnostics are errors
+        SeverityLevel::Error
     }
 
     fn source_id(&self) -> SourceId {

@@ -1,4 +1,4 @@
-use papyrus_compiler_diagnostics::{Diagnostic, SourceId, SourceRange};
+use papyrus_compiler_diagnostics::{Diagnostic, SeverityLevel, SourceId, SourceRange};
 use std::num::{ParseFloatError, ParseIntError};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -52,6 +52,11 @@ impl Diagnostic for LexerDiagnostics {
             LexerDiagnosticsKind::ParseFloatError(err) => format!("{}", err),
             LexerDiagnosticsKind::FloatNotFinite => "Number is not finite".to_string(),
         }
+    }
+
+    fn level(&self) -> SeverityLevel {
+        // all lexer diagnostics are errors
+        SeverityLevel::Error
     }
 
     fn source_id(&self) -> SourceId {
