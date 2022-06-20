@@ -9,6 +9,7 @@ use crate::ast::structure::{struct_parser, Structure};
 use crate::ast::variable::{script_variable_parser, ScriptVariable};
 use crate::parse::TokenParser;
 use chumsky::prelude::*;
+use papyrus_compiler_diagnostics::SourceRange;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
@@ -140,6 +141,51 @@ pub fn script_parser<'a>() -> impl TokenParser<'a, Script<'a>> {
             let (((name_identifier, extends_identifier), script_flags), contents) = output;
             Script::new(name_identifier, extends_identifier, script_flags, contents)
         })
+}
+
+struct CustomParser<'a> {
+    tokens: Vec<(Token<'a>, SourceRange)>,
+    offset: usize,
+}
+
+impl<'a> CustomParser<'a> {
+    pub fn new(tokens: Vec<(Token<'a>, SourceRange)>) -> Self {
+        Self { tokens, offset: 0 }
+    }
+    
+    pub fn peek(&self) -> Option<&Token<'a>> {
+        if self.offset + 1 < self.tokens.len() {
+            self.tokens.get(self.offset + 1).map(|(token, _)| token)
+        } else {
+            None
+        }
+    }
+    
+    pub fn consume(mut self) -> Option<Token<'a>> {
+        if self.offset < self.tokens.len() {
+            let (token, _) = self.tokens[self.offset];
+            self.offset += 1;
+            Some(token)
+        } else {
+            None
+        }
+    }
+    
+    pub fn map_with_span<T>(mut self) {
+        let (_, start) = self.tokens.get(self.offset)?;
+        let start = start.clone();
+        
+        let (_, end) = self.tokens.get(self.offset)?;
+        let end = end.clone();
+        
+        Node::new(None, )
+    }
+}
+
+pub fn custom_script_parser<'a>(tokens: Vec<(Token<'a>, SourceRange)>) -> Option<Script<'a>> {
+    let parser = CustomParser::new(tokens);
+
+    None
 }
 
 #[cfg(test)]
