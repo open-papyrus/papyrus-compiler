@@ -342,7 +342,7 @@ pub fn custom_event_header_parser<'a>() -> impl TokenParser<'a, CustomEventHeade
                 .then(identifier_parser().map_with_span(Node::new))
                 .map(|output| {
                     let ((type_name, token), identifier) = output;
-                    let span = type_name.span_union(&token);
+                    let span = type_name.range_union(&token);
                     let type_node = Type::new(type_name, true);
 
                     EventParameter::new(Node::new(type_node, span), identifier)
@@ -417,7 +417,7 @@ mod test {
     #[test]
     fn test_custom_event_parser() {
         let src = "CustomEvent MyEvent";
-        let expected = CustomEvent::new(Node::new("MyEvent", (12..19).into()));
+        let expected = CustomEvent::new(Node::new("MyEvent", 12..19));
         run_test(src, expected, custom_event_parser);
     }
 
@@ -425,19 +425,19 @@ mod test {
     fn test_event_header_parser() {
         let src = "Event OnActivate(ObjectReference akActivator)";
         let expected = EventHeader::new(
-            Node::new("OnActivate", (6..16).into()),
+            Node::new("OnActivate", 6..16),
             Some(vec![Node::new(
                 EventParameter::new(
                     Node::new(
                         Type::new(
-                            Node::new(TypeName::Identifier("ObjectReference"), (17..32).into()),
+                            Node::new(TypeName::Identifier("ObjectReference"), 17..32),
                             false,
                         ),
-                        (17..32).into(),
+                        17..32,
                     ),
-                    Node::new("akActivator", (33..44).into()),
+                    Node::new("akActivator", 33..44),
                 ),
-                (17..44).into(),
+                17..44,
             )]),
             None,
         );
@@ -448,33 +448,33 @@ mod test {
     fn test_remote_event_header_parser() {
         let src = "Event ObjectReference.OnActivate(ObjectReference akSender, ObjectReference akActivator)";
         let expected = RemoteEventHeader::new(
-            Node::new("ObjectReference", (6..21).into()),
-            Node::new("OnActivate", (22..32).into()),
+            Node::new("ObjectReference", 6..21),
+            Node::new("OnActivate", 22..32),
             Node::new(
                 EventParameter::new(
                     Node::new(
                         Type::new(
-                            Node::new(TypeName::Identifier("ObjectReference"), (33..48).into()),
+                            Node::new(TypeName::Identifier("ObjectReference"), 33..48),
                             false,
                         ),
-                        (33..48).into(),
+                        33..48,
                     ),
-                    Node::new("akSender", (49..57).into()),
+                    Node::new("akSender", 49..57),
                 ),
-                (33..57).into(),
+                33..57,
             ),
             Some(vec![Node::new(
                 EventParameter::new(
                     Node::new(
                         Type::new(
-                            Node::new(TypeName::Identifier("ObjectReference"), (59..74).into()),
+                            Node::new(TypeName::Identifier("ObjectReference"), 59..74),
                             false,
                         ),
-                        (59..74).into(),
+                        59..74,
                     ),
-                    Node::new("akActivator", (75..86).into()),
+                    Node::new("akActivator", 75..86),
                 ),
-                (59..86).into(),
+                59..86,
             )]),
             None,
         );
@@ -486,30 +486,27 @@ mod test {
     fn test_custom_event_header_parser() {
         let src = "Event MyQuestScript.MyCustomEvent(MyQuestScript akSender, Var[] akArgs)";
         let expected = CustomEventHeader::new(
-            Node::new("MyQuestScript", (6..19).into()),
-            Node::new("MyCustomEvent", (20..33).into()),
+            Node::new("MyQuestScript", 6..19),
+            Node::new("MyCustomEvent", 20..33),
             Node::new(
                 EventParameter::new(
                     Node::new(
                         Type::new(
-                            Node::new(TypeName::Identifier("MyQuestScript"), (34..47).into()),
+                            Node::new(TypeName::Identifier("MyQuestScript"), 34..47),
                             false,
                         ),
-                        (34..47).into(),
+                        34..47,
                     ),
-                    Node::new("akSender", (48..56).into()),
+                    Node::new("akSender", 48..56),
                 ),
-                (34..56).into(),
+                34..56,
             ),
             Node::new(
                 EventParameter::new(
-                    Node::new(
-                        Type::new(Node::new(TypeName::Var, (58..61).into()), true),
-                        (58..63).into(),
-                    ),
-                    Node::new("akArgs", (64..70).into()),
+                    Node::new(Type::new(Node::new(TypeName::Var, 58..61), true), 58..63),
+                    Node::new("akArgs", 64..70),
                 ),
-                (58..70).into(),
+                58..70,
             ),
             None,
         );
@@ -523,28 +520,25 @@ mod test {
         let expected = Event::new(
             Node::new(
                 EventHeaderKind::EventHeader(EventHeader::new(
-                    Node::new("OnActivate", (6..16).into()),
+                    Node::new("OnActivate", 6..16),
                     Some(vec![Node::new(
                         EventParameter::new(
                             Node::new(
                                 Type::new(
-                                    Node::new(
-                                        TypeName::Identifier("ObjectReference"),
-                                        (17..32).into(),
-                                    ),
+                                    Node::new(TypeName::Identifier("ObjectReference"), 17..32),
                                     false,
                                 ),
-                                (17..32).into(),
+                                17..32,
                             ),
-                            Node::new("akActivator", (33..44).into()),
+                            Node::new("akActivator", 33..44),
                         ),
-                        (17..44).into(),
+                        17..44,
                     )]),
                     None,
                 )),
-                (0..45).into(),
+                0..45,
             ),
-            Some(vec![Node::new(Statement::Return(None), (46..52).into())]),
+            Some(vec![Node::new(Statement::Return(None), 46..52)]),
         );
 
         run_test(src, expected, event_parser);

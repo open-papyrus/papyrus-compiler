@@ -302,16 +302,13 @@ mod test {
         let src = "int x = 1";
         let expected = Statement::VariableDefinition {
             type_node: Node::new(
-                Type::new(
-                    Node::new(TypeName::BaseType(BaseType::Int), (0..3).into()),
-                    false,
-                ),
-                (0..3).into(),
+                Type::new(Node::new(TypeName::BaseType(BaseType::Int), 0..3), false),
+                0..3,
             ),
-            name: Node::new("x", (4..5).into()),
+            name: Node::new("x", 4..5),
             expression: Some(Node::new(
-                Expression::Literal(Node::new(Literal::Integer(1), (8..9).into())),
-                (8..9).into(),
+                Expression::Literal(Node::new(Literal::Integer(1), 8..9)),
+                8..9,
             )),
         };
 
@@ -325,8 +322,8 @@ mod test {
             (
                 "Return 1",
                 Statement::Return(Some(Node::new(
-                    Expression::Literal(Node::new(Literal::Integer(1), (7..8).into())),
-                    (7..8).into(),
+                    Expression::Literal(Node::new(Literal::Integer(1), 7..8)),
+                    7..8,
                 ))),
             ),
         ];
@@ -336,14 +333,11 @@ mod test {
 
     #[test]
     fn test_assignment_statement() {
-        let lhs = Node::new(
-            Expression::Identifier(Node::new("x", (0..1).into())),
-            (0..1).into(),
-        );
+        let lhs = Node::new(Expression::Identifier(Node::new("x", 0..1)), 0..1);
 
         let rhs = Node::new(
-            Expression::Literal(Node::new(Literal::Integer(1), (5..6).into())),
-            (5..6).into(),
+            Expression::Literal(Node::new(Literal::Integer(1), 5..6)),
+            5..6,
         );
 
         let data = vec![
@@ -351,10 +345,10 @@ mod test {
                 "x = 1",
                 Statement::Assignment {
                     lhs: lhs.clone(),
-                    kind: Node::new(AssignmentKind::Normal, (2..3).into()),
+                    kind: Node::new(AssignmentKind::Normal, 2..3),
                     rhs: Node::new(
-                        Expression::Literal(Node::new(Literal::Integer(1), (4..5).into())),
-                        (4..5).into(),
+                        Expression::Literal(Node::new(Literal::Integer(1), 4..5)),
+                        4..5,
                     ),
                 },
             ),
@@ -362,7 +356,7 @@ mod test {
                 "x += 1",
                 Statement::Assignment {
                     lhs: lhs.clone(),
-                    kind: Node::new(AssignmentKind::Addition, (2..4).into()),
+                    kind: Node::new(AssignmentKind::Addition, 2..4),
                     rhs: rhs.clone(),
                 },
             ),
@@ -370,7 +364,7 @@ mod test {
                 "x -= 1",
                 Statement::Assignment {
                     lhs: lhs.clone(),
-                    kind: Node::new(AssignmentKind::Subtraction, (2..4).into()),
+                    kind: Node::new(AssignmentKind::Subtraction, 2..4),
                     rhs: rhs.clone(),
                 },
             ),
@@ -378,7 +372,7 @@ mod test {
                 "x *= 1",
                 Statement::Assignment {
                     lhs: lhs.clone(),
-                    kind: Node::new(AssignmentKind::Multiplication, (2..4).into()),
+                    kind: Node::new(AssignmentKind::Multiplication, 2..4),
                     rhs: rhs.clone(),
                 },
             ),
@@ -386,7 +380,7 @@ mod test {
                 "x /= 1",
                 Statement::Assignment {
                     lhs: lhs.clone(),
-                    kind: Node::new(AssignmentKind::Division, (2..4).into()),
+                    kind: Node::new(AssignmentKind::Division, 2..4),
                     rhs: rhs.clone(),
                 },
             ),
@@ -394,7 +388,7 @@ mod test {
                 "x %= 1",
                 Statement::Assignment {
                     lhs: lhs.clone(),
-                    kind: Node::new(AssignmentKind::Modulus, (2..4).into()),
+                    kind: Node::new(AssignmentKind::Modulus, 2..4),
                     rhs: rhs.clone(),
                 },
             ),
@@ -404,29 +398,26 @@ mod test {
                     lhs: Node::new(
                         Expression::ArrayAccess {
                             array: Node::new(
-                                Expression::Identifier(Node::new("Pages", (0..5).into())),
-                                (0..5).into(),
+                                Expression::Identifier(Node::new("Pages", 0..5)),
+                                0..5,
                             ),
-                            index: Node::new(
-                                Expression::Identifier(Node::new("i", (6..7).into())),
-                                (6..7).into(),
-                            ),
+                            index: Node::new(Expression::Identifier(Node::new("i", 6..7)), 6..7),
                         },
-                        (0..8).into(),
+                        0..8,
                     ),
-                    kind: Node::new(AssignmentKind::Normal, (9..10).into()),
+                    kind: Node::new(AssignmentKind::Normal, 9..10),
                     rhs: Node::new(
                         Expression::ArrayAccess {
                             array: Node::new(
-                                Expression::Identifier(Node::new("Pages", (11..16).into())),
-                                (11..16).into(),
+                                Expression::Identifier(Node::new("Pages", 11..16)),
+                                11..16,
                             ),
                             index: Node::new(
-                                Expression::Identifier(Node::new("j", (17..18).into())),
-                                (17..18).into(),
+                                Expression::Identifier(Node::new("j", 17..18)),
+                                17..18,
                             ),
                         },
-                        (11..19).into(),
+                        11..19,
                     ),
                 },
             ),
@@ -444,15 +435,12 @@ mod test {
                     if_path: Node::new(
                         ConditionalPath {
                             condition: Node::new(
-                                Expression::Literal(Node::new(
-                                    Literal::Boolean(true),
-                                    (4..8).into(),
-                                )),
-                                (3..9).into(),
+                                Expression::Literal(Node::new(Literal::Boolean(true), 4..8)),
+                                3..9,
                             ),
                             statements: None,
                         },
-                        (3..9).into(),
+                        3..9,
                     ),
                     other_paths: None,
                     else_path: None,
@@ -464,42 +452,33 @@ mod test {
                     if_path: Node::new(
                         ConditionalPath {
                             condition: Node::new(
-                                Expression::Literal(Node::new(
-                                    Literal::Boolean(true),
-                                    (4..8).into(),
-                                )),
-                                (3..9).into(),
+                                Expression::Literal(Node::new(Literal::Boolean(true), 4..8)),
+                                3..9,
                             ),
                             statements: None,
                         },
-                        (3..9).into(),
+                        3..9,
                     ),
                     other_paths: Some(vec![
                         Node::new(
                             ConditionalPath {
                                 condition: Node::new(
-                                    Expression::Literal(Node::new(
-                                        Literal::Boolean(true),
-                                        (18..22).into(),
-                                    )),
-                                    (17..23).into(),
+                                    Expression::Literal(Node::new(Literal::Boolean(true), 18..22)),
+                                    17..23,
                                 ),
                                 statements: None,
                             },
-                            (17..23).into(),
+                            17..23,
                         ),
                         Node::new(
                             ConditionalPath {
                                 condition: Node::new(
-                                    Expression::Literal(Node::new(
-                                        Literal::Boolean(false),
-                                        (32..37).into(),
-                                    )),
-                                    (31..38).into(),
+                                    Expression::Literal(Node::new(Literal::Boolean(false), 32..37)),
+                                    31..38,
                                 ),
                                 statements: None,
                             },
-                            (31..38).into(),
+                            31..38,
                         ),
                     ]),
                     else_path: None,
@@ -519,65 +498,59 @@ endif"#,
                             Node::new(
                                 Expression::Comparison {
                                     lhs: Node::new(
-                                        Expression::Identifier(Node::new("x", (3..4).into())),
-                                        (3..4).into(),
+                                        Expression::Identifier(Node::new("x", 3..4)),
+                                        3..4,
                                     ),
-                                    kind: Node::new(ComparisonKind::EqualTo, (5..7).into()),
+                                    kind: Node::new(ComparisonKind::EqualTo, 5..7),
                                     rhs: Node::new(
-                                        Expression::Literal(Node::new(
-                                            Literal::Integer(0),
-                                            (8..9).into(),
-                                        )),
-                                        (8..9).into(),
+                                        Expression::Literal(Node::new(Literal::Integer(0), 8..9)),
+                                        8..9,
                                     ),
                                 },
-                                (3..9).into(),
+                                3..9,
                             ),
                             Some(vec![Node::new(
                                 Statement::Return(Some(Node::new(
-                                    Expression::Identifier(Node::new("y", (21..22).into())),
-                                    (21..22).into(),
+                                    Expression::Identifier(Node::new("y", 21..22)),
+                                    21..22,
                                 ))),
-                                (14..22).into(),
+                                14..22,
                             )]),
                         ),
-                        (3..22).into(),
+                        3..22,
                     ),
                     other_paths: Some(vec![Node::new(
                         ConditionalPath::new(
                             Node::new(
                                 Expression::Comparison {
                                     lhs: Node::new(
-                                        Expression::Identifier(Node::new("x", (30..31).into())),
-                                        (30..31).into(),
+                                        Expression::Identifier(Node::new("x", 30..31)),
+                                        30..31,
                                     ),
-                                    kind: Node::new(ComparisonKind::EqualTo, (32..34).into()),
+                                    kind: Node::new(ComparisonKind::EqualTo, 32..34),
                                     rhs: Node::new(
-                                        Expression::Literal(Node::new(
-                                            Literal::Integer(1),
-                                            (35..36).into(),
-                                        )),
-                                        (35..36).into(),
+                                        Expression::Literal(Node::new(Literal::Integer(1), 35..36)),
+                                        35..36,
                                     ),
                                 },
-                                (30..36).into(),
+                                30..36,
                             ),
                             Some(vec![Node::new(
                                 Statement::Return(Some(Node::new(
-                                    Expression::Identifier(Node::new("y", (48..49).into())),
-                                    (48..49).into(),
+                                    Expression::Identifier(Node::new("y", 48..49)),
+                                    48..49,
                                 ))),
-                                (41..49).into(),
+                                41..49,
                             )]),
                         ),
-                        (30..49).into(),
+                        30..49,
                     )]),
                     else_path: Some(vec![Node::new(
                         Statement::Return(Some(Node::new(
-                            Expression::Identifier(Node::new("y", (66..67).into())),
-                            (66..67).into(),
+                            Expression::Identifier(Node::new("y", 66..67)),
+                            66..67,
                         ))),
-                        (59..67).into(),
+                        59..67,
                     )]),
                 },
             ),
@@ -592,12 +565,12 @@ endif"#,
         let expected = Statement::While(Node::new(
             ConditionalPath {
                 condition: Node::new(
-                    Expression::Literal(Node::new(Literal::Boolean(true), (7..11).into())),
-                    (6..12).into(),
+                    Expression::Literal(Node::new(Literal::Boolean(true), 7..11)),
+                    6..12,
                 ),
                 statements: None,
             },
-            (6..12).into(),
+            6..12,
         ));
 
         run_test(src, expected, statement_parser);
@@ -608,28 +581,22 @@ endif"#,
         let src = "Debug.Trace(msg)";
         let expected = Statement::Expression(Node::new(
             Expression::MemberAccess {
-                lhs: Node::new(
-                    Expression::Identifier(Node::new("Debug", (0..5).into())),
-                    (0..5).into(),
-                ),
+                lhs: Node::new(Expression::Identifier(Node::new("Debug", 0..5)), 0..5),
                 rhs: Node::new(
                     Expression::FunctionCall {
-                        name: Node::new(
-                            Expression::Identifier(Node::new("Trace", (6..11).into())),
-                            (6..11).into(),
-                        ),
+                        name: Node::new(Expression::Identifier(Node::new("Trace", 6..11)), 6..11),
                         arguments: Some(vec![Node::new(
                             FunctionArgument::Positional(Node::new(
-                                Expression::Identifier(Node::new("msg", (12..15).into())),
-                                (12..15).into(),
+                                Expression::Identifier(Node::new("msg", 12..15)),
+                                12..15,
                             )),
-                            (12..15).into(),
+                            12..15,
                         )]),
                     },
-                    (6..16).into(),
+                    6..16,
                 ),
             },
-            (0..16).into(),
+            0..16,
         ));
 
         run_test(src, expected, statement_parser);

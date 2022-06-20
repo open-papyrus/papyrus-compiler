@@ -141,24 +141,15 @@ mod test {
         let data = vec![
             (
                 "bool",
-                Type::new(
-                    Node::new(TypeName::BaseType(BaseType::Bool), (0..4).into()),
-                    false,
-                ),
+                Type::new(Node::new(TypeName::BaseType(BaseType::Bool), 0..4), false),
             ),
             (
                 "int[]",
-                Type::new(
-                    Node::new(TypeName::BaseType(BaseType::Int), (0..3).into()),
-                    true,
-                ),
+                Type::new(Node::new(TypeName::BaseType(BaseType::Int), 0..3), true),
             ),
             (
                 "Quest[]",
-                Type::new(
-                    Node::new(TypeName::Identifier("Quest"), (0..5).into()),
-                    true,
-                ),
+                Type::new(Node::new(TypeName::Identifier("Quest"), 0..5), true),
             ),
         ];
 

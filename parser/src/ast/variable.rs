@@ -87,14 +87,11 @@ mod test {
                 "int x = 0",
                 ScriptVariable::new(
                     Node::new(
-                        Type::new(
-                            Node::new(TypeName::BaseType(BaseType::Int), (0..3).into()),
-                            false,
-                        ),
-                        (0..3).into(),
+                        Type::new(Node::new(TypeName::BaseType(BaseType::Int), 0..3), false),
+                        0..3,
                     ),
-                    Node::new("x", (4..5).into()),
-                    Some(Node::new(Literal::Integer(0), (8..9).into())),
+                    Node::new("x", 4..5),
+                    Some(Node::new(Literal::Integer(0), 8..9)),
                     None,
                 ),
             ),
@@ -102,18 +99,15 @@ mod test {
                 "quest myQuest Conditional Const Hidden",
                 ScriptVariable::new(
                     Node::new(
-                        Type::new(
-                            Node::new(TypeName::Identifier("quest"), (0..5).into()),
-                            false,
-                        ),
-                        (0..5).into(),
+                        Type::new(Node::new(TypeName::Identifier("quest"), 0..5), false),
+                        0..5,
                     ),
-                    Node::new("myQuest", (6..13).into()),
+                    Node::new("myQuest", 6..13),
                     None,
                     Some(vec![
-                        Node::new(VariableFlag::Conditional, (14..25).into()),
-                        Node::new(VariableFlag::Const, (26..31).into()),
-                        Node::new(VariableFlag::Hidden, (32..38).into()),
+                        Node::new(VariableFlag::Conditional, 14..25),
+                        Node::new(VariableFlag::Const, 26..31),
+                        Node::new(VariableFlag::Hidden, 32..38),
                     ]),
                 ),
             ),

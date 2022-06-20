@@ -197,9 +197,9 @@ mod test {
                 "Function MyNativeFunction() Native",
                 Function::new(
                     None,
-                    Node::new("MyNativeFunction", (9..25).into()),
+                    Node::new("MyNativeFunction", 9..25),
                     None,
-                    Some(vec![Node::new(FunctionFlag::Native, (28..34).into())]),
+                    Some(vec![Node::new(FunctionFlag::Native, 28..34)]),
                     None,
                 ),
             ),
@@ -207,34 +207,31 @@ mod test {
                 "int Function GetVersion(int version = 1)\nreturn version\nEndFunction",
                 Function::new(
                     Some(Node::new(
-                        Type::new(
-                            Node::new(TypeName::BaseType(BaseType::Int), (0..3).into()),
-                            false,
-                        ),
-                        (0..3).into(),
+                        Type::new(Node::new(TypeName::BaseType(BaseType::Int), 0..3), false),
+                        0..3,
                     )),
-                    Node::new("GetVersion", (13..23).into()),
+                    Node::new("GetVersion", 13..23),
                     Some(vec![Node::new(
                         FunctionParameter::new(
                             Node::new(
                                 Type::new(
-                                    Node::new(TypeName::BaseType(BaseType::Int), (24..27).into()),
+                                    Node::new(TypeName::BaseType(BaseType::Int), 24..27),
                                     false,
                                 ),
-                                (24..27).into(),
+                                24..27,
                             ),
-                            Node::new("version", (28..35).into()),
-                            Some(Node::new(Literal::Integer(1), (38..39).into())),
+                            Node::new("version", 28..35),
+                            Some(Node::new(Literal::Integer(1), 38..39)),
                         ),
-                        (24..39).into(),
+                        24..39,
                     )]),
                     None,
                     Some(vec![Node::new(
                         Statement::Return(Some(Node::new(
-                            Expression::Identifier(Node::new("version", (48..55).into())),
-                            (48..55).into(),
+                            Expression::Identifier(Node::new("version", 48..55)),
+                            48..55,
                         ))),
-                        (41..55).into(),
+                        41..55,
                     )]),
                 ),
             ),

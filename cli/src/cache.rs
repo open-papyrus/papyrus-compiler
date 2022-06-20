@@ -13,7 +13,10 @@ pub struct SourceCache {
 }
 
 impl SourceCache {
-    pub fn add_file<P: AsRef<Path>>(&mut self, path: P) -> Result<(SourceId, String), anyhow::Error> {
+    pub fn add_file<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+    ) -> Result<(SourceId, String), anyhow::Error> {
         let path_string = path
             .as_ref()
             .to_str()

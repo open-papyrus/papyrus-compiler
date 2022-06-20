@@ -254,20 +254,17 @@ mod test {
                 "float Property MyProperty = 1.0 Auto Conditional Const Hidden Mandatory",
                 AutoProperty::new(
                     Node::new(
-                        Type::new(
-                            Node::new(TypeName::BaseType(BaseType::Float), (0..5).into()),
-                            false,
-                        ),
-                        (0..5).into(),
+                        Type::new(Node::new(TypeName::BaseType(BaseType::Float), 0..5), false),
+                        0..5,
                     ),
-                    Node::new("MyProperty", (15..25).into()),
-                    Some(Node::new(Literal::Float(1.0), (28..31).into())),
+                    Node::new("MyProperty", 15..25),
+                    Some(Node::new(Literal::Float(1.0), 28..31)),
                     false,
                     Some(vec![
-                        Node::new(PropertyFlag::Conditional, (37..48).into()),
-                        Node::new(PropertyFlag::Const, (49..54).into()),
-                        Node::new(PropertyFlag::Hidden, (55..61).into()),
-                        Node::new(PropertyFlag::Mandatory, (62..71).into()),
+                        Node::new(PropertyFlag::Conditional, 37..48),
+                        Node::new(PropertyFlag::Const, 49..54),
+                        Node::new(PropertyFlag::Hidden, 55..61),
+                        Node::new(PropertyFlag::Mandatory, 62..71),
                     ]),
                 ),
             ),
@@ -275,14 +272,11 @@ mod test {
                 r#"String Property MyProperty = "Hello World!" AutoReadOnly"#,
                 AutoProperty::new(
                     Node::new(
-                        Type::new(
-                            Node::new(TypeName::BaseType(BaseType::String), (0..6).into()),
-                            false,
-                        ),
-                        (0..6).into(),
+                        Type::new(Node::new(TypeName::BaseType(BaseType::String), 0..6), false),
+                        0..6,
                     ),
-                    Node::new("MyProperty", (16..26).into()),
-                    Some(Node::new(Literal::String("Hello World!"), (29..43).into())),
+                    Node::new("MyProperty", 16..26),
+                    Some(Node::new(Literal::String("Hello World!"), 29..43)),
                     true,
                     None,
                 ),
@@ -303,56 +297,47 @@ mod test {
 
         let expected = FullProperty::new(
             Node::new(
-                Type::new(
-                    Node::new(TypeName::BaseType(BaseType::Int), (9..12).into()),
-                    false,
-                ),
-                (9..12).into(),
+                Type::new(Node::new(TypeName::BaseType(BaseType::Int), 9..12), false),
+                9..12,
             ),
-            Node::new("ValueProperty", (22..35).into()),
+            Node::new("ValueProperty", 22..35),
             None,
             vec![
                 Node::new(
                     Function::new(
                         None,
-                        Node::new("Set", (57..60).into()),
+                        Node::new("Set", 57..60),
                         Some(vec![Node::new(
                             FunctionParameter::new(
                                 Node::new(
                                     Type::new(
-                                        Node::new(
-                                            TypeName::BaseType(BaseType::Int),
-                                            (61..64).into(),
-                                        ),
+                                        Node::new(TypeName::BaseType(BaseType::Int), 61..64),
                                         false,
                                     ),
-                                    (61..64).into(),
+                                    61..64,
                                 ),
-                                Node::new("newValue", (65..73).into()),
+                                Node::new("newValue", 65..73),
                                 None,
                             ),
-                            (61..73).into(),
+                            61..73,
                         )]),
                         None,
                         None,
                     ),
-                    (48..74).into(),
+                    48..74,
                 ),
                 Node::new(
                     Function::new(
                         Some(Node::new(
-                            Type::new(
-                                Node::new(TypeName::BaseType(BaseType::Int), (87..90).into()),
-                                false,
-                            ),
-                            (87..90).into(),
+                            Type::new(Node::new(TypeName::BaseType(BaseType::Int), 87..90), false),
+                            87..90,
                         )),
-                        Node::new("Get", (100..103).into()),
+                        Node::new("Get", 100..103),
                         None,
                         None,
                         None,
                     ),
-                    (87..105).into(),
+                    87..105,
                 ),
             ],
         );
@@ -373,61 +358,55 @@ mod test {
         "#;
 
         let expected = PropertyGroup::new(
-            Node::new("MyGroup", (15..22).into()),
+            Node::new("MyGroup", 15..22),
             Some(vec![
-                Node::new(GroupFlag::CollapsedOnRef, (23..37).into()),
-                Node::new(GroupFlag::CollapsedOnBase, (38..53).into()),
-                Node::new(GroupFlag::Collapsed, (54..63).into()),
+                Node::new(GroupFlag::CollapsedOnRef, 23..37),
+                Node::new(GroupFlag::CollapsedOnBase, 38..53),
+                Node::new(GroupFlag::Collapsed, 54..63),
             ]),
             vec![
                 Node::new(
                     Property::AutoProperty(AutoProperty::new(
                         Node::new(
-                            Type::new(
-                                Node::new(TypeName::BaseType(BaseType::Int), (76..79).into()),
-                                false,
-                            ),
-                            (76..79).into(),
+                            Type::new(Node::new(TypeName::BaseType(BaseType::Int), 76..79), false),
+                            76..79,
                         ),
-                        Node::new("FirstProperty", (89..102).into()),
+                        Node::new("FirstProperty", 89..102),
                         None,
                         false,
                         None,
                     )),
-                    (76..107).into(),
+                    76..107,
                 ),
                 Node::new(
                     Property::FullProperty(FullProperty::new(
                         Node::new(
                             Type::new(
-                                Node::new(TypeName::BaseType(BaseType::Float), (121..126).into()),
+                                Node::new(TypeName::BaseType(BaseType::Float), 121..126),
                                 false,
                             ),
-                            (121..126).into(),
+                            121..126,
                         ),
-                        Node::new("SecondProperty", (136..150).into()),
+                        Node::new("SecondProperty", 136..150),
                         None,
                         vec![Node::new(
                             Function::new(
                                 Some(Node::new(
                                     Type::new(
-                                        Node::new(
-                                            TypeName::BaseType(BaseType::Float),
-                                            (167..172).into(),
-                                        ),
+                                        Node::new(TypeName::BaseType(BaseType::Float), 167..172),
                                         false,
                                     ),
-                                    (167..172).into(),
+                                    167..172,
                                 )),
-                                Node::new("Get", (182..185).into()),
+                                Node::new("Get", 182..185),
                                 None,
                                 None,
                                 None,
                             ),
-                            (167..187).into(),
+                            167..187,
                         )],
                     )),
-                    (121..211).into(),
+                    121..211,
                 ),
             ],
         );

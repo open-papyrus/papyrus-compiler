@@ -1,13 +1,14 @@
-use crate::{error::*, span::*};
+use crate::error::*;
 use chumsky::prelude::*;
-use papyrus_compiler_diagnostics::{SourceId, SourceRange};
+use papyrus_compiler_diagnostics::SourceRange;
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::vec::IntoIter;
 
 pub trait TokenParser<'a, O> = Parser<Token<'a>, O, Error = Error<'a>> + Clone;
-pub type TokenStream<'a> = chumsky::Stream<'a, Token<'a>, Span, IntoIter<(Token<'a>, Span)>>;
+pub type TokenStream<'a> =
+    chumsky::Stream<'a, Token<'a>, SourceRange, IntoIter<(Token<'a>, SourceRange)>>;
 
-pub fn create_token_stream(id: SourceId, tokens: Vec<(Token, SourceRange)>) -> TokenStream {
+pub fn create_token_stream(tokens: Vec<(Token, SourceRange)>) -> TokenStream {
     let tokens = tokens
         .into_iter()
         .filter(|(token, _)| {
@@ -18,20 +19,20 @@ pub fn create_token_stream(id: SourceId, tokens: Vec<(Token, SourceRange)>) -> T
                     | Token::DocumentationComment(_)
             )
         })
-        .map(|(token, lexer_span)| (token, Span::new(id, lexer_span)))
+        .map(|(token, lexer_span)| (token, lexer_span))
         .collect::<Vec<_>>();
 
     let eoi = match tokens.last() {
         Some((_, span)) => span.clone(),
-        None => Span::new(id, 0..1),
+        None => 0..1,
     };
 
     chumsky::Stream::from_iter(eoi, tokens.into_iter())
 }
 
-pub fn run_lexer_and_get_stream(id: SourceId, input: &str) -> TokenStream {
+pub fn run_lexer_and_get_stream(input: &str) -> TokenStream {
     let tokens = papyrus_compiler_lexer::run_lexer(input);
-    create_token_stream(id, tokens)
+    create_token_stream(tokens)
 }
 
 #[cfg(test)]
@@ -48,7 +49,7 @@ pub mod test_utils {
         P: TokenParser<'a, O>,
         O: PartialEq + Debug,
     {
-        let token_stream = run_lexer_and_get_stream(u32::MAX, src);
+        let token_stream = run_lexer_and_get_stream(src);
         let res = parser_fn().then_ignore(end()).parse(token_stream);
         assert_matches!(res, Ok(_), "{}", src);
     }
@@ -70,7 +71,7 @@ pub mod test_utils {
         P: TokenParser<'a, O>,
         O: PartialEq + Debug,
     {
-        let token_stream = run_lexer_and_get_stream(u32::MAX, src);
+        let token_stream = run_lexer_and_get_stream(src);
         let res = parser_fn().then_ignore(end()).parse(token_stream).unwrap();
         assert_eq!(res, expected, "{}", src);
     }
@@ -118,7 +119,7 @@ pub mod test_utils {
 
             let script = std::fs::read_to_string(path).unwrap();
 
-            let token_stream = run_lexer_and_get_stream(u32::MAX, script.as_str());
+            let token_stream = run_lexer_and_get_stream(script.as_str());
             let res = script_parser().then_ignore(end()).parse(token_stream);
             assert_matches!(res, Ok(_), "Script with errors: \"{}\"", script_path);
         }

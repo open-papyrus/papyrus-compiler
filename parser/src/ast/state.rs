@@ -101,7 +101,7 @@ mod test {
     #[test]
     fn test_state_parser() {
         let src = "Auto State MyState EndState";
-        let expected = State::new(true, Node::new("MyState", (11..18).into()), None);
+        let expected = State::new(true, Node::new("MyState", 11..18), None);
 
         run_test(src, expected, state_parser);
     }

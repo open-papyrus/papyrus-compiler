@@ -13,19 +13,18 @@ pub mod ast;
 pub mod error;
 pub mod parse;
 pub mod parser_diagnostics;
-pub mod span;
 
 pub fn parse_script(
     id: SourceId,
     tokens: Vec<(Token, SourceRange)>,
 ) -> Result<Script, Vec<ParserDiagnostics>> {
-    let token_stream = parse::create_token_stream(id, tokens);
+    let token_stream = parse::create_token_stream(tokens);
     ast::script::script_parser()
         .parse(token_stream)
         .map_err(|errors| {
             errors
                 .into_iter()
-                .map(|error| error.to_diagnostics())
+                .map(|error| error.to_diagnostics(id))
                 .collect()
         })
 }

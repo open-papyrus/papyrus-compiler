@@ -370,7 +370,7 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                     .repeated(),
             )
             .foldl(|lhs, rhs| {
-                let span = lhs.span_union(&rhs);
+                let span = lhs.range_union(&rhs);
                 Node::new(Expression::MemberAccess { lhs, rhs }, span)
             })
             .map(|x| x.into_inner()));
@@ -427,7 +427,7 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                 .repeated(),
             )
             .foldl(|lhs, (kind, rhs)| {
-                let span = lhs.span_union(&rhs);
+                let span = lhs.range_union(&rhs);
                 Node::new(Expression::Binary { lhs, kind, rhs }, span)
             })
             .map(|x| x.into_inner());
@@ -445,7 +445,7 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                 .repeated(),
             )
             .foldl(|lhs, (kind, rhs)| {
-                let span = lhs.span_union(&rhs);
+                let span = lhs.range_union(&rhs);
                 Node::new(Expression::Binary { lhs, kind, rhs }, span)
             })
             .map(|x| x.into_inner());
@@ -467,7 +467,7 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                     .repeated(),
             )
             .foldl(|lhs, (kind, rhs)| {
-                let span = lhs.span_union(&rhs);
+                let span = lhs.range_union(&rhs);
                 Node::new(Expression::Comparison { lhs, kind, rhs }, span)
             })
             .map(|x| x.into_inner()).boxed();
@@ -483,7 +483,7 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                     .repeated(),
             )
             .foldl(|lhs, (kind, rhs)| {
-                let span = lhs.span_union(&rhs);
+                let span = lhs.range_union(&rhs);
                 Node::new(Expression::LogicalOperation { lhs, kind, rhs }, span)
             })
             .map(|x| x.into_inner());
@@ -499,7 +499,7 @@ pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
                     .repeated(),
             )
             .foldl(|lhs, (kind, rhs)| {
-                let span = lhs.span_union(&rhs);
+                let span = lhs.range_union(&rhs);
                 Node::new(Expression::LogicalOperation { lhs, kind, rhs }, span)
             })
             .map(|x| x.into_inner());
@@ -522,25 +522,22 @@ mod test {
     #[test]
     fn test_literal_expression() {
         let data = vec![
-            (
-                "none",
-                Expression::Literal(Node::new(Literal::None, (0..4).into())),
-            ),
+            ("none", Expression::Literal(Node::new(Literal::None, 0..4))),
             (
                 "1",
-                Expression::Literal(Node::new(Literal::Integer(1), (0..1).into())),
+                Expression::Literal(Node::new(Literal::Integer(1), 0..1)),
             ),
             (
                 "1.0",
-                Expression::Literal(Node::new(Literal::Float(1.0), (0..3).into())),
+                Expression::Literal(Node::new(Literal::Float(1.0), 0..3)),
             ),
             (
                 "false",
-                Expression::Literal(Node::new(Literal::Boolean(false), (0..5).into())),
+                Expression::Literal(Node::new(Literal::Boolean(false), 0..5)),
             ),
             (
                 r#""Hello World!""#,
-                Expression::Literal(Node::new(Literal::String("Hello World!"), (0..14).into())),
+                Expression::Literal(Node::new(Literal::String("Hello World!"), 0..14)),
             ),
         ];
 
@@ -560,77 +557,59 @@ mod test {
             (
                 r#"MyFunc(someArgument, anotherArgument, 1, 1.0, false, "Hi!", name = none)"#,
                 Expression::FunctionCall {
-                    name: Node::new(
-                        Expression::Identifier(Node::new("MyFunc", (0..6).into())),
-                        (0..6).into(),
-                    ),
+                    name: Node::new(Expression::Identifier(Node::new("MyFunc", 0..6)), 0..6),
                     arguments: Some(vec![
                         Node::new(
                             FunctionArgument::Positional(Node::new(
-                                Expression::Identifier(Node::new("someArgument", (7..19).into())),
-                                (7..19).into(),
+                                Expression::Identifier(Node::new("someArgument", 7..19)),
+                                7..19,
                             )),
-                            (7..19).into(),
+                            7..19,
                         ),
                         Node::new(
                             FunctionArgument::Positional(Node::new(
-                                Expression::Identifier(Node::new(
-                                    "anotherArgument",
-                                    (21..36).into(),
-                                )),
-                                (21..36).into(),
+                                Expression::Identifier(Node::new("anotherArgument", 21..36)),
+                                21..36,
                             )),
-                            (21..36).into(),
+                            21..36,
                         ),
                         Node::new(
                             FunctionArgument::Positional(Node::new(
-                                Expression::Literal(Node::new(
-                                    Literal::Integer(1),
-                                    (38..39).into(),
-                                )),
-                                (38..39).into(),
+                                Expression::Literal(Node::new(Literal::Integer(1), 38..39)),
+                                38..39,
                             )),
-                            (38..39).into(),
+                            38..39,
                         ),
                         Node::new(
                             FunctionArgument::Positional(Node::new(
-                                Expression::Literal(Node::new(
-                                    Literal::Float(1.0),
-                                    (41..44).into(),
-                                )),
-                                (41..44).into(),
+                                Expression::Literal(Node::new(Literal::Float(1.0), 41..44)),
+                                41..44,
                             )),
-                            (41..44).into(),
+                            41..44,
                         ),
                         Node::new(
                             FunctionArgument::Positional(Node::new(
-                                Expression::Literal(Node::new(
-                                    Literal::Boolean(false),
-                                    (46..51).into(),
-                                )),
-                                (46..51).into(),
+                                Expression::Literal(Node::new(Literal::Boolean(false), 46..51)),
+                                46..51,
                             )),
-                            (46..51).into(),
+                            46..51,
                         ),
                         Node::new(
                             FunctionArgument::Positional(Node::new(
-                                Expression::Literal(Node::new(
-                                    Literal::String("Hi!"),
-                                    (53..58).into(),
-                                )),
-                                (53..58).into(),
+                                Expression::Literal(Node::new(Literal::String("Hi!"), 53..58)),
+                                53..58,
                             )),
-                            (53..58).into(),
+                            53..58,
                         ),
                         Node::new(
                             FunctionArgument::Named {
-                                name: Node::new("name", (60..64).into()),
+                                name: Node::new("name", 60..64),
                                 value: Node::new(
-                                    Expression::Literal(Node::new(Literal::None, (67..71).into())),
-                                    (67..71).into(),
+                                    Expression::Literal(Node::new(Literal::None, 67..71)),
+                                    67..71,
                                 ),
                             },
-                            (60..71).into(),
+                            60..71,
                         ),
                     ]),
                 },
@@ -638,10 +617,7 @@ mod test {
             (
                 "MyFunc()",
                 Expression::FunctionCall {
-                    name: Node::new(
-                        Expression::Identifier(Node::new("MyFunc", (0..6).into())),
-                        (0..6).into(),
-                    ),
+                    name: Node::new(Expression::Identifier(Node::new("MyFunc", 0..6)), 0..6),
                     arguments: None,
                 },
             ),
@@ -653,10 +629,7 @@ mod test {
     #[test]
     fn test_nested_parentheses() {
         let src = r#"(((((((((("Help I'm Stuck!"))))))))))"#;
-        let expected = Expression::Literal(Node::new(
-            Literal::String("Help I'm Stuck!"),
-            (10..27).into(),
-        ));
+        let expected = Expression::Literal(Node::new(Literal::String("Help I'm Stuck!"), 10..27));
 
         run_test(src, expected, expression_parser);
     }
@@ -665,10 +638,10 @@ mod test {
     fn test_new_array_expression() {
         let src = "new int[100]";
         let expected = Expression::NewArray {
-            element_type: Node::new(TypeName::BaseType(BaseType::Int), (4..7).into()),
+            element_type: Node::new(TypeName::BaseType(BaseType::Int), 4..7),
             size: Node::new(
-                Expression::Literal(Node::new(Literal::Integer(100), (8..11).into())),
-                (8..11).into(),
+                Expression::Literal(Node::new(Literal::Integer(100), 8..11)),
+                8..11,
             ),
         };
 
@@ -678,10 +651,8 @@ mod test {
     #[test]
     fn test_new_structure_expression() {
         let src = "new CoolStruct";
-        let expected = Expression::NewStructure(Node::new(
-            TypeName::Identifier("CoolStruct"),
-            (4..14).into(),
-        ));
+        let expected =
+            Expression::NewStructure(Node::new(TypeName::Identifier("CoolStruct"), 4..14));
 
         run_test(src, expected, expression_parser);
     }
@@ -691,12 +662,12 @@ mod test {
         let src = "myCoolArray[10]";
         let expected = Expression::ArrayAccess {
             array: Node::new(
-                Expression::Identifier(Node::new("myCoolArray", (0..11).into())),
-                (0..11).into(),
+                Expression::Identifier(Node::new("myCoolArray", 0..11)),
+                0..11,
             ),
             index: Node::new(
-                Expression::Literal(Node::new(Literal::Integer(10), (12..14).into())),
-                (12..14).into(),
+                Expression::Literal(Node::new(Literal::Integer(10), 12..14)),
+                12..14,
             ),
         };
 
@@ -712,32 +683,29 @@ mod test {
                     lhs: Node::new(
                         Expression::MemberAccess {
                             lhs: Node::new(
-                                Expression::Identifier(Node::new("MyObject", (0..8).into())),
-                                (0..8).into(),
+                                Expression::Identifier(Node::new("MyObject", 0..8)),
+                                0..8,
                             ),
                             rhs: Node::new(
-                                Expression::Identifier(Node::new("AnotherObject", (9..22).into())),
-                                (9..22).into(),
+                                Expression::Identifier(Node::new("AnotherObject", 9..22)),
+                                9..22,
                             ),
                         },
-                        (0..22).into(),
+                        0..22,
                     ),
                     rhs: Node::new(
-                        Expression::Identifier(Node::new("MyProperty", (23..33).into())),
-                        (23..33).into(),
+                        Expression::Identifier(Node::new("MyProperty", 23..33)),
+                        23..33,
                     ),
                 },
             ),
             (
                 "MyObject.MyProperty",
                 Expression::MemberAccess {
-                    lhs: Node::new(
-                        Expression::Identifier(Node::new("MyObject", (0..8).into())),
-                        (0..8).into(),
-                    ),
+                    lhs: Node::new(Expression::Identifier(Node::new("MyObject", 0..8)), 0..8),
                     rhs: Node::new(
-                        Expression::Identifier(Node::new("MyProperty", (9..19).into())),
-                        (9..19).into(),
+                        Expression::Identifier(Node::new("MyProperty", 9..19)),
+                        9..19,
                     ),
                 },
             ),
@@ -750,11 +718,8 @@ mod test {
     fn test_cast_expression() {
         let src = "x as int";
         let expected = Expression::Cast {
-            lhs: Node::new(
-                Expression::Identifier(Node::new("x", (0..1).into())),
-                (0..1).into(),
-            ),
-            rhs: Node::new(TypeName::BaseType(BaseType::Int), (5..8).into()),
+            lhs: Node::new(Expression::Identifier(Node::new("x", 0..1)), 0..1),
+            rhs: Node::new(TypeName::BaseType(BaseType::Int), 5..8),
         };
 
         run_test(src, expected, expression_parser);
@@ -764,11 +729,8 @@ mod test {
     fn test_type_check_expression() {
         let src = "x is int";
         let expected = Expression::TypeCheck {
-            lhs: Node::new(
-                Expression::Identifier(Node::new("x", (0..1).into())),
-                (0..1).into(),
-            ),
-            rhs: Node::new(TypeName::BaseType(BaseType::Int), (5..8).into()),
+            lhs: Node::new(Expression::Identifier(Node::new("x", 0..1)), 0..1),
+            rhs: Node::new(TypeName::BaseType(BaseType::Int), 5..8),
         };
 
         run_test(src, expected, expression_parser);
@@ -780,21 +742,15 @@ mod test {
             (
                 "!x",
                 Expression::Unary {
-                    kind: Node::new(UnaryKind::LogicalNot, (0..1).into()),
-                    rhs: Node::new(
-                        Expression::Identifier(Node::new("x", (1..2).into())),
-                        (1..2).into(),
-                    ),
+                    kind: Node::new(UnaryKind::LogicalNot, 0..1),
+                    rhs: Node::new(Expression::Identifier(Node::new("x", 1..2)), 1..2),
                 },
             ),
             (
                 "-x",
                 Expression::Unary {
-                    kind: Node::new(UnaryKind::Negative, (0..1).into()),
-                    rhs: Node::new(
-                        Expression::Identifier(Node::new("x", (1..2).into())),
-                        (1..2).into(),
-                    ),
+                    kind: Node::new(UnaryKind::Negative, 0..1),
+                    rhs: Node::new(Expression::Identifier(Node::new("x", 1..2)), 1..2),
                 },
             ),
         ];
@@ -804,21 +760,15 @@ mod test {
 
     #[test]
     fn test_binary_expression() {
-        let lhs = Node::new(
-            Expression::Identifier(Node::new("x", (0..1).into())),
-            (0..1).into(),
-        );
-        let rhs = Node::new(
-            Expression::Identifier(Node::new("y", (4..5).into())),
-            (4..5).into(),
-        );
+        let lhs = Node::new(Expression::Identifier(Node::new("x", 0..1)), 0..1);
+        let rhs = Node::new(Expression::Identifier(Node::new("y", 4..5)), 4..5);
 
         let data = vec![
             (
                 "x * y",
                 Expression::Binary {
                     lhs: lhs.clone(),
-                    kind: Node::new(BinaryKind::Multiplication, (2..3).into()),
+                    kind: Node::new(BinaryKind::Multiplication, 2..3),
                     rhs: rhs.clone(),
                 },
             ),
@@ -826,7 +776,7 @@ mod test {
                 "x / y",
                 Expression::Binary {
                     lhs: lhs.clone(),
-                    kind: Node::new(BinaryKind::Division, (2..3).into()),
+                    kind: Node::new(BinaryKind::Division, 2..3),
                     rhs: rhs.clone(),
                 },
             ),
@@ -834,7 +784,7 @@ mod test {
                 "x % y",
                 Expression::Binary {
                     lhs: lhs.clone(),
-                    kind: Node::new(BinaryKind::Modulus, (2..3).into()),
+                    kind: Node::new(BinaryKind::Modulus, 2..3),
                     rhs: rhs.clone(),
                 },
             ),
@@ -842,7 +792,7 @@ mod test {
                 "x + y",
                 Expression::Binary {
                     lhs: lhs.clone(),
-                    kind: Node::new(BinaryKind::Addition, (2..3).into()),
+                    kind: Node::new(BinaryKind::Addition, 2..3),
                     rhs: rhs.clone(),
                 },
             ),
@@ -850,7 +800,7 @@ mod test {
                 "x - y",
                 Expression::Binary {
                     lhs: lhs.clone(),
-                    kind: Node::new(BinaryKind::Subtraction, (2..3).into()),
+                    kind: Node::new(BinaryKind::Subtraction, 2..3),
                     rhs: rhs.clone(),
                 },
             ),
@@ -861,27 +811,18 @@ mod test {
 
     #[test]
     fn test_comparison_expression() {
-        let lhs = Node::new(
-            Expression::Identifier(Node::new("x", (0..1).into())),
-            (0..1).into(),
-        );
+        let lhs = Node::new(Expression::Identifier(Node::new("x", 0..1)), 0..1);
 
-        let single_rhs = Node::new(
-            Expression::Identifier(Node::new("y", (4..5).into())),
-            (4..5).into(),
-        );
+        let single_rhs = Node::new(Expression::Identifier(Node::new("y", 4..5)), 4..5);
 
-        let double_rhs = Node::new(
-            Expression::Identifier(Node::new("y", (5..6).into())),
-            (5..6).into(),
-        );
+        let double_rhs = Node::new(Expression::Identifier(Node::new("y", 5..6)), 5..6);
 
         let data = vec![
             (
                 "x == y",
                 Expression::Comparison {
                     lhs: lhs.clone(),
-                    kind: Node::new(ComparisonKind::EqualTo, (2..4).into()),
+                    kind: Node::new(ComparisonKind::EqualTo, 2..4),
                     rhs: double_rhs.clone(),
                 },
             ),
@@ -889,7 +830,7 @@ mod test {
                 "x != y",
                 Expression::Comparison {
                     lhs: lhs.clone(),
-                    kind: Node::new(ComparisonKind::NotEqualTo, (2..4).into()),
+                    kind: Node::new(ComparisonKind::NotEqualTo, 2..4),
                     rhs: double_rhs.clone(),
                 },
             ),
@@ -897,7 +838,7 @@ mod test {
                 "x > y",
                 Expression::Comparison {
                     lhs: lhs.clone(),
-                    kind: Node::new(ComparisonKind::GreaterThan, (2..3).into()),
+                    kind: Node::new(ComparisonKind::GreaterThan, 2..3),
                     rhs: single_rhs.clone(),
                 },
             ),
@@ -905,7 +846,7 @@ mod test {
                 "x < y",
                 Expression::Comparison {
                     lhs: lhs.clone(),
-                    kind: Node::new(ComparisonKind::LessThan, (2..3).into()),
+                    kind: Node::new(ComparisonKind::LessThan, 2..3),
                     rhs: single_rhs.clone(),
                 },
             ),
@@ -913,7 +854,7 @@ mod test {
                 "x >= y",
                 Expression::Comparison {
                     lhs: lhs.clone(),
-                    kind: Node::new(ComparisonKind::GreaterThanOrEqualTo, (2..4).into()),
+                    kind: Node::new(ComparisonKind::GreaterThanOrEqualTo, 2..4),
                     rhs: double_rhs.clone(),
                 },
             ),
@@ -921,7 +862,7 @@ mod test {
                 "x <= y",
                 Expression::Comparison {
                     lhs: lhs.clone(),
-                    kind: Node::new(ComparisonKind::LessThanOrEqualTo, (2..4).into()),
+                    kind: Node::new(ComparisonKind::LessThanOrEqualTo, 2..4),
                     rhs: double_rhs.clone(),
                 },
             ),
@@ -932,21 +873,15 @@ mod test {
 
     #[test]
     fn test_logical_operation_expression() {
-        let lhs = Node::new(
-            Expression::Identifier(Node::new("x", (0..1).into())),
-            (0..1).into(),
-        );
-        let rhs = Node::new(
-            Expression::Identifier(Node::new("y", (5..6).into())),
-            (5..6).into(),
-        );
+        let lhs = Node::new(Expression::Identifier(Node::new("x", 0..1)), 0..1);
+        let rhs = Node::new(Expression::Identifier(Node::new("y", 5..6)), 5..6);
 
         let data = vec![
             (
                 "x && y",
                 Expression::LogicalOperation {
                     lhs: lhs.clone(),
-                    kind: Node::new(LogicalKind::And, (2..4).into()),
+                    kind: Node::new(LogicalKind::And, 2..4),
                     rhs: rhs.clone(),
                 },
             ),
@@ -954,7 +889,7 @@ mod test {
                 "x || y",
                 Expression::LogicalOperation {
                     lhs: lhs.clone(),
-                    kind: Node::new(LogicalKind::Or, (2..4).into()),
+                    kind: Node::new(LogicalKind::Or, 2..4),
                     rhs: rhs.clone(),
                 },
             ),

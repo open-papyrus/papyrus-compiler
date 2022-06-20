@@ -1,4 +1,4 @@
-use crate::span::Span;
+use papyrus_compiler_diagnostics::SourceRange;
 use smallbox::{space, SmallBox};
 use std::fmt::{Display, Formatter};
 use std::ops::{Deref, DerefMut};
@@ -6,14 +6,14 @@ use std::ops::{Deref, DerefMut};
 #[derive(Debug, Clone)]
 pub struct Node<T> {
     inner: SmallBox<T, space::S4>,
-    span: Span,
+    range: SourceRange,
 }
 
 impl<T> Node<T> {
-    pub fn new(inner: T, span: Span) -> Self {
+    pub fn new(inner: T, range: SourceRange) -> Self {
         Node {
             inner: SmallBox::new(inner),
-            span,
+            range,
         }
     }
 
@@ -29,17 +29,17 @@ impl<T> Node<T> {
         self.inner.into_inner()
     }
 
-    pub fn span(&self) -> Span {
-        self.span.clone()
+    pub fn range(&self) -> SourceRange {
+        self.range.clone()
     }
 
-    pub fn span_union<TOther>(&self, other: &Node<TOther>) -> Span {
-        self.span.union(&other.span)
+    pub fn range_union<TOther>(&self, other: &Node<TOther>) -> SourceRange {
+        self.range.start.min(other.range.start)..self.range.end.max(other.range.end)
     }
 
     pub fn map<Other, F: Fn(T) -> Other>(self, map_fn: F) -> Node<Other> {
-        let span = self.span();
-        Node::new(map_fn(self.inner.into_inner()), span)
+        let range = self.range();
+        Node::new(map_fn(self.inner.into_inner()), range)
     }
 }
 
@@ -65,7 +65,7 @@ impl<T: Display> Display for Node<T> {
 
 impl<T: PartialEq> PartialEq for Node<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.span == other.span && self.inner.deref() == other.inner.deref()
+        self.range == other.range && self.inner.deref() == other.inner.deref()
     }
 }
 
@@ -101,10 +101,10 @@ mod test {
     use crate::ast::node::Node;
 
     #[test]
-    fn test_span_union() {
-        let a = Node::new("a", (0..1).into());
-        let b = Node::new("b", (1..2).into());
-        let res = a.span_union(&b);
-        assert_eq!(res, (0..2).into());
+    fn test_range_union() {
+        let a = Node::new("a", 0..1);
+        let b = Node::new("b", 1..2);
+        let res = a.range_union(&b);
+        assert_eq!(res, 0..2);
     }
 }

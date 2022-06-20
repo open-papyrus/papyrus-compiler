@@ -154,9 +154,9 @@ mod test {
     fn test_script_parser() {
         let src = "ScriptName MyScript extends OtherScript Native";
         let expected = Script::new(
-            Node::new("MyScript", (11..19).into()),
-            Some(Node::new("OtherScript", (28..39).into())),
-            Some(vec![Node::new(ScriptFlag::Native, (40..46).into())]),
+            Node::new("MyScript", 11..19),
+            Some(Node::new("OtherScript", 28..39)),
+            Some(vec![Node::new(ScriptFlag::Native, 40..46)]),
             None,
         );
 

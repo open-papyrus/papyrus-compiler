@@ -70,37 +70,37 @@ mod test {
     fn test_struct_parser() {
         let src = "Struct Point\nfloat X\nfloat Y\nEndStruct";
         let expected = Structure::new(
-            Node::new("Point", (7..12).into()),
+            Node::new("Point", 7..12),
             vec![
                 Node::new(
                     StructureField::new(
                         Node::new(
                             Type::new(
-                                Node::new(TypeName::BaseType(BaseType::Float), (13..18).into()),
+                                Node::new(TypeName::BaseType(BaseType::Float), 13..18),
                                 false,
                             ),
-                            (13..18).into(),
+                            13..18,
                         ),
-                        Node::new("X", (19..20).into()),
+                        Node::new("X", 19..20),
                         None,
                         None,
                     ),
-                    (13..20).into(),
+                    13..20,
                 ),
                 Node::new(
                     StructureField::new(
                         Node::new(
                             Type::new(
-                                Node::new(TypeName::BaseType(BaseType::Float), (21..26).into()),
+                                Node::new(TypeName::BaseType(BaseType::Float), 21..26),
                                 false,
                             ),
-                            (21..26).into(),
+                            21..26,
                         ),
-                        Node::new("Y", (27..28).into()),
+                        Node::new("Y", 27..28),
                         None,
                         None,
                     ),
-                    (21..28).into(),
+                    21..28,
                 ),
             ],
         );

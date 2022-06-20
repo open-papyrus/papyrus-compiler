@@ -1,7 +1,7 @@
-use std::fmt::{Display, Formatter};
 use crate::parse::TokenParser;
 use chumsky::prelude::*;
 use papyrus_compiler_lexer::syntax::token::Token;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Literal<'a> {
