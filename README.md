@@ -17,6 +17,7 @@ See [CONTRIBUTING](CONTRIBUTING.md) for more information.
 - [cadpnq/papyrithjs](https://github.com/cadpnq/papyrithjs): Pex decompiler and optimizer, written in Common Lisp
 - [joelday/papyrus-lang (Wiki)](https://github.com/joelday/papyrus-lang/wiki/Papyrus): Papyrus Wiki
 - [Creation Kit](https://www.creationkit.com/index.php?title=Category:Papyrus): Papyrus Wiki
+- [fireundubh/OpenPapyrus](https://github.com/fireundubh/OpenPapyrus): ANTRL grammars for Papyrus
 - [joelday/papyrus-lang](https://github.com/joelday/papyrus-lang): VSCode Extension for Papyrus
 - [blu3mania/npp-papyrus](https://github.com/blu3mania/npp-papyrus): Notepad++ Plugins for Papyrus
 - [Mutagen.Bethesda.Core.Pex](https://github.com/Mutagen-Modding/Mutagen/tree/dev/Mutagen.Bethesda.Core/Pex): Pex parser, written in C#
