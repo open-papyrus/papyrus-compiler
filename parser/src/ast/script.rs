@@ -2,7 +2,7 @@ use crate::ast::event::{custom_event_parser, event_parser, CustomEvent, Event};
 use crate::ast::flags::{display_flags, script_flag_parser, ScriptFlag};
 use crate::ast::function::{function_parser, Function};
 use crate::ast::identifier::{identifier_parser, Identifier};
-use crate::ast::node::{display_optional_nodes, Node};
+use crate::ast::node::{display_optional_nodes, range_union, Node};
 use crate::ast::property::{property_group_parser, property_parser, Property, PropertyGroup};
 use crate::ast::state::{state_parser, State};
 use crate::ast::structure::{struct_parser, Structure};
@@ -12,6 +12,7 @@ use chumsky::prelude::*;
 use papyrus_compiler_diagnostics::SourceRange;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::token::Token;
+use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -143,7 +144,28 @@ pub fn script_parser<'a>() -> impl TokenParser<'a, Script<'a>> {
         })
 }
 
-struct CustomParser<'a> {
+#[derive(Debug, PartialEq)]
+pub enum ParserError<'a> {
+    ExpectedOne {
+        expected: Token<'a>,
+        found: Token<'a>,
+    },
+    ExpectedOneOf {
+        expected: Vec<Token<'a>>,
+        found: Token<'a>,
+    },
+    EOI,
+}
+
+impl<'a> Display for ParserError<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
+impl<'a> std::error::Error for ParserError<'a> {}
+
+pub(crate) struct CustomParser<'a> {
     tokens: Vec<(Token<'a>, SourceRange)>,
     offset: usize,
 }
@@ -152,40 +174,50 @@ impl<'a> CustomParser<'a> {
     pub fn new(tokens: Vec<(Token<'a>, SourceRange)>) -> Self {
         Self { tokens, offset: 0 }
     }
-    
+
+    pub fn save_range(&self) -> Result<SourceRange, ParserError<'a>> {
+        match self.tokens.get(self.offset) {
+            Some((_, range)) => Ok(range.clone()),
+            None => Err(ParserError::EOI),
+        }
+    }
+
     pub fn peek(&self) -> Option<&Token<'a>> {
-        if self.offset + 1 < self.tokens.len() {
-            self.tokens.get(self.offset + 1).map(|(token, _)| token)
+        if self.offset < self.tokens.len() {
+            self.tokens.get(self.offset).map(|(token, _)| token)
         } else {
             None
         }
     }
-    
-    pub fn consume(mut self) -> Option<Token<'a>> {
+
+    pub fn consume(mut self) -> Result<Token<'a>, ParserError<'a>> {
         if self.offset < self.tokens.len() {
             let (token, _) = self.tokens[self.offset];
             self.offset += 1;
-            Some(token)
+            Ok(token)
         } else {
-            None
+            Err(ParserError::EOI)
         }
     }
-    
-    pub fn map_with_span<T>(mut self) {
-        let (_, start) = self.tokens.get(self.offset)?;
-        let start = start.clone();
-        
-        let (_, end) = self.tokens.get(self.offset)?;
-        let end = end.clone();
-        
-        Node::new(None, )
+
+    pub fn expect(mut self, expected: Token<'a>) -> Result<Token<'a>, ParserError<'a>> {
+        let found = self.consume()?;
+        if found == expected {
+            Ok(found)
+        } else {
+            Err(ParserError::ExpectedOne { expected, found })
+        }
     }
 }
 
-pub fn custom_script_parser<'a>(tokens: Vec<(Token<'a>, SourceRange)>) -> Option<Script<'a>> {
-    let parser = CustomParser::new(tokens);
+pub fn custom_script_parser(tokens: Vec<(Token, SourceRange)>) -> Result<Script, ParserError> {
+    let mut parser = CustomParser::new(tokens);
 
-    None
+    let start_range = parser.save_range()?;
+
+    parser.expect(Token::Keyword(KeywordKind::ScriptName))?;
+
+    todo!()
 }
 
 #[cfg(test)]

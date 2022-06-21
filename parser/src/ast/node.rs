@@ -9,6 +9,10 @@ pub struct Node<T> {
     range: SourceRange,
 }
 
+pub(crate) fn range_union(range_a: SourceRange, range_b: SourceRange) -> SourceRange {
+    range_a.start.min(range_b.start)..range_a.end.max(range_b.end)
+}
+
 impl<T> Node<T> {
     pub fn new(inner: T, range: SourceRange) -> Self {
         Node {
@@ -34,7 +38,7 @@ impl<T> Node<T> {
     }
 
     pub fn range_union<TOther>(&self, other: &Node<TOther>) -> SourceRange {
-        self.range.start.min(other.range.start)..self.range.end.max(other.range.end)
+        range_union(self.range(), other.range())
     }
 
     pub fn map<Other, F: Fn(T) -> Other>(self, map_fn: F) -> Node<Other> {
