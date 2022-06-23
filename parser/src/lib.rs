@@ -12,6 +12,7 @@ use papyrus_compiler_lexer::syntax::token::Token;
 pub mod ast;
 pub mod error;
 pub mod parse;
+pub mod parser;
 pub mod parser_diagnostics;
 
 pub fn parse_script(

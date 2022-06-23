@@ -1,13 +1,15 @@
 use crate::ast::event::{custom_event_parser, event_parser, CustomEvent, Event};
-use crate::ast::flags::{display_flags, script_flag_parser, ScriptFlag};
+use crate::ast::flags::{custom_script_flag_parser, display_flags, script_flag_parser, ScriptFlag};
 use crate::ast::function::{function_parser, Function};
-use crate::ast::identifier::{identifier_parser, Identifier};
+use crate::ast::identifier::{custom_identifier_parser, identifier_parser, Identifier};
 use crate::ast::node::{display_optional_nodes, range_union, Node};
 use crate::ast::property::{property_group_parser, property_parser, Property, PropertyGroup};
 use crate::ast::state::{state_parser, State};
 use crate::ast::structure::{struct_parser, Structure};
 use crate::ast::variable::{script_variable_parser, ScriptVariable};
 use crate::parse::TokenParser;
+use crate::parser::{CustomParser, ParserError, ParserResult};
+use crate::select_tokens;
 use chumsky::prelude::*;
 use papyrus_compiler_diagnostics::SourceRange;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
@@ -144,88 +146,31 @@ pub fn script_parser<'a>() -> impl TokenParser<'a, Script<'a>> {
         })
 }
 
-#[derive(Debug, PartialEq)]
-pub enum ParserError<'a> {
-    ExpectedOne {
-        expected: Token<'a>,
-        found: Token<'a>,
-    },
-    ExpectedOneOf {
-        expected: Vec<Token<'a>>,
-        found: Token<'a>,
-    },
-    EOI,
-}
-
-impl<'a> Display for ParserError<'a> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
-}
-
-impl<'a> std::error::Error for ParserError<'a> {}
-
-pub(crate) struct CustomParser<'a> {
-    tokens: Vec<(Token<'a>, SourceRange)>,
-    offset: usize,
-}
-
-impl<'a> CustomParser<'a> {
-    pub fn new(tokens: Vec<(Token<'a>, SourceRange)>) -> Self {
-        Self { tokens, offset: 0 }
-    }
-
-    pub fn save_range(&self) -> Result<SourceRange, ParserError<'a>> {
-        match self.tokens.get(self.offset) {
-            Some((_, range)) => Ok(range.clone()),
-            None => Err(ParserError::EOI),
-        }
-    }
-
-    pub fn peek(&self) -> Option<&Token<'a>> {
-        if self.offset < self.tokens.len() {
-            self.tokens.get(self.offset).map(|(token, _)| token)
-        } else {
-            None
-        }
-    }
-
-    pub fn consume(mut self) -> Result<Token<'a>, ParserError<'a>> {
-        if self.offset < self.tokens.len() {
-            let (token, _) = self.tokens[self.offset];
-            self.offset += 1;
-            Ok(token)
-        } else {
-            Err(ParserError::EOI)
-        }
-    }
-
-    pub fn expect(mut self, expected: Token<'a>) -> Result<Token<'a>, ParserError<'a>> {
-        let found = self.consume()?;
-        if found == expected {
-            Ok(found)
-        } else {
-            Err(ParserError::ExpectedOne { expected, found })
-        }
-    }
-}
-
-pub fn custom_script_parser(tokens: Vec<(Token, SourceRange)>) -> Result<Script, ParserError> {
-    let mut parser = CustomParser::new(tokens);
-
-    let start_range = parser.save_range()?;
-
+pub(crate) fn custom_script_parser<'source>(
+    parser: &mut CustomParser<'source>,
+) -> ParserResult<'source, Script<'source>> {
     parser.expect(Token::Keyword(KeywordKind::ScriptName))?;
+    let name = parser.map_with_span(custom_identifier_parser)?;
 
-    todo!()
+    let extends = match parser.consume_expected(Token::Keyword(KeywordKind::Extends)) {
+        Some(_) => Some(parser.map_with_span(custom_identifier_parser)?),
+        None => None,
+    };
+
+    let flags = parser
+        .repeated(|parser| parser.map_with_span(custom_script_flag_parser), 1)
+        .ok();
+
+    Ok(Script::new(name, extends, flags, None))
 }
 
 #[cfg(test)]
 mod test {
     use crate::ast::flags::ScriptFlag;
     use crate::ast::node::Node;
-    use crate::ast::script::script_parser;
+    use crate::ast::script::{custom_script_parser, script_parser};
     use crate::parse::test_utils::run_test;
+    use crate::parser::CustomParser;
     use crate::Script;
 
     #[test]
@@ -239,5 +184,24 @@ mod test {
         );
 
         run_test(src, expected, script_parser);
+    }
+
+    #[test]
+    fn test_custom_script_parser() {
+        let src = "ScriptName MyScript extends OtherScript Native";
+        let expected = Script::new(
+            Node::new("MyScript", 11..19),
+            Some(Node::new("OtherScript", 28..39)),
+            Some(vec![Node::new(ScriptFlag::Native, 40..46)]),
+            None,
+        );
+
+        let tokens = papyrus_compiler_lexer::run_lexer(src);
+        let mut parser = CustomParser::new(&tokens);
+
+        let script = custom_script_parser(&mut parser).unwrap();
+        parser.expect_eoi().unwrap();
+
+        assert_eq!(script, expected);
     }
 }

@@ -1,5 +1,7 @@
 use crate::ast::node::{display_optional_nodes, Node};
 use crate::parse::TokenParser;
+use crate::parser::{CustomParser, ParserResult};
+use crate::select_tokens;
 use chumsky::prelude::*;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::token::Token;
@@ -26,6 +28,30 @@ pub fn script_flag_parser<'a>() -> impl TokenParser<'a, ScriptFlag> {
         Token::Keyword(KeywordKind::Native) => ScriptFlag::Native,
         Token::Keyword(KeywordKind::Default) => ScriptFlag::Default,
     }
+}
+
+pub(crate) fn custom_script_flag_parser<'source>(
+    parser: &mut CustomParser<'source>,
+) -> ParserResult<'source, ScriptFlag> {
+    select_tokens!(parser,
+        Token::Keyword(KeywordKind::Conditional) => ScriptFlag::Conditional,
+        Token::Keyword(KeywordKind::Const) => ScriptFlag::Const,
+        Token::Keyword(KeywordKind::DebugOnly) => ScriptFlag::DebugOnly,
+        Token::Keyword(KeywordKind::BetaOnly) => ScriptFlag::BetaOnly,
+        Token::Keyword(KeywordKind::Hidden) => ScriptFlag::Hidden,
+        Token::Keyword(KeywordKind::Native) => ScriptFlag::Native,
+        Token::Keyword(KeywordKind::Default) => ScriptFlag::Default;
+
+        vec![
+            Token::Keyword(KeywordKind::Conditional),
+            Token::Keyword(KeywordKind::Const),
+            Token::Keyword(KeywordKind::DebugOnly),
+            Token::Keyword(KeywordKind::BetaOnly),
+            Token::Keyword(KeywordKind::Hidden),
+            Token::Keyword(KeywordKind::Native),
+            Token::Keyword(KeywordKind::Default),
+        ]
+    )
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, strum_macros::Display)]
