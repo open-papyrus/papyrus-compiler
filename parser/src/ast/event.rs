@@ -7,84 +7,83 @@ use crate::choose_optional;
 use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
-use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct CustomEvent<'a> {
-    pub name: Node<Identifier<'a>>,
+pub struct CustomEvent<'source> {
+    pub name: Node<Identifier<'source>>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Event<'a> {
-    pub header: Node<EventHeaderKind<'a>>,
-    pub statements: Option<Vec<Node<Statement<'a>>>>,
+pub struct Event<'source> {
+    pub header: Node<EventHeaderKind<'source>>,
+    pub statements: Option<Vec<Node<Statement<'source>>>>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum EventHeaderKind<'a> {
-    EventHeader(EventHeader<'a>),
-    RemoteEvent(RemoteEventHeader<'a>),
-    CustomEvent(CustomEventHeader<'a>),
+pub enum EventHeaderKind<'source> {
+    EventHeader(EventHeader<'source>),
+    RemoteEvent(RemoteEventHeader<'source>),
+    CustomEvent(CustomEventHeader<'source>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct EventParameter<'a> {
-    pub type_node: Node<Type<'a>>,
-    pub name: Node<Identifier<'a>>,
+pub struct EventParameter<'source> {
+    pub type_node: Node<Type<'source>>,
+    pub name: Node<Identifier<'source>>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct EventHeader<'a> {
-    pub name: Node<Identifier<'a>>,
-    pub parameters: Option<Vec<Node<EventParameter<'a>>>>,
+pub struct EventHeader<'source> {
+    pub name: Node<Identifier<'source>>,
+    pub parameters: Option<Vec<Node<EventParameter<'source>>>>,
     pub flags: Option<Vec<Node<FunctionFlag>>>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct RemoteEventHeader<'a> {
-    pub object_type: Node<Identifier<'a>>,
-    pub name: Node<Identifier<'a>>,
-    pub sender_parameter: Node<EventParameter<'a>>,
-    pub parameters: Option<Vec<Node<EventParameter<'a>>>>,
+pub struct RemoteEventHeader<'source> {
+    pub object_type: Node<Identifier<'source>>,
+    pub name: Node<Identifier<'source>>,
+    pub sender_parameter: Node<EventParameter<'source>>,
+    pub parameters: Option<Vec<Node<EventParameter<'source>>>>,
     pub flags: Option<Vec<Node<FunctionFlag>>>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct CustomEventHeader<'a> {
-    pub object_type: Node<Identifier<'a>>,
-    pub name: Node<Identifier<'a>>,
-    pub sender_parameter: Node<EventParameter<'a>>,
+pub struct CustomEventHeader<'source> {
+    pub object_type: Node<Identifier<'source>>,
+    pub name: Node<Identifier<'source>>,
+    pub sender_parameter: Node<EventParameter<'source>>,
     /// this has to be `var[]`
-    pub args_parameter: Node<EventParameter<'a>>,
+    pub args_parameter: Node<EventParameter<'source>>,
     pub flags: Option<Vec<Node<FunctionFlag>>>,
 }
 
-impl<'a> CustomEvent<'a> {
-    pub fn new(name: Node<Identifier<'a>>) -> Self {
+impl<'source> CustomEvent<'source> {
+    pub fn new(name: Node<Identifier<'source>>) -> Self {
         Self { name }
     }
 }
 
-impl<'a> Event<'a> {
+impl<'source> Event<'source> {
     pub fn new(
-        header: Node<EventHeaderKind<'a>>,
-        statements: Option<Vec<Node<Statement<'a>>>>,
+        header: Node<EventHeaderKind<'source>>,
+        statements: Option<Vec<Node<Statement<'source>>>>,
     ) -> Self {
         Self { header, statements }
     }
 }
 
-impl<'a> EventParameter<'a> {
-    pub fn new(type_node: Node<Type<'a>>, name: Node<Identifier<'a>>) -> Self {
+impl<'source> EventParameter<'source> {
+    pub fn new(type_node: Node<Type<'source>>, name: Node<Identifier<'source>>) -> Self {
         Self { type_node, name }
     }
 }
 
-impl<'a> EventHeader<'a> {
+impl<'source> EventHeader<'source> {
     pub fn new(
-        name: Node<Identifier<'a>>,
-        parameters: Option<Vec<Node<EventParameter<'a>>>>,
+        name: Node<Identifier<'source>>,
+        parameters: Option<Vec<Node<EventParameter<'source>>>>,
         flags: Option<Vec<Node<FunctionFlag>>>,
     ) -> Self {
         Self {
@@ -95,12 +94,12 @@ impl<'a> EventHeader<'a> {
     }
 }
 
-impl<'a> CustomEventHeader<'a> {
+impl<'source> CustomEventHeader<'source> {
     pub fn new(
-        object_type: Node<Identifier<'a>>,
-        name: Node<Identifier<'a>>,
-        sender_parameter: Node<EventParameter<'a>>,
-        args_parameter: Node<EventParameter<'a>>,
+        object_type: Node<Identifier<'source>>,
+        name: Node<Identifier<'source>>,
+        sender_parameter: Node<EventParameter<'source>>,
+        args_parameter: Node<EventParameter<'source>>,
         flags: Option<Vec<Node<FunctionFlag>>>,
     ) -> Self {
         Self {
@@ -113,12 +112,12 @@ impl<'a> CustomEventHeader<'a> {
     }
 }
 
-impl<'a> RemoteEventHeader<'a> {
+impl<'source> RemoteEventHeader<'source> {
     pub fn new(
-        object_type: Node<Identifier<'a>>,
-        name: Node<Identifier<'a>>,
-        sender_parameter: Node<EventParameter<'a>>,
-        parameters: Option<Vec<Node<EventParameter<'a>>>>,
+        object_type: Node<Identifier<'source>>,
+        name: Node<Identifier<'source>>,
+        sender_parameter: Node<EventParameter<'source>>,
+        parameters: Option<Vec<Node<EventParameter<'source>>>>,
         flags: Option<Vec<Node<FunctionFlag>>>,
     ) -> Self {
         Self {
@@ -131,13 +130,13 @@ impl<'a> RemoteEventHeader<'a> {
     }
 }
 
-impl<'a> Display for CustomEvent<'a> {
+impl<'source> Display for CustomEvent<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "CustomEvent {}", self.name)
     }
 }
 
-impl<'a> Display for Event<'a> {
+impl<'source> Display for Event<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.header)?;
 
@@ -149,7 +148,7 @@ impl<'a> Display for Event<'a> {
     }
 }
 
-impl<'a> Display for EventHeaderKind<'a> {
+impl<'source> Display for EventHeaderKind<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             EventHeaderKind::EventHeader(header) => write!(f, "{}", header),
@@ -159,13 +158,13 @@ impl<'a> Display for EventHeaderKind<'a> {
     }
 }
 
-impl<'a> Display for EventParameter<'a> {
+impl<'source> Display for EventParameter<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} {}", self.type_node, self.name)
     }
 }
 
-impl<'a> Display for EventHeader<'a> {
+impl<'source> Display for EventHeader<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Event {} (", self.name)?;
 
@@ -194,7 +193,7 @@ impl<'a> Display for EventHeader<'a> {
     }
 }
 
-impl<'a> Display for RemoteEventHeader<'a> {
+impl<'source> Display for RemoteEventHeader<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -215,7 +214,7 @@ impl<'a> Display for RemoteEventHeader<'a> {
     }
 }
 
-impl<'a> Display for CustomEventHeader<'a> {
+impl<'source> Display for CustomEventHeader<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
