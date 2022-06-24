@@ -1,21 +1,24 @@
 use crate::ast::node::{range_union, Node};
-use chumsky::chain::Chain;
 use papyrus_compiler_diagnostics::SourceRange;
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq)]
 pub enum ParserError<'source> {
+    ExpectedNodeWithName {
+        name: &'static str,
+        found: Token<'source>,
+    },
     ExpectedOne {
         expected: Token<'static>,
-        found: &'source Token<'source>,
+        found: Token<'source>,
     },
     ExpectedOneOf {
         expected: Vec<Token<'static>>,
-        found: &'source Token<'source>,
+        found: Token<'source>,
     },
     ExpectedEOI {
-        found: &'source Token<'source>,
+        found: Token<'source>,
     },
     EOI,
 }
@@ -30,49 +33,55 @@ impl<'source> std::error::Error for ParserError<'source> {}
 
 pub(crate) type ParserResult<'source, TOk> = Result<TOk, ParserError<'source>>;
 
-pub(crate) struct CustomParser<'source> {
-    tokens: &'source Vec<(Token<'source>, SourceRange)>,
-    offset: usize,
+pub(crate) struct Parser<'source> {
+    tokens: Vec<(Token<'source>, SourceRange)>,
+    position: usize,
     eoi_range: Option<SourceRange>,
 }
 
-impl<'source> CustomParser<'source> {
-    pub fn new(tokens: &'source Vec<(Token<'source>, SourceRange)>) -> Self {
-        let eoi_range = tokens.get(tokens.len() - 1).map(|(_, range)| range.clone());
+impl<'source> Parser<'source> {
+    pub fn new(tokens: Vec<(Token<'source>, SourceRange)>) -> Self {
+        let eoi_range = tokens.last().map(|(_, range)| range.clone());
 
         Self {
             tokens,
-            offset: 0,
+            position: 0,
             eoi_range,
         }
     }
 
-    fn save_range(&self, offset: usize) -> ParserResult<'source, SourceRange> {
-        if offset >= self.tokens.len() {
+    fn save_range(&self, position: usize) -> ParserResult<'source, SourceRange> {
+        if position >= self.tokens.len() {
             match self.eoi_range.as_ref() {
                 Some(range) => Ok(range.clone()),
                 None => Err(ParserError::EOI),
             }
         } else {
-            match self.tokens.get(offset) {
+            match self.tokens.get(position) {
                 Some((_, range)) => Ok(range.clone()),
                 None => Err(ParserError::EOI),
             }
         }
     }
 
-    pub fn peek(&self) -> Option<&'source Token<'source>> {
-        if self.offset < self.tokens.len() {
-            self.tokens.get(self.offset).map(|(token, _)| token)
+    /// Peek at the next available Token, this function does not consume.
+    pub fn peek(&self) -> Option<&Token<'source>> {
+        if self.position < self.tokens.len() {
+            self.tokens.get(self.position).map(|(token, _)| token)
         } else {
             None
         }
     }
 
-    pub fn consume(&mut self) -> ParserResult<'source, &'source Token<'source>> {
-        if self.offset < self.tokens.len() {
-            let element = self.tokens.get(self.offset);
-            self.offset += 1;
+    pub fn peek_result(&self) -> ParserResult<'source, &Token<'source>> {
+        self.peek().ok_or(ParserError::EOI)
+    }
+
+    /// Consume the next Token.
+    pub fn consume(&mut self) -> ParserResult<'source, &Token<'source>> {
+        if self.position < self.tokens.len() {
+            let element = self.tokens.get(self.position);
+            self.position += 1;
             match element {
                 Some((token, _)) => Ok(token),
                 None => Err(ParserError::EOI),
@@ -82,40 +91,33 @@ impl<'source> CustomParser<'source> {
         }
     }
 
-    pub fn expect(
-        &mut self,
-        expected: Token<'static>,
-    ) -> ParserResult<'source, &'source Token<'source>> {
+    /// Consume the next Token and compare it with the expected Token,
+    /// returning a [`ParserError`] if it does not match.
+    pub fn expect(&mut self, expected: Token<'static>) -> ParserResult<'source, &Token<'source>> {
         let found = self.consume()?;
         if found == &expected {
             Ok(found)
         } else {
-            Err(ParserError::ExpectedOne { found, expected })
+            Err(ParserError::ExpectedOne {
+                found: *found,
+                expected,
+            })
         }
     }
 
-    pub fn consume_expected(
-        &mut self,
-        expected: Token<'static>,
-    ) -> Option<&'source Token<'source>> {
+    /// Expect the EOI, return a [`ParserError::ExpectedEOI`] if it's not the end.
+    pub fn expect_eoi(&self) -> ParserResult<()> {
         match self.peek() {
-            Some(token) => {
-                if token == &expected {
-                    self.offset += 1;
-                    Some(token)
-                } else {
-                    None
-                }
-            }
-            None => None,
+            Some(found) => Err(ParserError::ExpectedEOI { found: *found }),
+            None => Ok(()),
         }
     }
 
-    pub fn repeated<T, F: FnMut(&mut Self) -> ParserResult<'source, T>>(
-        &mut self,
-        mut f: F,
-        at_least: usize,
-    ) -> ParserResult<'source, Vec<T>> {
+    /// Repeatedly call the provided function until it returns a [`ParserError`].
+    pub fn repeated<O, F>(&mut self, mut f: F, at_least: usize) -> ParserResult<'source, Vec<O>>
+    where
+        F: FnMut(&mut Self) -> ParserResult<'source, O>,
+    {
         let mut results = vec![];
 
         loop {
@@ -133,47 +135,112 @@ impl<'source> CustomParser<'source> {
         }
     }
 
-    pub fn expect_eoi(&self) -> ParserResult<()> {
-        match self.peek() {
-            Some(found) => Err(ParserError::ExpectedEOI { found }),
-            None => Ok(()),
-        }
-    }
-
-    pub fn map_with_span<T, F: FnOnce(&mut Self) -> ParserResult<'source, T>>(
-        &mut self,
-        f: F,
-    ) -> ParserResult<'source, Node<T>> {
-        let start_range = self.save_range(self.offset)?;
-        let res = f(self)?;
-        let end_range = self.save_range(self.offset - 1)?;
+    /// Parses `O` and creates a new [`Node`].
+    pub fn parse_node<O>(&mut self) -> ParserResult<'source, Node<O>>
+    where
+        O: Parse<'source>,
+    {
+        let start_range = self.save_range(self.position)?;
+        let res = O::parse(self)?;
+        let end_range = self.save_range(self.position - 1)?;
 
         Ok(Node::new(res, range_union(start_range, end_range)))
     }
+
+    /// Parses `O` repeatedly and creates a new [`Node`].
+    pub fn parse_node_repeated<O>(&mut self, at_least: usize) -> ParserResult<'source, Vec<Node<O>>>
+    where
+        O: Parse<'source>,
+    {
+        self.repeated(|parser| parser.parse_node::<O>(), at_least)
+    }
+
+    /// Call the provided function but reset the position if the function was not successful.
+    pub fn optional<O, F>(&mut self, f: F) -> Option<O>
+    where
+        F: FnOnce(&mut Self) -> ParserResult<'source, O>,
+    {
+        let start_position = self.position;
+        let res = f(self);
+
+        match res {
+            Ok(value) => Some(value),
+            Err(_) => {
+                self.position = start_position;
+                None
+            }
+        }
+    }
+
+    /// Parses `O` optionally and creates a new [`Node`].
+    pub fn parse_node_optional<O>(&mut self) -> Option<Node<O>>
+    where
+        O: Parse<'source>,
+    {
+        self.optional(|parser| parser.parse_node::<O>())
+    }
+}
+
+pub(crate) trait Parse<'source>
+where
+    Self: Sized,
+{
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self>;
 }
 
 #[macro_export]
 macro_rules! select_tokens {
-    ($parser:ident, $( $pattern:pat_param => $out:expr ),+ $(,)? ;  $expected:expr) => {{
+    ($parser:ident, $name:literal, $( $pattern:pat_param => $out:expr ),+ $(,)?) => {{
         let token = $parser.consume()?;
 
         match token {
             $( $pattern => ::core::result::Result::Ok($out) ),+,
-            _ => ::core::result::Result::Err($crate::parser::ParserError::ExpectedOneOf {
-                found: token,
-                expected: $expected
+            _ => ::core::result::Result::Err($crate::parser::ParserError::ExpectedNodeWithName {
+                name: $name,
+                found: *token
             }),
         }
     }}
 }
 
-// #[macro_export]
-// macro_rules! one_of_tokens {
-//     ($parser:ident, $( $pattern:pat_param ),+ $(,)?) => {{
-//         let next_token = $parser.peak();
-//
-//         match Some(next_token) {
-//             $( $pattern =>  ),+,
-//         }
-//     }}
-// }
+#[macro_export]
+macro_rules! choose_optional {
+    ($parser: ident, $name:literal, $( $item:expr ),+ $(,)? ) => {{
+        $( if let Some(res) = $item {
+            return ::core::result::Result::Ok(res);
+        } )*
+
+        ::core::result::Result::Err($crate::parser::ParserError::ExpectedNodeWithName {
+            name: $name,
+            found: *$parser.peek_result()?
+        })
+    }}
+}
+
+#[cfg(test)]
+pub(crate) mod test_utils {
+    use crate::parser::{Parse, Parser};
+    use std::fmt::Debug;
+
+    pub(crate) fn run_test<'source, O>(src: &'source str, expected: O)
+    where
+        O: Parse<'source> + PartialEq + Debug,
+    {
+        let tokens = papyrus_compiler_lexer::run_lexer(src);
+        let mut parser = Parser::new(tokens);
+
+        let res = O::parse(&mut parser).unwrap();
+        parser.expect_eoi().unwrap();
+
+        assert_eq!(res, expected, "{}", src);
+    }
+
+    pub(crate) fn run_tests<'source, O>(data: Vec<(&'static str, O)>)
+    where
+        O: Parse<'source> + PartialEq + Debug,
+    {
+        for (src, expected) in data {
+            run_test(src, expected);
+        }
+    }
+}
