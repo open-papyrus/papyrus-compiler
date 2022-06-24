@@ -22,6 +22,11 @@ pub enum ParserError<'source> {
     ExpectedEOI {
         found: Token<'source>,
     },
+    ExpectedAmount {
+        name: &'static str,
+        expected_amount: usize,
+        actual_amount: usize,
+    },
     EOI,
 }
 
@@ -94,7 +99,7 @@ impl<'source> Parser<'source> {
     }
 
     /// Consume the next Token and compare it with the expected Token,
-    /// returning a [`ParserError`] if it does not match.
+    /// returns a [`ParserError`] if it does not match.
     pub fn expect(&mut self, expected: Token<'static>) -> ParserResult<'source, &Token<'source>> {
         let found = self.consume()?;
         if found == &expected {
@@ -107,6 +112,7 @@ impl<'source> Parser<'source> {
         }
     }
 
+    /// Expect a Keyword. This is a wrapper around [`Parser::expect`].
     pub fn expect_keyword(
         &mut self,
         keyword: KeywordKind,
@@ -114,6 +120,7 @@ impl<'source> Parser<'source> {
         self.expect(Token::Keyword(keyword))
     }
 
+    /// Expect an Operator. This is a wrapper around [`Parser::expect`].
     pub fn expect_operator(
         &mut self,
         operator: OperatorKind,
@@ -121,7 +128,7 @@ impl<'source> Parser<'source> {
         self.expect(Token::Operator(operator))
     }
 
-    /// Expect the EOI, return a [`ParserError::ExpectedEOI`] if it's not the end.
+    /// Expect the EOI, returns a [`ParserError::ExpectedEOI`] if it's not the end.
     pub fn expect_eoi(&self) -> ParserResult<()> {
         match self.peek() {
             Some(found) => Err(ParserError::ExpectedEOI { found: *found }),
@@ -129,8 +136,8 @@ impl<'source> Parser<'source> {
         }
     }
 
-    /// Repeatedly call the provided function until it returns a [`ParserError`].
-    pub fn repeated<O, F>(&mut self, mut f: F) -> ParserResult<'source, Vec<O>>
+    /// Repeatedly calls the provided function until it returns a [`ParserError`].
+    pub fn repeated<O, F>(&mut self, f: F) -> ParserResult<'source, Vec<O>>
     where
         F: FnMut(&mut Self) -> ParserResult<'source, O>,
     {
@@ -183,7 +190,7 @@ impl<'source> Parser<'source> {
         }
     }
 
-    /// Parses `O` and creates a new [`Node`].
+    /// Parses `O` and puts the result in a [`Node`].
     pub fn parse_node<O>(&mut self) -> ParserResult<'source, Node<O>>
     where
         O: Parse<'source>,
@@ -195,7 +202,8 @@ impl<'source> Parser<'source> {
         Ok(Node::new(res, range_union(start_range, end_range)))
     }
 
-    /// Parses `O` repeatedly and creates a new [`Node`].
+    /// Repeatedly parses `O` and puts each result in a [`Node`]. This is a combination of
+    /// [`Parser::repeated`] and [`Parser::parse_node`].
     pub fn parse_node_repeated<O>(&mut self) -> ParserResult<'source, Vec<Node<O>>>
     where
         O: Parse<'source>,
@@ -203,7 +211,7 @@ impl<'source> Parser<'source> {
         self.repeated(|parser| parser.parse_node::<O>())
     }
 
-    /// Call the provided function but reset the position if the function was not successful.
+    /// Calls the provided function and resets the position if the function was not successful.
     pub fn optional<O, F>(&mut self, f: F) -> Option<O>
     where
         F: FnOnce(&mut Self) -> ParserResult<'source, O>,
@@ -220,7 +228,16 @@ impl<'source> Parser<'source> {
         }
     }
 
-    /// Parses `O` optionally and creates a new [`Node`].
+    /// Optional parses `O`. This is a combination of [`Parser::optional`] and [`Parse::parse`].
+    pub fn parse_optional<O>(&mut self) -> Option<O>
+    where
+        O: Parse<'source>,
+    {
+        self.optional(|parser| O::parse(parser))
+    }
+
+    /// Optionally parses `O` and puts the result in a [`Node`]. This is a combination of
+    /// [`Parser::optional`] and [`Parser::parse_node`].
     pub fn parse_node_optional<O>(&mut self) -> Option<Node<O>>
     where
         O: Parse<'source>,
@@ -228,7 +245,8 @@ impl<'source> Parser<'source> {
         self.optional(|parser| parser.parse_node::<O>())
     }
 
-    /// Pares `O` repeatedly but optional.
+    /// Optionally parses `O` repeatedly. This is a combination of [`Parser::optional`] and
+    /// [`Parser::parse_node_repeated`].
     pub fn parse_node_optional_repeated<O>(&mut self) -> Option<Vec<Node<O>>>
     where
         O: Parse<'source>,
