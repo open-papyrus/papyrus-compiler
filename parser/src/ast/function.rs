@@ -112,7 +112,7 @@ impl<'source> Parse<'source> for FunctionParameter<'source> {
         let (type_node, parameter_name) = type_with_identifier_parser(parser)?;
 
         let default_value = parser.optional(|parser| {
-            parser.expect(Token::Operator(OperatorKind::Assignment))?;
+            parser.expect_operator(OperatorKind::Assignment)?;
             parser.parse_node::<Literal>()
         });
 
@@ -137,11 +137,11 @@ impl<'source> Parse<'source> for Function<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
         let return_type = parser.parse_node_optional::<Type>();
 
-        parser.expect(Token::Keyword(KeywordKind::Function))?;
+        parser.expect_keyword(KeywordKind::Function)?;
 
         let function_name = parser.parse_node::<Identifier>()?;
 
-        parser.expect(Token::Operator(OperatorKind::ParenthesisOpen))?;
+        parser.expect_operator(OperatorKind::ParenthesisOpen)?;
 
         let parameters = parser.optional(|parser| {
             parser.separated(
@@ -150,14 +150,14 @@ impl<'source> Parse<'source> for Function<'source> {
             )
         });
 
-        parser.expect(Token::Operator(OperatorKind::ParenthesisClose))?;
+        parser.expect_operator(OperatorKind::ParenthesisClose)?;
 
         let flags = parser.parse_node_optional_repeated::<FunctionFlag>();
 
         // native functions don't have a function body, it's only a function declaration
         let statements = parser.parse_node_optional_repeated::<Statement>();
         if statements.is_some() {
-            parser.expect(Token::Keyword(KeywordKind::EndFunction))?;
+            parser.expect_keyword(KeywordKind::EndFunction)?;
         }
 
         Ok(Function::new(

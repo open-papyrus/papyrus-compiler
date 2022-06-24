@@ -1,5 +1,6 @@
 use crate::ast::node::{range_union, Node};
 use papyrus_compiler_diagnostics::SourceRange;
+use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
@@ -106,6 +107,20 @@ impl<'source> Parser<'source> {
         }
     }
 
+    pub fn expect_keyword(
+        &mut self,
+        keyword: KeywordKind,
+    ) -> ParserResult<'source, &Token<'source>> {
+        self.expect(Token::Keyword(keyword))
+    }
+
+    pub fn expect_operator(
+        &mut self,
+        operator: OperatorKind,
+    ) -> ParserResult<'source, &Token<'source>> {
+        self.expect(Token::Operator(operator))
+    }
+
     /// Expect the EOI, return a [`ParserError::ExpectedEOI`] if it's not the end.
     pub fn expect_eoi(&self) -> ParserResult<()> {
         match self.peek() {
@@ -137,7 +152,7 @@ impl<'source> Parser<'source> {
         loop {
             match separator {
                 Some(separator) if !results.is_empty() => {
-                    self.expect(Token::Operator(separator))?;
+                    self.expect_operator(separator)?;
                 }
                 _ => {}
             }

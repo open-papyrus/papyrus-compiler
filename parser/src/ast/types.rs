@@ -79,7 +79,7 @@ impl<'source> Parse<'source> for Type<'source> {
         let is_array = match parser.peek() {
             Some(Token::Operator(OperatorKind::SquareBracketsOpen)) => {
                 parser.consume()?;
-                parser.expect(Token::Operator(OperatorKind::SquareBracketsClose))?;
+                parser.expect_operator(OperatorKind::SquareBracketsClose)?;
                 true
             }
             _ => false,

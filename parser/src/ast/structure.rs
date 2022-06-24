@@ -48,11 +48,11 @@ pub fn struct_field_parser<'a>() -> impl TokenParser<'a, StructureField<'a>> {
 /// ```
 impl<'source> Parse<'source> for Structure<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        parser.expect(Token::Keyword(KeywordKind::Struct))?;
+        parser.expect_keyword(KeywordKind::Struct)?;
         let struct_name = parser.parse_node::<Identifier>()?;
 
         let fields = parser.parse_node_repeated::<StructureField>()?;
-        parser.expect(Token::Keyword(KeywordKind::EndStruct))?;
+        parser.expect_keyword(KeywordKind::EndStruct)?;
 
         Ok(Structure::new(struct_name, fields))
     }

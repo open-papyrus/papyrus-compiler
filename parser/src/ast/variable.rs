@@ -55,7 +55,7 @@ impl<'source> Parse<'source> for ScriptVariable<'source> {
         let (type_node, variable_name) = type_with_identifier_parser(parser)?;
 
         let initial_value = parser.optional(|parser| {
-            parser.expect(Token::Operator(OperatorKind::Assignment))?;
+            parser.expect_operator(OperatorKind::Assignment)?;
             parser.parse_node::<Literal>()
         });
 
