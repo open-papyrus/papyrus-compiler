@@ -5,7 +5,6 @@ use crate::ast::node::Node;
 use crate::ast::types::{type_with_identifier_parser, Type};
 use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
-use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq)]

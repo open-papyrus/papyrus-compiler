@@ -3,7 +3,6 @@ use crate::ast::node::{display_nodes, Node};
 use crate::ast::variable::ScriptVariable;
 use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
-use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
 pub type StructureField<'source> = ScriptVariable<'source>;
