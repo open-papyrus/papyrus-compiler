@@ -1,30 +1,28 @@
-use crate::ast::flags::{
-    display_flags, group_flag_parser, property_flag_parser, GroupFlag, PropertyFlag,
-};
-use crate::ast::function::{function_parser, Function};
-use crate::ast::identifier::{identifier_parser, Identifier};
-use crate::ast::literal::{literal_parser, Literal};
+use crate::ast::flags::{display_flags, GroupFlag, PropertyFlag};
+use crate::ast::function::Function;
+use crate::ast::identifier::Identifier;
+use crate::ast::literal::Literal;
 use crate::ast::node::{display_nodes, Node};
-use crate::ast::types::{type_parser, Type};
-use crate::parse::TokenParser;
-use chumsky::prelude::*;
+use crate::ast::types::Type;
+use crate::choose_optional;
+use crate::parser::{Parse, Parser, ParserError, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct PropertyGroup<'a> {
-    pub name: Node<Identifier<'a>>,
+pub struct PropertyGroup<'source> {
+    pub name: Node<Identifier<'source>>,
     pub flags: Option<Vec<Node<GroupFlag>>>,
-    pub properties: Vec<Node<Property<'a>>>,
+    pub properties: Vec<Node<Property<'source>>>,
 }
 
-impl<'a> PropertyGroup<'a> {
+impl<'source> PropertyGroup<'source> {
     pub fn new(
-        name: Node<Identifier<'a>>,
+        name: Node<Identifier<'source>>,
         flags: Option<Vec<Node<GroupFlag>>>,
-        properties: Vec<Node<Property<'a>>>,
+        properties: Vec<Node<Property<'source>>>,
     ) -> Self {
         Self {
             name,
@@ -34,7 +32,7 @@ impl<'a> PropertyGroup<'a> {
     }
 }
 
-impl<'a> Display for PropertyGroup<'a> {
+impl<'source> Display for PropertyGroup<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Group {}", self.name)?;
 
@@ -48,12 +46,12 @@ impl<'a> Display for PropertyGroup<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Property<'a> {
-    AutoProperty(AutoProperty<'a>),
-    FullProperty(FullProperty<'a>),
+pub enum Property<'source> {
+    AutoProperty(AutoProperty<'source>),
+    FullProperty(FullProperty<'source>),
 }
 
-impl<'a> Display for Property<'a> {
+impl<'source> Display for Property<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Property::AutoProperty(property) => write!(f, "{}", property),
@@ -63,19 +61,19 @@ impl<'a> Display for Property<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct AutoProperty<'a> {
-    pub type_node: Node<Type<'a>>,
-    pub name: Node<Identifier<'a>>,
-    pub initial_value: Option<Node<Literal<'a>>>,
+pub struct AutoProperty<'source> {
+    pub type_node: Node<Type<'source>>,
+    pub name: Node<Identifier<'source>>,
+    pub initial_value: Option<Node<Literal<'source>>>,
     pub is_read_only: bool,
     pub flags: Option<Vec<Node<PropertyFlag>>>,
 }
 
-impl<'a> AutoProperty<'a> {
+impl<'source> AutoProperty<'source> {
     pub fn new(
-        type_node: Node<Type<'a>>,
-        name: Node<Identifier<'a>>,
-        initial_value: Option<Node<Literal<'a>>>,
+        type_node: Node<Type<'source>>,
+        name: Node<Identifier<'source>>,
+        initial_value: Option<Node<Literal<'source>>>,
         is_read_only: bool,
         flags: Option<Vec<Node<PropertyFlag>>>,
     ) -> Self {
@@ -89,7 +87,7 @@ impl<'a> AutoProperty<'a> {
     }
 }
 
-impl<'a> Display for AutoProperty<'a> {
+impl<'source> Display for AutoProperty<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} Property {}", self.type_node, self.name)?;
         match self.initial_value.as_ref() {
@@ -110,19 +108,19 @@ impl<'a> Display for AutoProperty<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct FullProperty<'a> {
-    pub type_node: Node<Type<'a>>,
-    pub name: Node<Identifier<'a>>,
+pub struct FullProperty<'source> {
+    pub type_node: Node<Type<'source>>,
+    pub name: Node<Identifier<'source>>,
     pub flags: Option<Vec<Node<PropertyFlag>>>,
-    pub functions: Vec<Node<Function<'a>>>,
+    pub functions: Vec<Node<Function<'source>>>,
 }
 
-impl<'a> FullProperty<'a> {
+impl<'source> FullProperty<'source> {
     pub fn new(
-        type_node: Node<Type<'a>>,
-        name: Node<Identifier<'a>>,
+        type_node: Node<Type<'source>>,
+        name: Node<Identifier<'source>>,
         flags: Option<Vec<Node<PropertyFlag>>>,
-        functions: Vec<Node<Function<'a>>>,
+        functions: Vec<Node<Function<'source>>>,
     ) -> Self {
         Self {
             type_node,
@@ -133,7 +131,7 @@ impl<'a> FullProperty<'a> {
     }
 }
 
-impl<'a> Display for FullProperty<'a> {
+impl<'source> Display for FullProperty<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} Property {}", self.type_node, self.name)?;
 
@@ -148,90 +146,117 @@ impl<'a> Display for FullProperty<'a> {
 /// <auto property> ::= <type> 'Property' <identifier> ['=' <constant>] 'Auto' <flags>*
 /// <auto read-only property> ::= <type> 'Property' <identifier> '=' <constant> 'AutoReadOnly' <flags>*
 /// ```
-pub fn auto_property_parser<'a>() -> impl TokenParser<'a, AutoProperty<'a>> {
-    type_parser()
-        .map_with_span(Node::new)
-        .then_ignore(just(Token::Keyword(KeywordKind::Property)))
-        .then(identifier_parser().map_with_span(Node::new))
-        .then(
-            just(Token::Operator(OperatorKind::Assignment))
-                .ignore_then(literal_parser().map_with_span(Node::new))
-                .or_not(),
-        )
-        .then(
-            just(Token::Keyword(KeywordKind::Auto))
-                .map(|_| false)
-                .or(just(Token::Keyword(KeywordKind::AutoReadOnly)).map(|_| true)),
-        )
-        .then(
-            property_flag_parser()
-                .map_with_span(Node::new)
-                .repeated()
-                .at_least(1)
-                .or_not(),
-        )
-        .map(|output| {
-            let ((((type_node, identifier), default_value), is_read_only), flags) = output;
-            AutoProperty::new(type_node, identifier, default_value, is_read_only, flags)
-        })
+impl<'source> Parse<'source> for AutoProperty<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        let type_node = parser.parse_node::<Type>()?;
+
+        parser.expect_keyword(KeywordKind::Property)?;
+
+        let property_name = parser.parse_node::<Identifier>()?;
+
+        let initial_value = parser.optional(|parser| {
+            parser.expect_operator(OperatorKind::Assignment)?;
+            parser.parse_node::<Literal>()
+        });
+
+        // a read-only auto property must have an initial value
+        // a normal auto property can have an initial value
+        let is_read_only = match initial_value {
+            None => {
+                parser.expect_keyword(KeywordKind::Auto)?;
+                true
+            }
+            Some(_) => {
+                let token = parser.consume()?;
+                match token {
+                    Token::Keyword(KeywordKind::Auto) => Ok(false),
+                    Token::Keyword(KeywordKind::AutoReadOnly) => Ok(true),
+                    _ => Err(ParserError::ExpectedOneOf {
+                        found: *token,
+                        expected: vec![
+                            Token::Keyword(KeywordKind::Auto),
+                            Token::Keyword(KeywordKind::AutoReadOnly),
+                        ],
+                    }),
+                }?
+            }
+        };
+
+        let flags = parser.parse_node_optional_repeated::<PropertyFlag>();
+
+        Ok(AutoProperty::new(
+            type_node,
+            property_name,
+            initial_value,
+            is_read_only,
+            flags,
+        ))
+    }
 }
 
 /// ```ebnf
 /// <property> ::= <type> 'Property' <identifier> <flags>* <function> [<function>] 'EndProperty'
 /// ```
-pub fn full_property_parser<'a>() -> impl TokenParser<'a, FullProperty<'a>> {
-    type_parser()
-        .map_with_span(Node::new)
-        .then_ignore(just(Token::Keyword(KeywordKind::Property)))
-        .then(identifier_parser().map_with_span(Node::new))
-        .then(
-            property_flag_parser()
-                .map_with_span(Node::new)
-                .repeated()
-                .at_least(1)
-                .or_not(),
-        )
-        .then(
-            function_parser()
-                .map_with_span(Node::new)
-                .repeated()
-                .at_least(1)
-                .at_most(2),
-        )
-        .then_ignore(just(Token::Keyword(KeywordKind::EndProperty)))
-        .map(|output| {
-            let (((type_node, identifier), flags), functions) = output;
-            FullProperty::new(type_node, identifier, flags, functions)
-        })
+impl<'source> Parse<'source> for FullProperty<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        let type_node = parser.parse_node::<Type>()?;
+
+        parser.expect_keyword(KeywordKind::Property)?;
+
+        let property_name = parser.parse_node::<Identifier>()?;
+
+        let flags = parser.parse_node_optional_repeated::<PropertyFlag>();
+
+        // a property must have at least one function: a 'Get' or 'Set' function
+        let functions = parser.parse_node_repeated::<Function>()?;
+        if functions.len() > 2 {
+            return Err(ParserError::ExpectedAmount {
+                name: "Function(s)",
+                expected_amount: 2,
+                actual_amount: functions.len(),
+            });
+        }
+
+        parser.expect_keyword(KeywordKind::EndProperty)?;
+
+        Ok(FullProperty::new(
+            type_node,
+            property_name,
+            flags,
+            functions,
+        ))
+    }
 }
 
-pub fn property_parser<'a>() -> impl TokenParser<'a, Property<'a>> {
-    auto_property_parser()
-        .map(Property::AutoProperty)
-        .or(full_property_parser().map(Property::FullProperty))
+impl<'source> Parse<'source> for Property<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        choose_optional!(
+            parser,
+            "Property",
+            parser
+                .parse_optional::<AutoProperty>()
+                .map(Property::AutoProperty),
+            parser
+                .parse_optional::<FullProperty>()
+                .map(Property::FullProperty)
+        )
+    }
 }
 
-pub fn property_group_parser<'a>() -> impl TokenParser<'a, PropertyGroup<'a>> {
-    just(Token::Keyword(KeywordKind::Group))
-        .ignore_then(identifier_parser().map_with_span(Node::new))
-        .then(
-            group_flag_parser()
-                .map_with_span(Node::new)
-                .repeated()
-                .at_least(1)
-                .or_not(),
-        )
-        .then(
-            property_parser()
-                .map_with_span(Node::new)
-                .repeated()
-                .at_least(1),
-        )
-        .then_ignore(just(Token::Keyword(KeywordKind::EndGroup)))
-        .map(|output| {
-            let ((identifier, flags), properties) = output;
-            PropertyGroup::new(identifier, flags, properties)
-        })
+impl<'source> Parse<'source> for PropertyGroup<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        parser.expect_keyword(KeywordKind::Group)?;
+
+        let group_name = parser.parse_node::<Identifier>()?;
+
+        let flags = parser.parse_node_optional_repeated::<GroupFlag>();
+
+        let properties = parser.parse_node_repeated::<Property>()?;
+
+        parser.expect_keyword(KeywordKind::EndGroup)?;
+
+        Ok(PropertyGroup::new(group_name, flags, properties))
+    }
 }
 
 #[cfg(test)]
@@ -240,12 +265,9 @@ mod test {
     use crate::ast::function::{Function, FunctionParameter};
     use crate::ast::literal::Literal;
     use crate::ast::node::Node;
-    use crate::ast::property::{
-        auto_property_parser, full_property_parser, property_group_parser, AutoProperty,
-        FullProperty, Property, PropertyGroup,
-    };
+    use crate::ast::property::{AutoProperty, FullProperty, Property, PropertyGroup};
     use crate::ast::types::{BaseType, Type, TypeName};
-    use crate::parse::test_utils::{run_test, run_tests};
+    use crate::parser::test_utils::{run_test, run_tests};
 
     #[test]
     fn test_auto_property_parser() {
@@ -283,7 +305,7 @@ mod test {
             ),
         ];
 
-        run_tests(data, auto_property_parser);
+        run_tests(data);
     }
 
     #[test]
@@ -342,7 +364,7 @@ mod test {
             ],
         );
 
-        run_test(src, expected, full_property_parser);
+        run_test(src, expected);
     }
 
     #[test]
@@ -411,6 +433,6 @@ mod test {
             ],
         );
 
-        run_test(src, expected, property_group_parser);
+        run_test(src, expected);
     }
 }
