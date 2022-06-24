@@ -114,7 +114,7 @@ impl<'source> Parser<'source> {
     }
 
     /// Repeatedly call the provided function until it returns a [`ParserError`].
-    pub fn repeated<O, F>(&mut self, mut f: F, at_least: usize) -> ParserResult<'source, Vec<O>>
+    pub fn repeated<O, F>(&mut self, mut f: F) -> ParserResult<'source, Vec<O>>
     where
         F: FnMut(&mut Self) -> ParserResult<'source, O>,
     {
@@ -125,10 +125,10 @@ impl<'source> Parser<'source> {
             match res {
                 Ok(res) => results.push(res),
                 Err(err) => {
-                    return if results.len() >= at_least {
-                        Ok(results)
-                    } else {
+                    return if results.is_empty() {
                         Err(err)
+                    } else {
+                        Ok(results)
                     }
                 }
             };
@@ -148,11 +148,11 @@ impl<'source> Parser<'source> {
     }
 
     /// Parses `O` repeatedly and creates a new [`Node`].
-    pub fn parse_node_repeated<O>(&mut self, at_least: usize) -> ParserResult<'source, Vec<Node<O>>>
+    pub fn parse_node_repeated<O>(&mut self) -> ParserResult<'source, Vec<Node<O>>>
     where
         O: Parse<'source>,
     {
-        self.repeated(|parser| parser.parse_node::<O>(), at_least)
+        self.repeated(|parser| parser.parse_node::<O>())
     }
 
     /// Call the provided function but reset the position if the function was not successful.
@@ -178,6 +178,14 @@ impl<'source> Parser<'source> {
         O: Parse<'source>,
     {
         self.optional(|parser| parser.parse_node::<O>())
+    }
+
+    /// Pares `O` repeatedly but optional.
+    pub fn parse_node_optional_repeated<O>(&mut self) -> Option<Vec<Node<O>>>
+    where
+        O: Parse<'source>,
+    {
+        self.optional(|parser| parser.parse_node_repeated::<O>())
     }
 }
 

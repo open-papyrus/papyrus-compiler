@@ -1,27 +1,26 @@
-use crate::ast::flags::{display_flags, variable_flag_parser, VariableFlag};
+use crate::ast::flags::{display_flags, VariableFlag};
 use crate::ast::identifier::Identifier;
-use crate::ast::literal::{literal_parser, Literal};
+use crate::ast::literal::Literal;
 use crate::ast::node::Node;
 use crate::ast::types::{type_with_identifier_parser, Type};
-use crate::parse::TokenParser;
-use chumsky::prelude::*;
+use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ScriptVariable<'a> {
-    pub type_node: Node<Type<'a>>,
-    pub name: Node<Identifier<'a>>,
-    pub initial_value: Option<Node<Literal<'a>>>,
+pub struct ScriptVariable<'source> {
+    pub type_node: Node<Type<'source>>,
+    pub name: Node<Identifier<'source>>,
+    pub initial_value: Option<Node<Literal<'source>>>,
     pub flags: Option<Vec<Node<VariableFlag>>>,
 }
 
-impl<'a> ScriptVariable<'a> {
+impl<'source> ScriptVariable<'source> {
     pub fn new(
-        type_node: Node<Type<'a>>,
-        name: Node<Identifier<'a>>,
-        initial_value: Option<Node<Literal<'a>>>,
+        type_node: Node<Type<'source>>,
+        name: Node<Identifier<'source>>,
+        initial_value: Option<Node<Literal<'source>>>,
         flags: Option<Vec<Node<VariableFlag>>>,
     ) -> Self {
         Self {
@@ -33,7 +32,7 @@ impl<'a> ScriptVariable<'a> {
     }
 }
 
-impl<'a> Display for ScriptVariable<'a> {
+impl<'source> Display for ScriptVariable<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} {}", self.type_node, self.name)?;
 
@@ -51,24 +50,24 @@ impl<'a> Display for ScriptVariable<'a> {
 /// ```ebnf
 /// <variable definition> ::= <type> <identifier> ['=' <constant>] (<flags>)*
 /// ```
-pub fn script_variable_parser<'a>() -> impl TokenParser<'a, ScriptVariable<'a>> {
-    type_with_identifier_parser()
-        .then(
-            just(Token::Operator(OperatorKind::Assignment))
-                .ignore_then(literal_parser().map_with_span(Node::new))
-                .or_not(),
-        )
-        .then(
-            variable_flag_parser()
-                .map_with_span(Node::new)
-                .repeated()
-                .at_least(1)
-                .or_not(),
-        )
-        .map(|output| {
-            let (((type_node, identifier), initial_value), flags) = output;
-            ScriptVariable::new(type_node, identifier, initial_value, flags)
-        })
+impl<'source> Parse<'source> for ScriptVariable<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        let (type_node, variable_name) = type_with_identifier_parser(parser)?;
+
+        let initial_value = parser.optional(|parser| {
+            parser.expect(Token::Operator(OperatorKind::Assignment))?;
+            parser.parse_node::<Literal>()
+        });
+
+        let flags = parser.parse_node_optional_repeated::<VariableFlag>();
+
+        Ok(ScriptVariable::new(
+            type_node,
+            variable_name,
+            initial_value,
+            flags,
+        ))
+    }
 }
 
 #[cfg(test)]
@@ -77,8 +76,8 @@ mod test {
     use crate::ast::literal::Literal;
     use crate::ast::node::Node;
     use crate::ast::types::{BaseType, Type, TypeName};
-    use crate::ast::variable::{script_variable_parser, ScriptVariable};
-    use crate::parse::test_utils::run_tests;
+    use crate::ast::variable::ScriptVariable;
+    use crate::parser::test_utils::run_tests;
 
     #[test]
     fn test_script_variable_parser() {
@@ -113,6 +112,6 @@ mod test {
             ),
         ];
 
-        run_tests(data, script_variable_parser);
+        run_tests(data);
     }
 }
