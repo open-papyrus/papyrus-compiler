@@ -49,15 +49,8 @@ pub enum Token<'a> {
     #[token("AutoReadOnly", callback = |_| KeywordKind::AutoReadOnly, ignore(ascii_case))]
     #[token("BetaOnly", callback = |_| KeywordKind::BetaOnly, ignore(ascii_case))]
     #[token("bool", callback = |_| KeywordKind::Bool, ignore(ascii_case))]
-    #[token("Conditional", callback = |_| KeywordKind::Conditional, ignore(ascii_case))]
-    #[token("Const", callback = |_| KeywordKind::Const, ignore(ascii_case))]
     #[token("CustomEvent", callback = |_| KeywordKind::CustomEvent, ignore(ascii_case))]
     #[token("CustomEventName", callback = |_| KeywordKind::CustomEventName, ignore(ascii_case))]
-    #[token("CollapsedOnRef", callback = |_| KeywordKind::CollapsedOnRef, ignore(ascii_case))]
-    #[token("CollapsedOnBase", callback = |_| KeywordKind::CollapsedOnBase, ignore(ascii_case))]
-    #[token("Collapsed", callback = |_| KeywordKind::Collapsed, ignore(ascii_case))]
-    #[token("DebugOnly", callback = |_| KeywordKind::DebugOnly, ignore(ascii_case))]
-    #[token("Default", callback = |_| KeywordKind::Default, ignore(ascii_case))]
     #[token("Else", callback = |_| KeywordKind::Else, ignore(ascii_case))]
     #[token("ElseIf", callback = |_| KeywordKind::ElseIf, ignore(ascii_case))]
     #[token("EndEvent", callback = |_| KeywordKind::EndEvent, ignore(ascii_case))]
@@ -72,14 +65,10 @@ pub enum Token<'a> {
     #[token("Extends", callback = |_| KeywordKind::Extends, ignore(ascii_case))]
     #[token("float", callback = |_| KeywordKind::Float, ignore(ascii_case))]
     #[token("Function", callback = |_| KeywordKind::Function, ignore(ascii_case))]
-    #[token("Global", callback = |_| KeywordKind::Global, ignore(ascii_case))]
     #[token("Group", callback = |_| KeywordKind::Group, ignore(ascii_case))]
-    #[token("Hidden", callback = |_| KeywordKind::Hidden, ignore(ascii_case))]
     #[token("If", callback = |_| KeywordKind::If, ignore(ascii_case))]
     #[token("Import", callback = |_| KeywordKind::Import, ignore(ascii_case))]
     #[token("int", callback = |_| KeywordKind::Int, ignore(ascii_case))]
-    #[token("Mandatory", callback = |_| KeywordKind::Mandatory, ignore(ascii_case))]
-    #[token("Native", callback = |_| KeywordKind::Native, ignore(ascii_case))]
     #[token("new", callback = |_| KeywordKind::New, ignore(ascii_case))]
     #[token("Parent", callback = |_| KeywordKind::Parent, ignore(ascii_case))]
     #[token("Property", callback = |_| KeywordKind::Property, ignore(ascii_case))]
@@ -333,15 +322,8 @@ mod test {
             ("AutoReadOnly", KeywordKind::AutoReadOnly),
             ("BetaOnly", KeywordKind::BetaOnly),
             ("bool", KeywordKind::Bool),
-            ("Conditional", KeywordKind::Conditional),
-            ("Const", KeywordKind::Const),
-            ("CollapsedOnRef", KeywordKind::CollapsedOnRef),
-            ("CollapsedOnBase", KeywordKind::CollapsedOnBase),
-            ("Collapsed", KeywordKind::Collapsed),
             ("CustomEvent", KeywordKind::CustomEvent),
             ("CustomEventName", KeywordKind::CustomEventName),
-            ("DebugOnly", KeywordKind::DebugOnly),
-            ("Default", KeywordKind::Default),
             ("Else", KeywordKind::Else),
             ("ElseIf", KeywordKind::ElseIf),
             ("EndEvent", KeywordKind::EndEvent),
@@ -356,14 +338,10 @@ mod test {
             ("Extends", KeywordKind::Extends),
             ("float", KeywordKind::Float),
             ("Function", KeywordKind::Function),
-            ("Global", KeywordKind::Global),
             ("Group", KeywordKind::Group),
-            ("Hidden", KeywordKind::Hidden),
             ("If", KeywordKind::If),
             ("Import", KeywordKind::Import),
             ("int", KeywordKind::Int),
-            ("Mandatory", KeywordKind::Mandatory),
-            ("Native", KeywordKind::Native),
             ("new", KeywordKind::New),
             ("Parent", KeywordKind::Parent),
             ("Property", KeywordKind::Property),
