@@ -1,27 +1,29 @@
-use crate::ast::identifier::{identifier_parser, Identifier};
+use crate::ast::identifier::Identifier;
 use crate::ast::node::{display_nodes, Node};
-use crate::ast::variable::{script_variable_parser, ScriptVariable};
-use crate::parse::TokenParser;
-use chumsky::prelude::*;
+use crate::ast::variable::ScriptVariable;
+use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
-pub type StructureField<'a> = ScriptVariable<'a>;
+pub type StructureField<'source> = ScriptVariable<'source>;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Structure<'a> {
-    pub name: Node<Identifier<'a>>,
-    pub fields: Vec<Node<StructureField<'a>>>,
+pub struct Structure<'source> {
+    pub name: Node<Identifier<'source>>,
+    pub fields: Vec<Node<StructureField<'source>>>,
 }
 
-impl<'a> Structure<'a> {
-    pub fn new(name: Node<Identifier<'a>>, fields: Vec<Node<StructureField<'a>>>) -> Self {
+impl<'source> Structure<'source> {
+    pub fn new(
+        name: Node<Identifier<'source>>,
+        fields: Vec<Node<StructureField<'source>>>,
+    ) -> Self {
         Self { name, fields }
     }
 }
 
-impl<'a> Display for Structure<'a> {
+impl<'source> Display for Structure<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Struct {}", self.name)?;
 
@@ -36,6 +38,7 @@ impl<'a> Display for Structure<'a> {
 /// ```ebnf
 /// <variable definition> ::= <type> <identifier> ['=' <constant>] (<flags>)* (<terminator> <docstring>)?
 /// ```
+#[cfg(feature = "chumsky")]
 pub fn struct_field_parser<'a>() -> impl TokenParser<'a, StructureField<'a>> {
     script_variable_parser()
 }
@@ -43,28 +46,24 @@ pub fn struct_field_parser<'a>() -> impl TokenParser<'a, StructureField<'a>> {
 /// ```ebnf
 /// <Struct> ::= 'Struct' <identifier> <variable definition>+ 'EndStruct'
 /// ```
-pub fn struct_parser<'a>() -> impl TokenParser<'a, Structure<'a>> {
-    just(Token::Keyword(KeywordKind::Struct))
-        .ignore_then(identifier_parser().map_with_span(Node::new))
-        .then(
-            struct_field_parser()
-                .map_with_span(Node::new)
-                .repeated()
-                .at_least(1),
-        )
-        .then_ignore(just(Token::Keyword(KeywordKind::EndStruct)))
-        .map(|output| {
-            let (identifier, fields) = output;
-            Structure::new(identifier, fields)
-        })
+impl<'source> Parse<'source> for Structure<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        parser.expect(Token::Keyword(KeywordKind::Struct))?;
+        let struct_name = parser.parse_node::<Identifier>()?;
+
+        let fields = parser.parse_node_repeated::<StructureField>()?;
+        parser.expect(Token::Keyword(KeywordKind::EndStruct))?;
+
+        Ok(Structure::new(struct_name, fields))
+    }
 }
 
 #[cfg(test)]
 mod test {
     use crate::ast::node::Node;
-    use crate::ast::structure::{struct_parser, Structure, StructureField};
+    use crate::ast::structure::{Structure, StructureField};
     use crate::ast::types::{BaseType, Type, TypeName};
-    use crate::parse::test_utils::run_test;
+    use crate::parser::test_utils::run_test;
 
     #[test]
     fn test_struct_parser() {
@@ -105,6 +104,6 @@ mod test {
             ],
         );
 
-        run_test(src, expected, struct_parser);
+        run_test(src, expected);
     }
 }

@@ -119,15 +119,20 @@ impl<'source> Parser<'source> {
         F: FnMut(&mut Self) -> ParserResult<'source, O>,
     {
         let mut results = vec![];
+        let mut last_valid_position = self.position;
 
         loop {
             let res = f(self);
             match res {
-                Ok(res) => results.push(res),
+                Ok(res) => {
+                    results.push(res);
+                    last_valid_position = self.position;
+                }
                 Err(err) => {
                     return if results.is_empty() {
                         Err(err)
                     } else {
+                        self.position = last_valid_position;
                         Ok(results)
                     }
                 }
