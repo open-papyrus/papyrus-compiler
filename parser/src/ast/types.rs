@@ -1,25 +1,25 @@
-use crate::ast::identifier::{identifier_parser, Identifier};
+use crate::ast::identifier::Identifier;
 use crate::ast::node::Node;
-use crate::parse::TokenParser;
-use chumsky::prelude::*;
+use crate::parser::{Parse, Parser, ParserResult};
+use crate::{choose_optional, select_tokens};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Type<'a> {
-    pub name: Node<TypeName<'a>>,
+pub struct Type<'source> {
+    pub name: Node<TypeName<'source>>,
     pub is_array: bool,
 }
 
-impl<'a> Type<'a> {
-    pub fn new(name: Node<TypeName<'a>>, is_array: bool) -> Self {
+impl<'source> Type<'source> {
+    pub fn new(name: Node<TypeName<'source>>, is_array: bool) -> Self {
         Self { name, is_array }
     }
 }
 
-impl<'a> Display for Type<'a> {
+impl<'source> Display for Type<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)?;
         if self.is_array {
@@ -31,10 +31,10 @@ impl<'a> Display for Type<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum TypeName<'a> {
+pub enum TypeName<'source> {
     Var,
     BaseType(BaseType),
-    Identifier(Identifier<'a>),
+    Identifier(Identifier<'source>),
     ParameterType(ParameterType),
 }
 
@@ -53,7 +53,7 @@ pub enum ParameterType {
     StructVarName,
 }
 
-impl<'a> Display for TypeName<'a> {
+impl<'source> Display for TypeName<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeName::Var => write!(f, "Var"),
@@ -64,51 +64,86 @@ impl<'a> Display for TypeName<'a> {
     }
 }
 
-pub fn type_name_parser<'a>() -> impl TokenParser<'a, TypeName<'a>> {
-    just(Token::Keyword(KeywordKind::Var))
-        .map(|_| TypeName::Var)
-        .or(select! {
-            Token::Keyword(KeywordKind::Bool) => BaseType::Bool,
-            Token::Keyword(KeywordKind::Int) => BaseType::Int,
-            Token::Keyword(KeywordKind::Float) => BaseType::Float,
-            Token::Keyword(KeywordKind::String) => BaseType::String,
-        }
-        .map(TypeName::BaseType))
-        .or(identifier_parser().map(TypeName::Identifier))
-        .or(select! {
-            Token::Keyword(KeywordKind::ScriptEventName) => ParameterType::ScriptEventName,
-            Token::Keyword(KeywordKind::CustomEventName) => ParameterType::CustomEventName,
-            Token::Keyword(KeywordKind::StructVarName) => ParameterType::StructVarName,
-        }
-        .map(TypeName::ParameterType))
+pub(crate) fn type_with_identifier_parser<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, (Node<Type<'source>>, Node<Identifier<'source>>)> {
+    let type_node = parser.parse_node::<Type>()?;
+    let identifier = parser.parse_node::<Identifier>()?;
+    Ok((type_node, identifier))
 }
 
-pub fn type_parser<'a>() -> impl TokenParser<'a, Type<'a>> {
-    type_name_parser()
-        .map_with_span(Node::new)
-        .then(
-            just(Token::Operator(OperatorKind::SquareBracketsOpen))
-                .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsClose)))
-                .or_not()
-                .map(|x| x.is_some()),
+impl<'source> Parse<'source> for Type<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        let type_name = parser.parse_node::<TypeName>()?;
+
+        let is_array = match parser.peek() {
+            Some(Token::Operator(OperatorKind::SquareBracketsOpen)) => {
+                parser.consume()?;
+                parser.expect(Token::Operator(OperatorKind::SquareBracketsClose))?;
+                true
+            }
+            _ => false,
+        };
+
+        Ok(Type::new(type_name, is_array))
+    }
+}
+
+fn type_name_var_parser<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, TypeName<'source>> {
+    select_tokens!(parser, "Type Var",
+        Token::Keyword(KeywordKind::Var) => TypeName::Var
+    )
+}
+
+fn type_name_identifier_parser<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, TypeName<'source>> {
+    select_tokens!(parser, "Type Identifier",
+        Token::Identifier(value) => TypeName::Identifier(*value)
+    )
+}
+
+fn base_type_parser<'source>(parser: &mut Parser<'source>) -> ParserResult<'source, BaseType> {
+    select_tokens!(parser, "Base Type",
+        Token::Keyword(KeywordKind::Bool) => BaseType::Bool,
+        Token::Keyword(KeywordKind::Int) => BaseType::Int,
+        Token::Keyword(KeywordKind::Float) => BaseType::Float,
+        Token::Keyword(KeywordKind::String) => BaseType::String,
+    )
+}
+
+fn parameter_type_parser<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, ParameterType> {
+    select_tokens!(parser, "Parameter Type",
+        Token::Keyword(KeywordKind::ScriptEventName) => ParameterType::ScriptEventName,
+        Token::Keyword(KeywordKind::CustomEventName) => ParameterType::CustomEventName,
+        Token::Keyword(KeywordKind::StructVarName) => ParameterType::StructVarName,
+    )
+}
+
+impl<'source> Parse<'source> for TypeName<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        choose_optional!(
+            parser,
+            "Type Name",
+            parser.optional(type_name_var_parser),
+            parser.optional(type_name_identifier_parser),
+            parser.optional(base_type_parser).map(TypeName::BaseType),
+            parser
+                .optional(parameter_type_parser)
+                .map(TypeName::ParameterType),
         )
-        .map(|(type_name, is_array)| Type::new(type_name, is_array))
-}
-
-pub fn type_with_identifier_parser<'a>(
-) -> impl TokenParser<'a, (Node<Type<'a>>, Node<Identifier<'a>>)> {
-    type_parser()
-        .map_with_span(Node::new)
-        .then(identifier_parser().map_with_span(Node::new))
+    }
 }
 
 #[cfg(test)]
 mod test {
     use crate::ast::node::Node;
-    use crate::ast::types::{
-        type_name_parser, type_parser, BaseType, ParameterType, Type, TypeName,
-    };
-    use crate::parse::test_utils::run_tests;
+    use crate::ast::types::{BaseType, ParameterType, Type, TypeName};
+    use crate::parser::test_utils::run_tests;
 
     #[test]
     fn test_type_name_parser() {
@@ -133,7 +168,7 @@ mod test {
             ),
         ];
 
-        run_tests(data, type_name_parser);
+        run_tests(data);
     }
 
     #[test]
@@ -153,6 +188,6 @@ mod test {
             ),
         ];
 
-        run_tests(data, type_parser);
+        run_tests(data);
     }
 }
