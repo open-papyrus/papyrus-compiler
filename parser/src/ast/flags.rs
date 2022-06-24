@@ -1,11 +1,31 @@
 use crate::ast::node::{display_optional_nodes, Node};
-use crate::parse::TokenParser;
-use crate::parser::{CustomParser, ParserResult};
-use crate::select_tokens;
-use chumsky::prelude::*;
-use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
-use papyrus_compiler_lexer::syntax::token::Token;
+use crate::parser::{Parse, Parser, ParserResult};
 use std::fmt::{Display, Formatter};
+
+macro_rules! case_ignore_identifier {
+    ( $parser:ident, $name:literal, $( $flag_bytes:ident => $out:expr ),+ $(,)? ) => {{
+        let token = $parser.consume()?;
+
+        match token {
+            papyrus_compiler_lexer::syntax::token::Token::Identifier(value) => {
+                let bytes = value.as_bytes();
+
+                $( if bytes.eq_ignore_ascii_case( $flag_bytes ) {
+                    return Ok($out);
+                } )*
+
+                ::core::result::Result::Err($crate::parser::ParserError::ExpectedNodeWithName {
+                name: $name,
+                found: *token,
+            })
+            },
+            _ => ::core::result::Result::Err($crate::parser::ParserError::ExpectedNodeWithName {
+                name: $name,
+                found: *token,
+            }),
+        }
+    }}
+}
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, strum_macros::Display)]
 pub enum ScriptFlag {
@@ -18,40 +38,26 @@ pub enum ScriptFlag {
     Default,
 }
 
-pub fn script_flag_parser<'a>() -> impl TokenParser<'a, ScriptFlag> {
-    select! {
-        Token::Keyword(KeywordKind::Conditional) => ScriptFlag::Conditional,
-        Token::Keyword(KeywordKind::Const) => ScriptFlag::Const,
-        Token::Keyword(KeywordKind::DebugOnly) => ScriptFlag::DebugOnly,
-        Token::Keyword(KeywordKind::BetaOnly) => ScriptFlag::BetaOnly,
-        Token::Keyword(KeywordKind::Hidden) => ScriptFlag::Hidden,
-        Token::Keyword(KeywordKind::Native) => ScriptFlag::Native,
-        Token::Keyword(KeywordKind::Default) => ScriptFlag::Default,
+const CONDITIONAL: &[u8] = "Conditional".as_bytes();
+const CONST: &[u8] = "Const".as_bytes();
+const DEBUG_ONLY: &[u8] = "DebugOnly".as_bytes();
+const BETA_ONLY: &[u8] = "BetaOnly".as_bytes();
+const HIDDEN: &[u8] = "Hidden".as_bytes();
+const NATIVE: &[u8] = "Native".as_bytes();
+const DEFAULT: &[u8] = "Default".as_bytes();
+
+impl<'source> Parse<'source> for ScriptFlag {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        case_ignore_identifier!(parser, "Script Flag",
+            CONDITIONAL => ScriptFlag::Conditional,
+            CONST => ScriptFlag::Const,
+            DEBUG_ONLY => ScriptFlag::DebugOnly,
+            BETA_ONLY => ScriptFlag::BetaOnly,
+            HIDDEN => ScriptFlag::Hidden,
+            NATIVE => ScriptFlag::Native,
+            DEFAULT => ScriptFlag::Default
+        )
     }
-}
-
-pub(crate) fn custom_script_flag_parser<'source>(
-    parser: &mut CustomParser<'source>,
-) -> ParserResult<'source, ScriptFlag> {
-    select_tokens!(parser,
-        Token::Keyword(KeywordKind::Conditional) => ScriptFlag::Conditional,
-        Token::Keyword(KeywordKind::Const) => ScriptFlag::Const,
-        Token::Keyword(KeywordKind::DebugOnly) => ScriptFlag::DebugOnly,
-        Token::Keyword(KeywordKind::BetaOnly) => ScriptFlag::BetaOnly,
-        Token::Keyword(KeywordKind::Hidden) => ScriptFlag::Hidden,
-        Token::Keyword(KeywordKind::Native) => ScriptFlag::Native,
-        Token::Keyword(KeywordKind::Default) => ScriptFlag::Default;
-
-        vec![
-            Token::Keyword(KeywordKind::Conditional),
-            Token::Keyword(KeywordKind::Const),
-            Token::Keyword(KeywordKind::DebugOnly),
-            Token::Keyword(KeywordKind::BetaOnly),
-            Token::Keyword(KeywordKind::Hidden),
-            Token::Keyword(KeywordKind::Native),
-            Token::Keyword(KeywordKind::Default),
-        ]
-    )
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, strum_macros::Display)]
@@ -62,12 +68,16 @@ pub enum PropertyFlag {
     Mandatory,
 }
 
-pub fn property_flag_parser<'a>() -> impl TokenParser<'a, PropertyFlag> {
-    select! {
-        Token::Keyword(KeywordKind::Conditional) => PropertyFlag::Conditional,
-        Token::Keyword(KeywordKind::Const) => PropertyFlag::Const,
-        Token::Keyword(KeywordKind::Hidden) => PropertyFlag::Hidden,
-        Token::Keyword(KeywordKind::Mandatory) => PropertyFlag::Mandatory,
+const MANDATORY: &[u8] = "Mandatory".as_bytes();
+
+impl<'source> Parse<'source> for PropertyFlag {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        case_ignore_identifier!(parser, "Property Flag",
+            CONDITIONAL => PropertyFlag::Conditional,
+            CONST => PropertyFlag::Const,
+            HIDDEN => PropertyFlag::Hidden,
+            MANDATORY => PropertyFlag::Mandatory
+        )
     }
 }
 
@@ -78,11 +88,13 @@ pub enum VariableFlag {
     Hidden,
 }
 
-pub fn variable_flag_parser<'a>() -> impl TokenParser<'a, VariableFlag> {
-    select! {
-        Token::Keyword(KeywordKind::Conditional) => VariableFlag::Conditional,
-        Token::Keyword(KeywordKind::Const) => VariableFlag::Const,
-        Token::Keyword(KeywordKind::Hidden) => VariableFlag::Hidden,
+impl<'source> Parse<'source> for VariableFlag {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        case_ignore_identifier!(parser, "Variable Flag",
+            CONDITIONAL => VariableFlag::Conditional,
+            CONST => VariableFlag::Const,
+            HIDDEN => VariableFlag::Hidden,
+        )
     }
 }
 
@@ -93,11 +105,17 @@ pub enum GroupFlag {
     Collapsed,
 }
 
-pub fn group_flag_parser<'a>() -> impl TokenParser<'a, GroupFlag> {
-    select! {
-        Token::Keyword(KeywordKind::CollapsedOnRef) => GroupFlag::CollapsedOnRef,
-        Token::Keyword(KeywordKind::CollapsedOnBase) => GroupFlag::CollapsedOnBase,
-        Token::Keyword(KeywordKind::Collapsed) => GroupFlag::Collapsed,
+const COLLAPSED_ON_REF: &[u8] = "CollapsedOnRef".as_bytes();
+const COLLAPSED_ON_BASE: &[u8] = "CollapsedOnBase".as_bytes();
+const COLLAPSED: &[u8] = "Collapsed".as_bytes();
+
+impl<'source> Parse<'source> for GroupFlag {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        case_ignore_identifier!(parser, "Group Flag",
+            COLLAPSED_ON_REF => GroupFlag::CollapsedOnRef,
+            COLLAPSED_ON_BASE => GroupFlag::CollapsedOnBase,
+            COLLAPSED => GroupFlag::Collapsed,
+        )
     }
 }
 
@@ -109,12 +127,16 @@ pub enum FunctionFlag {
     BetaOnly,
 }
 
-pub fn function_flag_parser<'a>() -> impl TokenParser<'a, FunctionFlag> {
-    select! {
-        Token::Keyword(KeywordKind::Global) => FunctionFlag::Global,
-        Token::Keyword(KeywordKind::Native) => FunctionFlag::Native,
-        Token::Keyword(KeywordKind::DebugOnly) => FunctionFlag::DebugOnly,
-        Token::Keyword(KeywordKind::BetaOnly) => FunctionFlag::BetaOnly,
+const GLOBAL: &[u8] = "Global".as_bytes();
+
+impl<'source> Parse<'source> for FunctionFlag {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        case_ignore_identifier!(parser, "Function Flag",
+            GLOBAL => FunctionFlag::Global,
+            NATIVE => FunctionFlag::Native,
+            DEBUG_ONLY => FunctionFlag::DebugOnly,
+            BETA_ONLY => FunctionFlag::BetaOnly,
+        )
     }
 }
 
