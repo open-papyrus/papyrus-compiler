@@ -1,25 +1,24 @@
-use crate::ast::event::{event_parser, Event};
-use crate::ast::function::{function_parser, Function};
-use crate::ast::identifier::{identifier_parser, Identifier};
+use crate::ast::event::Event;
+use crate::ast::function::Function;
+use crate::ast::identifier::Identifier;
 use crate::ast::node::{display_optional_nodes, Node};
-use crate::parse::TokenParser;
-use chumsky::prelude::*;
+use crate::choose_optional;
+use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
-use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct State<'a> {
+pub struct State<'source> {
     pub is_auto: bool,
-    pub name: Node<Identifier<'a>>,
-    pub contents: Option<Vec<Node<StateContent<'a>>>>,
+    pub name: Node<Identifier<'source>>,
+    pub contents: Option<Vec<Node<StateContent<'source>>>>,
 }
 
-impl<'a> State<'a> {
+impl<'source> State<'source> {
     pub fn new(
         is_auto: bool,
-        name: Node<Identifier<'a>>,
-        contents: Option<Vec<Node<StateContent<'a>>>>,
+        name: Node<Identifier<'source>>,
+        contents: Option<Vec<Node<StateContent<'source>>>>,
     ) -> Self {
         Self {
             is_auto,
@@ -29,7 +28,7 @@ impl<'a> State<'a> {
     }
 }
 
-impl<'a> Display for State<'a> {
+impl<'source> Display for State<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.is_auto {
             write!(f, "Auto ")?;
@@ -46,12 +45,12 @@ impl<'a> Display for State<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum StateContent<'a> {
-    Function(Function<'a>),
-    Event(Event<'a>),
+pub enum StateContent<'source> {
+    Function(Function<'source>),
+    Event(Event<'source>),
 }
 
-impl<'a> Display for StateContent<'a> {
+impl<'source> Display for StateContent<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             StateContent::Function(function) => write!(f, "{}", function),
@@ -63,46 +62,51 @@ impl<'a> Display for StateContent<'a> {
 /// ```ebnf
 /// <state content> = (<function> | <event>)
 /// ```
-pub fn state_content_parser<'a>() -> impl TokenParser<'a, StateContent<'a>> {
-    event_parser()
-        .map(StateContent::Event)
-        .or(function_parser().map(StateContent::Function))
+impl<'source> Parse<'source> for StateContent<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        choose_optional!(
+            parser,
+            "State Contents",
+            parser.parse_optional::<Event>().map(StateContent::Event),
+            parser
+                .parse_optional::<Function>()
+                .map(StateContent::Function)
+        )
+    }
 }
 
 /// ```ebnf
 /// <state> ::= ['Auto'] 'State' <identifier> <state content>* 'EndState'
 /// ```
-pub fn state_parser<'a>() -> impl TokenParser<'a, State<'a>> {
-    just(Token::Keyword(KeywordKind::Auto))
-        .or_not()
-        .map(|x| x.is_some())
-        .then_ignore(just(Token::Keyword(KeywordKind::State)))
-        .then(identifier_parser().map_with_span(Node::new))
-        .then(
-            state_content_parser()
-                .map_with_span(Node::new)
-                .repeated()
-                .at_least(1)
-                .or_not(),
-        )
-        .then_ignore(just(Token::Keyword(KeywordKind::EndState)))
-        .map(|output| {
-            let ((is_auto, identifier), contents) = output;
-            State::new(is_auto, identifier, contents)
-        })
+impl<'source> Parse<'source> for State<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        let is_auto = parser
+            .optional(|parser| parser.expect_keyword(KeywordKind::Auto))
+            .is_some();
+
+        parser.expect_keyword(KeywordKind::State)?;
+
+        let state_name = parser.parse_node::<Identifier>()?;
+
+        let state_content = parser.parse_node_optional_repeated::<StateContent>();
+
+        parser.expect_keyword(KeywordKind::EndState)?;
+
+        Ok(State::new(is_auto, state_name, state_content))
+    }
 }
 
 #[cfg(test)]
 mod test {
     use crate::ast::node::Node;
-    use crate::ast::state::{state_parser, State};
-    use crate::parse::test_utils::run_test;
+    use crate::ast::state::State;
+    use crate::parser::test_utils::run_test;
 
     #[test]
     fn test_state_parser() {
         let src = "Auto State MyState EndState";
         let expected = State::new(true, Node::new("MyState", 11..18), None);
 
-        run_test(src, expected, state_parser);
+        run_test(src, expected);
     }
 }
