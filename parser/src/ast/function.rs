@@ -7,7 +7,6 @@ use crate::ast::types::{type_with_identifier_parser, Type};
 use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
-use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -191,6 +190,29 @@ mod test {
                     Node::new("MyNativeFunction", 9..25),
                     None,
                     Some(vec![Node::new(FunctionFlag::Native, 28..34)]),
+                    None,
+                ),
+            ),
+            (
+                "Function Set(int newValue)",
+                Function::new(
+                    None,
+                    Node::new("Set", 9..12),
+                    Some(vec![Node::new(
+                        FunctionParameter::new(
+                            Node::new(
+                                Type::new(
+                                    Node::new(TypeName::BaseType(BaseType::Int), 13..16),
+                                    false,
+                                ),
+                                13..16,
+                            ),
+                            Node::new("newValue", 17..25),
+                            None,
+                        ),
+                        13..25,
+                    )]),
+                    None,
                     None,
                 ),
             ),
