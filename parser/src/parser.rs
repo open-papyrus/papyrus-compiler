@@ -1,5 +1,6 @@
 use crate::ast::node::{range_union, Node};
 use papyrus_compiler_diagnostics::SourceRange;
+use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
@@ -118,10 +119,29 @@ impl<'source> Parser<'source> {
     where
         F: FnMut(&mut Self) -> ParserResult<'source, O>,
     {
+        self.separated(f, None)
+    }
+
+    /// Similar to [`repeated`] except the parsed outputs must be seperated by an operator.
+    pub fn separated<O, F>(
+        &mut self,
+        mut f: F,
+        separator: Option<OperatorKind>,
+    ) -> ParserResult<'source, Vec<O>>
+    where
+        F: FnMut(&mut Self) -> ParserResult<'source, O>,
+    {
         let mut results = vec![];
         let mut last_valid_position = self.position;
 
         loop {
+            match separator {
+                Some(separator) if !results.is_empty() => {
+                    self.expect(Token::Operator(separator))?;
+                }
+                _ => {}
+            }
+
             let res = f(self);
             match res {
                 Ok(res) => {

@@ -1,28 +1,27 @@
-use crate::ast::flags::{display_flags, function_flag_parser, FunctionFlag};
-use crate::ast::identifier::{identifier_parser, Identifier};
-use crate::ast::literal::{literal_parser, Literal};
+use crate::ast::flags::{display_flags, FunctionFlag};
+use crate::ast::identifier::Identifier;
+use crate::ast::literal::Literal;
 use crate::ast::node::Node;
-use crate::ast::statement::{display_statements, statement_parser, Statement};
-use crate::ast::types::{type_parser, type_with_identifier_parser, Type};
-use crate::parse::TokenParser;
-use chumsky::prelude::*;
+use crate::ast::statement::{display_statements, Statement};
+use crate::ast::types::{type_with_identifier_parser, Type};
+use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct FunctionParameter<'a> {
-    pub type_node: Node<Type<'a>>,
-    pub name: Node<Identifier<'a>>,
-    pub default_value: Option<Node<Literal<'a>>>,
+pub struct FunctionParameter<'source> {
+    pub type_node: Node<Type<'source>>,
+    pub name: Node<Identifier<'source>>,
+    pub default_value: Option<Node<Literal<'source>>>,
 }
 
-impl<'a> FunctionParameter<'a> {
+impl<'source> FunctionParameter<'source> {
     pub fn new(
-        type_node: Node<Type<'a>>,
-        name: Node<Identifier<'a>>,
-        default_value: Option<Node<Literal<'a>>>,
+        type_node: Node<Type<'source>>,
+        name: Node<Identifier<'source>>,
+        default_value: Option<Node<Literal<'source>>>,
     ) -> Self {
         Self {
             type_node,
@@ -32,7 +31,7 @@ impl<'a> FunctionParameter<'a> {
     }
 }
 
-impl<'a> Display for FunctionParameter<'a> {
+impl<'source> Display for FunctionParameter<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} {}", self.type_node, self.name)?;
         match self.default_value.as_ref() {
@@ -45,21 +44,21 @@ impl<'a> Display for FunctionParameter<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Function<'a> {
-    pub return_type: Option<Node<Type<'a>>>,
-    pub name: Node<Identifier<'a>>,
-    pub parameters: Option<Vec<Node<FunctionParameter<'a>>>>,
+pub struct Function<'source> {
+    pub return_type: Option<Node<Type<'source>>>,
+    pub name: Node<Identifier<'source>>,
+    pub parameters: Option<Vec<Node<FunctionParameter<'source>>>>,
     pub flags: Option<Vec<Node<FunctionFlag>>>,
-    pub statements: Option<Vec<Node<Statement<'a>>>>,
+    pub statements: Option<Vec<Node<Statement<'source>>>>,
 }
 
-impl<'a> Function<'a> {
+impl<'source> Function<'source> {
     pub fn new(
-        return_type: Option<Node<Type<'a>>>,
-        name: Node<Identifier<'a>>,
-        parameters: Option<Vec<Node<FunctionParameter<'a>>>>,
+        return_type: Option<Node<Type<'source>>>,
+        name: Node<Identifier<'source>>,
+        parameters: Option<Vec<Node<FunctionParameter<'source>>>>,
         flags: Option<Vec<Node<FunctionFlag>>>,
-        statements: Option<Vec<Node<Statement<'a>>>>,
+        statements: Option<Vec<Node<Statement<'source>>>>,
     ) -> Self {
         Self {
             return_type,
@@ -71,7 +70,7 @@ impl<'a> Function<'a> {
     }
 }
 
-impl<'a> Display for Function<'a> {
+impl<'source> Display for Function<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self.return_type.as_ref() {
             Some(return_type) => write!(f, "{} ", return_type)?,
@@ -108,87 +107,79 @@ impl<'a> Display for Function<'a> {
 /// ```ebnf
 /// <parameter>  ::= <type> <identifier> ['=' <constant>]
 /// ```
-pub fn function_parameter_parser<'a>() -> impl TokenParser<'a, FunctionParameter<'a>> {
-    type_with_identifier_parser()
-        .then(
-            just(Token::Operator(OperatorKind::Assignment))
-                .ignore_then(literal_parser().map_with_span(Node::new))
-                .or_not(),
-        )
-        .map(|output| {
-            let ((type_node, identifier), default_value) = output;
-            FunctionParameter::new(type_node, identifier, default_value)
-        })
+impl<'source> Parse<'source> for FunctionParameter<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        let (type_node, parameter_name) = type_with_identifier_parser(parser)?;
+
+        let default_value = parser.optional(|parser| {
+            parser.expect(Token::Operator(OperatorKind::Assignment))?;
+            parser.parse_node::<Literal>()
+        });
+
+        Ok(FunctionParameter::new(
+            type_node,
+            parameter_name,
+            default_value,
+        ))
+    }
 }
 
 /// ```ebnf
-/// <function> ::= <function header> [<function block> 'EndFunction']
+/// <function> ::= <function header> [<function body>]
 ///
 /// <function header> ::= [<type>] 'Function' <identifier> '(' [<parameters>] ')' <flags>*
+/// <function body> ::= <function block> 'EndFunction'
 /// <function block> ::= <statement>*
 ///
 /// <parameters> ::= <parameter> (',' <parameter>)*
 /// ```
-pub fn function_parser<'a>() -> impl TokenParser<'a, Function<'a>> {
-    type_parser()
-        .map_with_span(Node::new)
-        .or_not()
-        .then_ignore(just(Token::Keyword(KeywordKind::Function)))
-        .then(identifier_parser().map_with_span(Node::new))
-        .then_ignore(just(Token::Operator(OperatorKind::ParenthesisOpen)))
-        .then(
-            function_parameter_parser()
-                .map_with_span(Node::new)
-                .separated_by(just(Token::Operator(OperatorKind::Comma)))
-                .map(|parameters| {
-                    if parameters.is_empty() {
-                        None
-                    } else {
-                        Some(parameters)
-                    }
-                }),
-        )
-        .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
-        .then(
-            function_flag_parser()
-                .map_with_span(Node::new)
-                .repeated()
-                .at_least(1)
-                .or_not(),
-        )
-        .then(
-            statement_parser()
-                .map_with_span(Node::new)
-                .repeated()
-                .then_ignore(just(Token::Keyword(KeywordKind::EndFunction)))
-                .or_not()
-                .map(|statements| match statements {
-                    Some(statements) => {
-                        if statements.is_empty() {
-                            None
-                        } else {
-                            Some(statements)
-                        }
-                    }
-                    None => None,
-                }),
-        )
-        .map(|output| {
-            let ((((return_type, identifier), parameters), flags), statements) = output;
-            Function::new(return_type, identifier, parameters, flags, statements)
-        })
+impl<'source> Parse<'source> for Function<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        let return_type = parser.parse_node_optional::<Type>();
+
+        parser.expect(Token::Keyword(KeywordKind::Function))?;
+
+        let function_name = parser.parse_node::<Identifier>()?;
+
+        parser.expect(Token::Operator(OperatorKind::ParenthesisOpen))?;
+
+        let parameters = parser.optional(|parser| {
+            parser.separated(
+                |parser| parser.parse_node::<FunctionParameter>(),
+                Some(OperatorKind::Comma),
+            )
+        });
+
+        parser.expect(Token::Operator(OperatorKind::ParenthesisClose))?;
+
+        let flags = parser.parse_node_optional_repeated::<FunctionFlag>();
+
+        // native functions don't have a function body, it's only a function declaration
+        let statements = parser.parse_node_optional_repeated::<Statement>();
+        if statements.is_some() {
+            parser.expect(Token::Keyword(KeywordKind::EndFunction))?;
+        }
+
+        Ok(Function::new(
+            return_type,
+            function_name,
+            parameters,
+            flags,
+            statements,
+        ))
+    }
 }
 
 #[cfg(test)]
 mod test {
     use crate::ast::expression::Expression;
     use crate::ast::flags::FunctionFlag;
-    use crate::ast::function::{function_parser, Function, FunctionParameter};
+    use crate::ast::function::{Function, FunctionParameter};
     use crate::ast::literal::Literal;
     use crate::ast::node::Node;
     use crate::ast::statement::Statement;
     use crate::ast::types::{BaseType, Type, TypeName};
-    use crate::parse::test_utils::run_tests;
+    use crate::parser::test_utils::run_tests;
 
     #[test]
     fn test_function_parser() {
@@ -237,6 +228,6 @@ mod test {
             ),
         ];
 
-        run_tests(data, function_parser);
+        run_tests(data);
     }
 }
