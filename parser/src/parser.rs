@@ -150,16 +150,24 @@ impl<'source> Parser<'source> {
         let mut last_valid_position = self.position;
 
         loop {
-            match separator {
+            // only parse the separator after the first element, eg:
+            // <elem_1> <sep> <elem_2>
+            let separator_result = match separator {
                 Some(separator) if !results.is_empty() => {
-                    self.expect_operator(separator)?;
+                    self.expect_operator(separator).map(|_| ())
                 }
-                _ => {}
-            }
+                _ => Ok(()),
+            };
 
             let res = f(self);
             match res {
                 Ok(res) => {
+                    // only evaluate the result of the separator parsing once we made sure
+                    // that the next element is valid. This is required to end the sequence because
+                    // the first invalid element will mark the end of the sequence, it can't start
+                    // with the separator
+                    separator_result?;
+
                     results.push(res);
                     last_valid_position = self.position;
                 }
