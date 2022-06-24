@@ -1,10 +1,10 @@
-use crate::ast::flags::{display_flags, function_flag_parser, FunctionFlag};
-use crate::ast::identifier::{identifier_parser, Identifier};
-use crate::ast::node::{display_optional_nodes, Node};
-use crate::ast::statement::{display_statements, statement_parser, Statement};
-use crate::ast::types::{type_name_parser, type_with_identifier_parser, Type};
-use crate::parse::TokenParser;
-use chumsky::prelude::*;
+use crate::ast::flags::{display_flags, FunctionFlag};
+use crate::ast::identifier::Identifier;
+use crate::ast::node::{display_optional_nodes, range_union, Node};
+use crate::ast::statement::{display_statements, Statement};
+use crate::ast::types::{type_with_identifier_parser, Type, TypeName};
+use crate::choose_optional;
+use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
@@ -235,190 +235,199 @@ impl<'a> Display for CustomEventHeader<'a> {
 /// ```ebnf
 /// 'CustomEvent' <identifier>
 /// ```
-pub fn custom_event_parser<'a>() -> impl TokenParser<'a, CustomEvent<'a>> {
-    just(Token::Keyword(KeywordKind::CustomEvent))
-        .ignore_then(identifier_parser().map_with_span(Node::new))
-        .map(CustomEvent::new)
+impl<'source> Parse<'source> for CustomEvent<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        parser.expect_keyword(KeywordKind::CustomEvent)?;
+
+        let event_name = parser.parse_node::<Identifier>()?;
+
+        Ok(CustomEvent::new(event_name))
+    }
 }
 
 /// ```ebnf
-/// <parameter>  ::= <type> <identifier>
+/// <parameter> ::= <type> <identifier>
 /// ```
-pub fn event_parameter_parser<'a>() -> impl TokenParser<'a, EventParameter<'a>> {
-    type_with_identifier_parser()
-        .map(|(type_node, identifier)| EventParameter::new(type_node, identifier))
+impl<'source> Parse<'source> for EventParameter<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        let (type_node, parameter_name) = type_with_identifier_parser(parser)?;
+        Ok(EventParameter::new(type_node, parameter_name))
+    }
 }
 
 /// ```ebnf
-/// <event header> ::= 'Event' <identifier> '(' [<parameters>] ')' ['Native'] <flags>*
+/// <event header> ::= 'Event' <identifier> '(' [<parameters>] ')' <flags>*
 /// ```
-pub fn event_header_parser<'a>() -> impl TokenParser<'a, EventHeader<'a>> {
-    just(Token::Keyword(KeywordKind::Event))
-        .ignore_then(identifier_parser().map_with_span(Node::new))
-        .then_ignore(just(Token::Operator(OperatorKind::ParenthesisOpen)))
-        .then(
-            event_parameter_parser()
-                .map_with_span(Node::new)
-                .separated_by(just(Token::Operator(OperatorKind::Comma)))
-                .map(|parameters| {
-                    if parameters.is_empty() {
-                        None
-                    } else {
-                        Some(parameters)
-                    }
-                }),
-        )
-        .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
-        .then(
-            function_flag_parser()
-                .map_with_span(Node::new)
-                .repeated()
-                .at_least(1)
-                .or_not(),
-        )
-        .map(|output| {
-            let ((identifier, parameters), flags) = output;
-            EventHeader::new(identifier, parameters, flags)
-        })
+impl<'source> Parse<'source> for EventHeader<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        parser.expect_keyword(KeywordKind::Event)?;
+
+        let event_name = parser.parse_node::<Identifier>()?;
+
+        parser.expect_operator(OperatorKind::ParenthesisOpen)?;
+
+        let parameters = parser.optional(|parser| {
+            parser.separated(
+                |parser| parser.parse_node::<EventParameter>(),
+                Some(OperatorKind::Comma),
+            )
+        });
+
+        parser.expect_operator(OperatorKind::ParenthesisClose)?;
+
+        let flags = parser.parse_node_optional_repeated::<FunctionFlag>();
+
+        Ok(EventHeader::new(event_name, parameters, flags))
+    }
 }
 
 /// ```ebnf
 /// <remote event header> ::= 'Event' <object type> '.' <identifier> '(' <sender parameter> [',' <parameters>] ')' <flags>*
 /// ```
-pub fn remote_event_header_parser<'a>() -> impl TokenParser<'a, RemoteEventHeader<'a>> {
-    just(Token::Keyword(KeywordKind::Event))
-        .ignore_then(identifier_parser().map_with_span(Node::new))
-        .then_ignore(just(Token::Operator(OperatorKind::Access)))
-        .then(identifier_parser().map_with_span(Node::new))
-        .then_ignore(just(Token::Operator(OperatorKind::ParenthesisOpen)))
-        .then(event_parameter_parser().map_with_span(Node::new))
-        .then(
-            event_parameter_parser()
-                .map_with_span(Node::new)
-                .separated_by(just(Token::Operator(OperatorKind::Comma)))
-                .allow_leading()
-                .map(|parameters| {
-                    if parameters.is_empty() {
-                        None
-                    } else {
-                        Some(parameters)
-                    }
-                }),
-        )
-        .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
-        .then(
-            function_flag_parser()
-                .map_with_span(Node::new)
-                .repeated()
-                .at_least(1)
-                .or_not(),
-        )
-        .map(|output| {
-            let ((((object_type, name), sender_parameter), parameters), flags) = output;
-            RemoteEventHeader::new(object_type, name, sender_parameter, parameters, flags)
-        })
+impl<'source> Parse<'source> for RemoteEventHeader<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        parser.expect_keyword(KeywordKind::Event)?;
+
+        let object_name = parser.parse_node::<Identifier>()?;
+        parser.expect_operator(OperatorKind::Access)?;
+        let identifier = parser.parse_node::<Identifier>()?;
+
+        parser.expect_operator(OperatorKind::ParenthesisOpen)?;
+
+        let sender_parameter = parser.parse_node::<EventParameter>()?;
+        parser.optional(|parser| parser.expect_operator(OperatorKind::Comma));
+
+        let parameters = parser.optional(|parser| {
+            parser.separated(
+                |parser| parser.parse_node::<EventParameter>(),
+                Some(OperatorKind::Comma),
+            )
+        });
+
+        parser.expect_operator(OperatorKind::ParenthesisClose)?;
+
+        let flags = parser.parse_node_optional_repeated::<FunctionFlag>();
+
+        Ok(RemoteEventHeader::new(
+            object_name,
+            identifier,
+            sender_parameter,
+            parameters,
+            flags,
+        ))
+    }
 }
 
 /// ```ebnf
 /// <custom event header> ::= 'Event' <object type> '.' <identifier> '(' <sender parameter> ',' <args parameter> ')' ['Native'] <flags>*
+/// <args parameter> ::= 'var' '[' ']'
 /// ```
-pub fn custom_event_header_parser<'a>() -> impl TokenParser<'a, CustomEventHeader<'a>> {
-    just(Token::Keyword(KeywordKind::Event))
-        .ignore_then(identifier_parser().map_with_span(Node::new))
-        .then_ignore(just(Token::Operator(OperatorKind::Access)))
-        .then(identifier_parser().map_with_span(Node::new))
-        .then_ignore(just(Token::Operator(OperatorKind::ParenthesisOpen)))
-        .then(event_parameter_parser().map_with_span(Node::new))
-        .then_ignore(just(Token::Operator(OperatorKind::Comma)))
-        .then(
-            // the args parameter must of `var[] <identifier>`
-            type_name_parser()
-                .map_with_span(Node::new)
-                .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsOpen)))
-                .then(
-                    just(Token::Operator(OperatorKind::SquareBracketsClose))
-                        .map_with_span(Node::new),
-                )
-                .then(identifier_parser().map_with_span(Node::new))
-                .map(|output| {
-                    let ((type_name, token), identifier) = output;
-                    let span = type_name.range_union(&token);
-                    let type_node = Type::new(type_name, true);
+impl<'source> Parse<'source> for CustomEventHeader<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        parser.expect_keyword(KeywordKind::Event)?;
 
-                    EventParameter::new(Node::new(type_node, span), identifier)
-                })
-                .map_with_span(Node::new),
-        )
-        .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
-        .then(
-            function_flag_parser()
-                .map_with_span(Node::new)
-                .repeated()
-                .at_least(1)
-                .or_not(),
-        )
-        .map(|output| {
-            let ((((object_type, name), sender_parameter), args_parameter), flags) = output;
-            CustomEventHeader::new(object_type, name, sender_parameter, args_parameter, flags)
-        })
+        let object_name = parser.parse_node::<Identifier>()?;
+        parser.expect_operator(OperatorKind::Access)?;
+        let identifier = parser.parse_node::<Identifier>()?;
+
+        parser.expect_operator(OperatorKind::ParenthesisOpen)?;
+
+        let sender_parameter = parser.parse_node::<EventParameter>()?;
+        parser.optional(|parser| parser.expect_operator(OperatorKind::Comma));
+
+        // the args parameter must be of type 'var[]'
+        let args_parameter = {
+            let start_range = parser.save_range(parser.position())?;
+            parser.expect_keyword(KeywordKind::Var)?;
+            parser.expect_operator(OperatorKind::SquareBracketsOpen)?;
+            parser.expect_operator(OperatorKind::SquareBracketsClose)?;
+            let end_range = parser.save_range(parser.position() - 1)?;
+
+            let parameter_name = parser.parse_node::<Identifier>()?;
+
+            let total_range = range_union(start_range.clone(), parameter_name.range());
+
+            Node::new(
+                EventParameter::new(
+                    Node::new(
+                        Type::new(Node::new(TypeName::Var, start_range.clone()), true),
+                        range_union(start_range, end_range),
+                    ),
+                    parameter_name,
+                ),
+                total_range,
+            )
+        };
+
+        parser.expect_operator(OperatorKind::ParenthesisClose)?;
+
+        let flags = parser.parse_node_optional_repeated::<FunctionFlag>();
+
+        Ok(CustomEventHeader::new(
+            object_name,
+            identifier,
+            sender_parameter,
+            args_parameter,
+            flags,
+        ))
+    }
 }
 
 /// ```ebnf
 /// <event header king> = (<event header> | <custom event header> | <remote event header> )
 /// ```
-pub fn event_header_kind_parser<'a>() -> impl TokenParser<'a, EventHeaderKind<'a>> {
-    event_header_parser()
-        .map(EventHeaderKind::EventHeader)
-        .or(custom_event_header_parser().map(EventHeaderKind::CustomEvent))
-        .or(remote_event_header_parser().map(EventHeaderKind::RemoteEvent))
+impl<'source> Parse<'source> for EventHeaderKind<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        choose_optional!(
+            parser,
+            "Event Header",
+            parser
+                .parse_optional::<EventHeader>()
+                .map(EventHeaderKind::EventHeader),
+            parser
+                .parse_optional::<CustomEventHeader>()
+                .map(EventHeaderKind::CustomEvent),
+            parser
+                .parse_optional::<RemoteEventHeader>()
+                .map(EventHeaderKind::RemoteEvent),
+        )
+    }
 }
 
 /// ```ebnf
-/// <event> ::= <event header kind> [<function block> 'EndEvent']
+/// <event> ::= <event header kind> [<event body>]
+/// <event body> ::= <function block> 'EndEvent'
+/// <function block> ::= <statement>*
 /// ```
-pub fn event_parser<'a>() -> impl TokenParser<'a, Event<'a>> {
-    event_header_kind_parser()
-        .map_with_span(Node::new)
-        .then(
-            statement_parser()
-                .map_with_span(Node::new)
-                .repeated()
-                .then_ignore(just(Token::Keyword(KeywordKind::EndEvent)))
-                .or_not()
-                .map(|statements| match statements {
-                    Some(statements) => {
-                        if statements.is_empty() {
-                            None
-                        } else {
-                            Some(statements)
-                        }
-                    }
-                    None => None,
-                }),
-        )
-        .map(|output| {
-            let (header, statements) = output;
-            Event::new(header, statements)
-        })
+impl<'source> Parse<'source> for Event<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        let event_header_kind = parser.parse_node::<EventHeaderKind>()?;
+
+        let statements = parser.parse_node_optional_repeated::<Statement>();
+        if statements.is_some() {
+            parser.expect_keyword(KeywordKind::EndEvent)?;
+        }
+
+        Ok(Event::new(event_header_kind, statements))
+    }
 }
 
 #[cfg(test)]
 mod test {
     use crate::ast::event::{
-        custom_event_header_parser, custom_event_parser, event_header_parser, event_parser,
-        remote_event_header_parser, CustomEvent, CustomEventHeader, Event, EventHeader,
-        EventHeaderKind, EventParameter, RemoteEventHeader,
+        CustomEvent, CustomEventHeader, Event, EventHeader, EventHeaderKind, EventParameter,
+        RemoteEventHeader,
     };
     use crate::ast::node::Node;
     use crate::ast::statement::Statement;
     use crate::ast::types::{Type, TypeName};
-    use crate::parse::test_utils::run_test;
+    use crate::parser::test_utils::run_test;
 
     #[test]
     fn test_custom_event_parser() {
         let src = "CustomEvent MyEvent";
         let expected = CustomEvent::new(Node::new("MyEvent", 12..19));
-        run_test(src, expected, custom_event_parser);
+        run_test(src, expected);
     }
 
     #[test]
@@ -441,7 +450,7 @@ mod test {
             )]),
             None,
         );
-        run_test(src, expected, event_header_parser);
+        run_test(src, expected);
     }
 
     #[test]
@@ -479,7 +488,7 @@ mod test {
             None,
         );
 
-        run_test(src, expected, remote_event_header_parser);
+        run_test(src, expected);
     }
 
     #[test]
@@ -511,7 +520,7 @@ mod test {
             None,
         );
 
-        run_test(src, expected, custom_event_header_parser);
+        run_test(src, expected);
     }
 
     #[test]
@@ -541,6 +550,6 @@ mod test {
             Some(vec![Node::new(Statement::Return(None), 46..52)]),
         );
 
-        run_test(src, expected, event_parser);
+        run_test(src, expected);
     }
 }

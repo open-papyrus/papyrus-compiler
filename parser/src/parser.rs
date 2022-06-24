@@ -57,7 +57,11 @@ impl<'source> Parser<'source> {
         }
     }
 
-    fn save_range(&self, position: usize) -> ParserResult<'source, SourceRange> {
+    pub fn position(&self) -> usize {
+        self.position
+    }
+    
+    pub fn save_range(&self, position: usize) -> ParserResult<'source, SourceRange> {
         if position >= self.tokens.len() {
             match self.eoi_range.as_ref() {
                 Some(range) => Ok(range.clone()),
@@ -100,10 +104,10 @@ impl<'source> Parser<'source> {
 
     /// Consume the next Token and compare it with the expected Token,
     /// returns a [`ParserError`] if it does not match.
-    pub fn expect(&mut self, expected: Token<'static>) -> ParserResult<'source, &Token<'source>> {
+    pub fn expect(&mut self, expected: Token<'static>) -> ParserResult<'source, ()> {
         let found = self.consume()?;
         if found == &expected {
-            Ok(found)
+            Ok(())
         } else {
             Err(ParserError::ExpectedOne {
                 found: *found,
@@ -113,18 +117,12 @@ impl<'source> Parser<'source> {
     }
 
     /// Expect a Keyword. This is a wrapper around [`Parser::expect`].
-    pub fn expect_keyword(
-        &mut self,
-        keyword: KeywordKind,
-    ) -> ParserResult<'source, &Token<'source>> {
+    pub fn expect_keyword(&mut self, keyword: KeywordKind) -> ParserResult<'source, ()> {
         self.expect(Token::Keyword(keyword))
     }
 
     /// Expect an Operator. This is a wrapper around [`Parser::expect`].
-    pub fn expect_operator(
-        &mut self,
-        operator: OperatorKind,
-    ) -> ParserResult<'source, &Token<'source>> {
+    pub fn expect_operator(&mut self, operator: OperatorKind) -> ParserResult<'source, ()> {
         self.expect(Token::Operator(operator))
     }
 
