@@ -265,12 +265,10 @@ impl<'source> Parse<'source> for EventHeader<'source> {
 
         parser.expect_operator(OperatorKind::ParenthesisOpen)?;
 
-        let parameters = parser.optional(|parser| {
-            parser.separated(
-                |parser| parser.parse_node::<EventParameter>(),
-                Some(OperatorKind::Comma),
-            )
-        });
+        let parameters = parser.optional_separated(
+            |parser| parser.parse_node::<EventParameter>(),
+            OperatorKind::Comma,
+        );
 
         parser.expect_operator(OperatorKind::ParenthesisClose)?;
 
@@ -296,12 +294,10 @@ impl<'source> Parse<'source> for RemoteEventHeader<'source> {
         let sender_parameter = parser.parse_node::<EventParameter>()?;
         parser.optional(|parser| parser.expect_operator(OperatorKind::Comma));
 
-        let parameters = parser.optional(|parser| {
-            parser.separated(
-                |parser| parser.parse_node::<EventParameter>(),
-                Some(OperatorKind::Comma),
-            )
-        });
+        let parameters = parser.optional_separated(
+            |parser| parser.parse_node::<EventParameter>(),
+            OperatorKind::Comma,
+        );
 
         parser.expect_operator(OperatorKind::ParenthesisClose)?;
 

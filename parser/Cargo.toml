@@ -18,7 +18,6 @@ path = "../lexer"
 path = "../diagnostics"
 
 [dependencies]
-chumsky = "0.8.0"
 strum_macros = "0.24.0"
 smallbox = "0.8.1"
 

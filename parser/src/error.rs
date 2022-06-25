@@ -47,34 +47,3 @@ impl<'a> Error<'a> {
         ParserDiagnostics::new(kind, id, self.range)
     }
 }
-
-impl<'a> chumsky::Error<Token<'a>> for Error<'a> {
-    type Span = SourceRange;
-    type Label = &'static str;
-
-    fn expected_input_found<Iter: IntoIterator<Item = Option<Token<'a>>>>(
-        span: Self::Span,
-        expected: Iter,
-        found: Option<Token<'a>>,
-    ) -> Self {
-        Self {
-            range: span,
-            label: None,
-            expected: expected.into_iter().flatten().collect(),
-            found,
-        }
-    }
-
-    fn with_label(mut self, label: Self::Label) -> Self {
-        self.label.get_or_insert(label);
-        self
-    }
-
-    fn merge(mut self, other: Self) -> Self {
-        for expected in other.expected {
-            self.expected.insert(expected);
-        }
-
-        self
-    }
-}

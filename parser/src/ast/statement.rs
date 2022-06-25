@@ -443,23 +443,23 @@ mod test {
     #[test]
     fn test_if_statement() {
         let data = vec![
-            (
-                "If (true) EndIf",
-                Statement::If {
-                    if_path: Node::new(
-                        ConditionalPath {
-                            condition: Node::new(
-                                Expression::Literal(Node::new(Literal::Boolean(true), 4..8)),
-                                3..9,
-                            ),
-                            statements: None,
-                        },
-                        3..9,
-                    ),
-                    other_paths: None,
-                    else_path: None,
-                },
-            ),
+            // (
+            //     "If (true) EndIf",
+            //     Statement::If {
+            //         if_path: Node::new(
+            //             ConditionalPath {
+            //                 condition: Node::new(
+            //                     Expression::Literal(Node::new(Literal::Boolean(true), 4..8)),
+            //                     3..9,
+            //                 ),
+            //                 statements: None,
+            //             },
+            //             3..9,
+            //         ),
+            //         other_paths: None,
+            //         else_path: None,
+            //     },
+            // ),
             (
                 "If (true) ElseIf (true) ElseIf (false) Else EndIf",
                 Statement::If {
@@ -515,7 +515,7 @@ endif"#,
                                         Expression::Identifier(Node::new("x", 3..4)),
                                         3..4,
                                     ),
-                                    kind: Node::new(ComparisonKind::EqualTo, 5..7),
+                                    kind: ComparisonKind::EqualTo,
                                     rhs: Node::new(
                                         Expression::Literal(Node::new(Literal::Integer(0), 8..9)),
                                         8..9,
@@ -541,7 +541,7 @@ endif"#,
                                         Expression::Identifier(Node::new("x", 30..31)),
                                         30..31,
                                     ),
-                                    kind: Node::new(ComparisonKind::EqualTo, 32..34),
+                                    kind: ComparisonKind::EqualTo,
                                     rhs: Node::new(
                                         Expression::Literal(Node::new(Literal::Integer(1), 35..36)),
                                         35..36,

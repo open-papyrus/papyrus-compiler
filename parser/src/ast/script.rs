@@ -140,8 +140,8 @@ impl<'source> Parse<'source> for Script<'source> {
 mod test {
     use crate::ast::flags::ScriptFlag;
     use crate::ast::node::Node;
+    use crate::ast::script::Script;
     use crate::parser::test_utils::run_test;
-    use crate::Script;
 
     #[test]
     fn test_script_parser() {

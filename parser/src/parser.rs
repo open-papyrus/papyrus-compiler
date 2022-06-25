@@ -31,7 +31,7 @@ pub enum ParserError<'source> {
 }
 
 impl<'source> Display for ParserError<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
         todo!()
     }
 }
@@ -226,6 +226,13 @@ impl<'source> Parser<'source> {
         self.optional(|parser| parser.repeated(f))
     }
 
+    pub fn optional_separated<O, F>(&mut self, f: F, separator: OperatorKind) -> Option<Vec<O>>
+    where
+        F: FnMut(&mut Self) -> ParserResult<'source, O>,
+    {
+        self.optional(|parser| parser.separated(f, Some(separator)))
+    }
+
     /// Parses `O` and puts the result in a [`Node`]. This is a wrapper around [`Parser::with_node`].
     pub fn parse_node<O>(&mut self) -> ParserResult<'source, Node<O>>
     where
@@ -318,9 +325,11 @@ pub(crate) mod test_utils {
         let tokens = papyrus_compiler_lexer::run_lexer(src);
         let mut parser = Parser::new(tokens);
 
-        let res = O::parse(&mut parser).unwrap();
-        parser.expect_eoi().unwrap();
+        let res = O::parse(&mut parser);
+        assert!(res.is_ok(), "{} {:?}", src, res);
+        let res = res.unwrap();
 
+        assert!(parser.expect_eoi().is_ok(), "{} {:?}", src, res);
         assert_eq!(res, expected, "{}", src);
     }
 

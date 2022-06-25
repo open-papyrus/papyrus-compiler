@@ -164,7 +164,7 @@ impl<'source> Parse<'source> for AutoProperty<'source> {
         let is_read_only = match initial_value {
             None => {
                 parser.expect_keyword(KeywordKind::Auto)?;
-                true
+                false
             }
             Some(_) => {
                 let token = parser.consume()?;

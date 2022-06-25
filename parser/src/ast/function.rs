@@ -142,12 +142,10 @@ impl<'source> Parse<'source> for Function<'source> {
 
         parser.expect_operator(OperatorKind::ParenthesisOpen)?;
 
-        let parameters = parser.optional(|parser| {
-            parser.separated(
-                |parser| parser.parse_node::<FunctionParameter>(),
-                Some(OperatorKind::Comma),
-            )
-        });
+        let parameters = parser.optional_separated(
+            |parser| parser.parse_node::<FunctionParameter>(),
+            OperatorKind::Comma,
+        );
 
         parser.expect_operator(OperatorKind::ParenthesisClose)?;
 
