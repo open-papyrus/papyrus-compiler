@@ -60,7 +60,7 @@ impl<'source> Parser<'source> {
     pub fn position(&self) -> usize {
         self.position
     }
-    
+
     pub fn save_range(&self, position: usize) -> ParserResult<'source, SourceRange> {
         if position >= self.tokens.len() {
             match self.eoi_range.as_ref() {
@@ -188,25 +188,16 @@ impl<'source> Parser<'source> {
         }
     }
 
-    /// Parses `O` and puts the result in a [`Node`].
-    pub fn parse_node<O>(&mut self) -> ParserResult<'source, Node<O>>
+    /// Calls the provided function and puts the result in a [`Node`].
+    pub fn with_node<O, F>(&mut self, f: F) -> ParserResult<'source, Node<O>>
     where
-        O: Parse<'source>,
+        F: FnOnce(&mut Self) -> ParserResult<'source, O>,
     {
         let start_range = self.save_range(self.position)?;
-        let res = O::parse(self)?;
+        let res = f(self)?;
         let end_range = self.save_range(self.position - 1)?;
 
         Ok(Node::new(res, range_union(start_range, end_range)))
-    }
-
-    /// Repeatedly parses `O` and puts each result in a [`Node`]. This is a combination of
-    /// [`Parser::repeated`] and [`Parser::parse_node`].
-    pub fn parse_node_repeated<O>(&mut self) -> ParserResult<'source, Vec<Node<O>>>
-    where
-        O: Parse<'source>,
-    {
-        self.repeated(|parser| parser.parse_node::<O>())
     }
 
     /// Calls the provided function and resets the position if the function was not successful.
@@ -224,6 +215,32 @@ impl<'source> Parser<'source> {
                 None
             }
         }
+    }
+
+    /// Repeatedly calls the provided function but resets the position if the call was not successful.
+    /// This is a combination of [`Parser::optional`] and [`Parser::repeated`].
+    pub fn optional_repeated<O, F>(&mut self, f: F) -> Option<Vec<O>>
+    where
+        F: FnMut(&mut Self) -> ParserResult<'source, O>,
+    {
+        self.optional(|parser| parser.repeated(f))
+    }
+
+    /// Parses `O` and puts the result in a [`Node`]. This is a wrapper around [`Parser::with_node`].
+    pub fn parse_node<O>(&mut self) -> ParserResult<'source, Node<O>>
+    where
+        O: Parse<'source>,
+    {
+        self.with_node(O::parse)
+    }
+
+    /// Repeatedly parses `O` and puts each result in a [`Node`]. This is a combination of
+    /// [`Parser::repeated`] and [`Parser::parse_node`].
+    pub fn parse_node_repeated<O>(&mut self) -> ParserResult<'source, Vec<Node<O>>>
+    where
+        O: Parse<'source>,
+    {
+        self.repeated(|parser| parser.parse_node::<O>())
     }
 
     /// Optional parses `O`. This is a combination of [`Parser::optional`] and [`Parse::parse`].

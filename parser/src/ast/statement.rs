@@ -1,41 +1,41 @@
-use crate::ast::expression::{expression_parser, Expression};
+use crate::ast::expression::Expression;
 use crate::ast::identifier::Identifier;
 use crate::ast::node::{display_nodes, display_optional_nodes, Node};
 use crate::ast::types::{type_with_identifier_parser, Type};
-use crate::parse::TokenParser;
-use chumsky::prelude::*;
+use crate::parser::{Parse, Parser, ParserResult};
+use crate::{choose_optional, select_tokens};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Statement<'a> {
+pub enum Statement<'source> {
     /// 'int x = 1'
     VariableDefinition {
-        type_node: Node<Type<'a>>,
-        name: Node<Identifier<'a>>,
-        expression: Option<Node<Expression<'a>>>,
+        type_node: Node<Type<'source>>,
+        name: Node<Identifier<'source>>,
+        initial_value: Option<Node<Expression<'source>>>,
     },
     /// 'Return x'
-    Return(Option<Node<Expression<'a>>>),
+    Return(Option<Node<Expression<'source>>>),
     /// 'x = y'
     Assignment {
-        lhs: Node<Expression<'a>>,
+        lhs: Node<Expression<'source>>,
         kind: Node<AssignmentKind>,
-        rhs: Node<Expression<'a>>,
+        rhs: Node<Expression<'source>>,
     },
     If {
-        if_path: Node<ConditionalPath<'a>>,
-        other_paths: Option<Vec<Node<ConditionalPath<'a>>>>,
-        else_path: Option<Vec<Node<Statement<'a>>>>,
+        if_path: Node<ConditionalPath<'source>>,
+        other_paths: Option<Vec<Node<ConditionalPath<'source>>>>,
+        else_path: Option<Vec<Node<Statement<'source>>>>,
     },
-    While(Node<ConditionalPath<'a>>),
-    Expression(Node<Expression<'a>>),
+    While(Node<ConditionalPath<'source>>),
+    Expression(Node<Expression<'source>>),
 }
 
-pub fn display_statements<'a>(
-    statements: &Option<Vec<Node<Statement<'a>>>>,
+pub fn display_statements<'source>(
+    statements: &Option<Vec<Node<Statement<'source>>>>,
     f: &mut Formatter<'_>,
 ) -> std::fmt::Result {
     match statements.as_ref() {
@@ -50,13 +50,13 @@ pub fn display_statements<'a>(
     Ok(())
 }
 
-impl<'a> Display for Statement<'a> {
+impl<'source> Display for Statement<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Statement::VariableDefinition {
                 type_node,
                 name,
-                expression,
+                initial_value: expression,
             } => match expression.as_ref() {
                 Some(expression) => write!(f, "{} {} = {}", type_node, name, expression),
                 None => write!(f, "{} {}", type_node, name),
@@ -94,15 +94,15 @@ impl<'a> Display for Statement<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ConditionalPath<'a> {
-    pub condition: Node<Expression<'a>>,
-    pub statements: Option<Vec<Node<Statement<'a>>>>,
+pub struct ConditionalPath<'source> {
+    pub condition: Node<Expression<'source>>,
+    pub statements: Option<Vec<Node<Statement<'source>>>>,
 }
 
-impl<'a> ConditionalPath<'a> {
+impl<'source> ConditionalPath<'source> {
     pub fn new(
-        condition: Node<Expression<'a>>,
-        statements: Option<Vec<Node<Statement<'a>>>>,
+        condition: Node<Expression<'source>>,
+        statements: Option<Vec<Node<Statement<'source>>>>,
     ) -> Self {
         Self {
             condition,
@@ -111,7 +111,7 @@ impl<'a> ConditionalPath<'a> {
     }
 }
 
-impl<'a> Display for ConditionalPath<'a> {
+impl<'source> Display for ConditionalPath<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.condition)?;
 
@@ -150,19 +150,35 @@ impl Display for AssignmentKind {
     }
 }
 
-pub fn assignment_kind_parser<'a>() -> impl TokenParser<'a, AssignmentKind> {
-    select! {
-        Token::Operator(OperatorKind::Assignment) => AssignmentKind::Normal,
-        Token::Operator(OperatorKind::AdditionAssignment) => AssignmentKind::Addition,
-        Token::Operator(OperatorKind::SubtractionAssignment) => AssignmentKind::Subtraction,
-        Token::Operator(OperatorKind::MultiplicationAssignment) => AssignmentKind::Multiplication,
-        Token::Operator(OperatorKind::DivisionAssignment) => AssignmentKind::Division,
-        Token::Operator(OperatorKind::ModulusAssignment) => AssignmentKind::Modulus,
+impl<'source> Parse<'source> for AssignmentKind {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        select_tokens!(parser, "Assignment Kind",
+            Token::Operator(OperatorKind::Assignment) => AssignmentKind::Normal,
+            Token::Operator(OperatorKind::AdditionAssignment) => AssignmentKind::Addition,
+            Token::Operator(OperatorKind::SubtractionAssignment) => AssignmentKind::Subtraction,
+            Token::Operator(OperatorKind::MultiplicationAssignment) => AssignmentKind::Multiplication,
+            Token::Operator(OperatorKind::DivisionAssignment) => AssignmentKind::Division,
+            Token::Operator(OperatorKind::ModulusAssignment) => AssignmentKind::Modulus,
+        )
+    }
+}
+
+impl<'source> Parse<'source> for Statement<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        choose_optional!(
+            parser,
+            "Statement",
+            parser.optional(parse_return_statement),
+            parser.optional(parse_if_statement),
+            parser.optional(parse_while_statement),
+            parser.optional(parse_define_statement),
+            parser.optional(parse_assign_statement),
+            parser.optional(parse_expression_statement)
+        )
     }
 }
 
 /// ```ebnf
-/// <define statement> ::= <type> <identifier> ['=' <expression>]
 ///
 /// <assign statement> ::= (<l-value> '=' <expression>) |
 ///                        (<l-value> '+=' <expression>) |
@@ -173,119 +189,117 @@ pub fn assignment_kind_parser<'a>() -> impl TokenParser<'a, AssignmentKind> {
 /// <l-value>          ::= ([<expression> '.'] <identifier>) |
 ///                        (<expression> '[' <expression> ']')
 ///
+/// ```
+fn parse_assign_statement<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Statement<'source>> {
+    let l_value = parser.parse_node::<Expression>()?;
+    let assignment_kind = parser.parse_node::<AssignmentKind>()?;
+    let r_value = parser.parse_node::<Expression>()?;
+
+    Ok(Statement::Assignment {
+        lhs: l_value,
+        kind: assignment_kind,
+        rhs: r_value,
+    })
+}
+
+fn parse_expression_statement<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Statement<'source>> {
+    let expression = parser.parse_node::<Expression>()?;
+    Ok(Statement::Expression(expression))
+}
+
+/// ```ebnf
 /// 'Return' [<expression>]
-///
-/// <if statement> ::= 'If' '(' <expression> ')'
-///                      <statement>*
-///                    ['ElseIf' '(' <expression> ')'
-///                      <statement>*]*
-///                    ['Else'
-///                      <statement>*]
+/// ```
+fn parse_return_statement<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Statement<'source>> {
+    parser.expect_keyword(KeywordKind::Return)?;
+    let expression = parser.parse_node_optional::<Expression>();
+
+    Ok(Statement::Return(expression))
+}
+
+/// ```ebnf
+/// <define statement> ::= <type> <identifier> ['=' <expression>]
+/// ```
+fn parse_define_statement<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Statement<'source>> {
+    let (type_node, name) = type_with_identifier_parser(parser)?;
+    let initial_value = parser.optional(|parser| {
+        parser.expect_operator(OperatorKind::Assignment)?;
+        parser.parse_node::<Expression>()
+    });
+
+    Ok(Statement::VariableDefinition {
+        type_node,
+        name,
+        initial_value,
+    })
+}
+
+/// ```ebnf
+/// <conditional path> ::= <expression> <statement>*
+/// ```
+impl<'source> Parse<'source> for ConditionalPath<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        let condition = parser.parse_node::<Expression>()?;
+        let statements = parser.parse_node_optional_repeated::<Statement>();
+        Ok(ConditionalPath {
+            condition,
+            statements,
+        })
+    }
+}
+
+/// ```ebnf
+/// <if statement> ::= 'If' <conditional path>
+///                    ['ElseIf' <conditional path>]*
+///                    ['Else' <conditional path>]
 ///                    'EndIf'
-///
-/// 'While' '(' <expression> ')'
-///   <statement>*
+/// ```
+fn parse_if_statement<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Statement<'source>> {
+    parser.expect_keyword(KeywordKind::If)?;
+
+    let if_path = parser.parse_node::<ConditionalPath>()?;
+
+    let other_paths = parser.optional_repeated(|parser| {
+        parser.expect_keyword(KeywordKind::ElseIf)?;
+        parser.parse_node::<ConditionalPath>()
+    });
+
+    let else_path = parser.optional(|parser| {
+        parser.expect_keyword(KeywordKind::Else)?;
+        parser.parse_node_repeated::<Statement>()
+    });
+
+    parser.expect_keyword(KeywordKind::EndIf)?;
+
+    Ok(Statement::If {
+        if_path,
+        other_paths,
+        else_path,
+    })
+}
+
+/// ```ebnf
+/// 'While' <conditional path>
 /// 'EndWhile'
 /// ```
-pub fn statement_parser<'a>() -> impl TokenParser<'a, Statement<'a>> {
-    recursive(|statement| {
-        let define_statement = type_with_identifier_parser()
-            .then(
-                just(Token::Operator(OperatorKind::Assignment))
-                    .ignore_then(expression_parser().map_with_span(Node::new))
-                    .or_not(),
-            )
-            .map(|output| {
-                let ((type_node, identifier), initial_value) = output;
-                Statement::VariableDefinition {
-                    type_node,
-                    name: identifier,
-                    expression: initial_value,
-                }
-            });
+fn parse_while_statement<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Statement<'source>> {
+    parser.expect_keyword(KeywordKind::While)?;
+    let conditional_path = parser.parse_node::<ConditionalPath>()?;
+    parser.expect_keyword(KeywordKind::EndWhile)?;
 
-        let assignment_statement = expression_parser()
-            .map_with_span(Node::new)
-            .then(assignment_kind_parser().map_with_span(Node::new))
-            .then(expression_parser().map_with_span(Node::new))
-            .map(|output| {
-                let ((lhs, kind), rhs) = output;
-                Statement::Assignment { lhs, kind, rhs }
-            });
-
-        let return_statement = just(Token::Keyword(KeywordKind::Return))
-            .ignore_then(expression_parser().map_with_span(Node::new).or_not())
-            .map(Statement::Return);
-
-        let conditional_path = expression_parser()
-            .map_with_span(Node::new)
-            .then(
-                statement
-                    .clone()
-                    .map_with_span(Node::new)
-                    .repeated()
-                    .at_least(1)
-                    .or_not(),
-            )
-            .map(|output| {
-                let (condition, statements) = output;
-                ConditionalPath::new(condition, statements)
-            })
-            .map_with_span(Node::new);
-
-        let if_statement = just(Token::Keyword(KeywordKind::If))
-            .ignore_then(conditional_path.clone())
-            .then(
-                just(Token::Keyword(KeywordKind::ElseIf))
-                    .ignore_then(conditional_path.clone())
-                    .repeated()
-                    .at_least(1)
-                    .or_not(),
-            )
-            .then(
-                just(Token::Keyword(KeywordKind::Else))
-                    .ignore_then(
-                        statement
-                            .clone()
-                            .map_with_span(Node::new)
-                            .repeated()
-                            .at_least(1)
-                            .or_not(),
-                    )
-                    .or_not()
-                    .map(|else_statements| match else_statements {
-                        Some(else_statements) => else_statements,
-                        None => None,
-                    }),
-            )
-            .then_ignore(just(Token::Keyword(KeywordKind::EndIf)))
-            .map(|output| {
-                let ((if_path, other_paths), else_path) = output;
-                Statement::If {
-                    if_path,
-                    other_paths,
-                    else_path,
-                }
-            });
-
-        let while_statement = just(Token::Keyword(KeywordKind::While))
-            .ignore_then(conditional_path.clone())
-            .then_ignore(just(Token::Keyword(KeywordKind::EndWhile)))
-            .map(Statement::While);
-
-        let expression_statement = expression_parser()
-            .map_with_span(Node::new)
-            .map(Statement::Expression);
-
-        choice((
-            define_statement,
-            assignment_statement,
-            return_statement,
-            if_statement,
-            while_statement,
-            expression_statement,
-        ))
-    })
+    Ok(Statement::While(conditional_path))
 }
 
 #[cfg(test)]
@@ -293,9 +307,9 @@ mod test {
     use crate::ast::expression::{ComparisonKind, Expression, FunctionArgument};
     use crate::ast::literal::Literal;
     use crate::ast::node::Node;
-    use crate::ast::statement::{statement_parser, AssignmentKind, ConditionalPath, Statement};
+    use crate::ast::statement::{AssignmentKind, ConditionalPath, Statement};
     use crate::ast::types::{BaseType, Type, TypeName};
-    use crate::parse::test_utils::{run_test, run_tests};
+    use crate::parser::test_utils::{run_test, run_tests};
 
     #[test]
     fn test_define_statement() {
@@ -306,13 +320,13 @@ mod test {
                 0..3,
             ),
             name: Node::new("x", 4..5),
-            expression: Some(Node::new(
+            initial_value: Some(Node::new(
                 Expression::Literal(Node::new(Literal::Integer(1), 8..9)),
                 8..9,
             )),
         };
 
-        run_test(src, expected, statement_parser);
+        run_test(src, expected);
     }
 
     #[test]
@@ -328,7 +342,7 @@ mod test {
             ),
         ];
 
-        run_tests(data, statement_parser);
+        run_tests(data);
     }
 
     #[test]
@@ -423,7 +437,7 @@ mod test {
             ),
         ];
 
-        run_tests(data, statement_parser);
+        run_tests(data);
     }
 
     #[test]
@@ -556,7 +570,7 @@ endif"#,
             ),
         ];
 
-        run_tests(data, statement_parser);
+        run_tests(data);
     }
 
     #[test]
@@ -573,7 +587,7 @@ endif"#,
             6..12,
         ));
 
-        run_test(src, expected, statement_parser);
+        run_test(src, expected);
     }
 
     #[test]
@@ -599,6 +613,6 @@ endif"#,
             0..16,
         ));
 
-        run_test(src, expected, statement_parser);
+        run_test(src, expected);
     }
 }
