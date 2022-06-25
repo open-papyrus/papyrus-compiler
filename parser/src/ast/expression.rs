@@ -1,79 +1,78 @@
-use crate::ast::identifier::{identifier_parser, Identifier};
-use crate::ast::literal::{literal_parser, Literal};
+use crate::ast::identifier::Identifier;
+use crate::ast::literal::Literal;
 use crate::ast::node::Node;
-use crate::ast::types::{type_name_parser, TypeName};
-use crate::parse::TokenParser;
-use chumsky::prelude::*;
+use crate::ast::types::TypeName;
+use crate::parser::{Parse, Parser, ParserError, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Expression<'a> {
+pub enum Expression<'source> {
     /// 'a && b'
     LogicalOperation {
-        lhs: Node<Expression<'a>>,
-        kind: Node<LogicalKind>,
-        rhs: Node<Expression<'a>>,
+        lhs: Node<Expression<'source>>,
+        kind: LogicalKind,
+        rhs: Node<Expression<'source>>,
     },
     /// 'a != b'
     Comparison {
-        lhs: Node<Expression<'a>>,
-        kind: Node<ComparisonKind>,
-        rhs: Node<Expression<'a>>,
+        lhs: Node<Expression<'source>>,
+        kind: ComparisonKind,
+        rhs: Node<Expression<'source>>,
     },
     /// '!a'
     Unary {
-        kind: Node<UnaryKind>,
-        rhs: Node<Expression<'a>>,
+        kind: UnaryKind,
+        rhs: Node<Expression<'source>>,
     },
     /// 'a + b'
     Binary {
-        lhs: Node<Expression<'a>>,
-        kind: Node<BinaryKind>,
-        rhs: Node<Expression<'a>>,
+        lhs: Node<Expression<'source>>,
+        kind: BinaryKind,
+        rhs: Node<Expression<'source>>,
     },
     /// 'a[i]'
     ArrayAccess {
-        array: Node<Expression<'a>>,
-        index: Node<Expression<'a>>,
+        array: Node<Expression<'source>>,
+        index: Node<Expression<'source>>,
     },
     /// 'MyObject.MyProperty'
     MemberAccess {
-        lhs: Node<Expression<'a>>,
-        rhs: Node<Expression<'a>>,
+        lhs: Node<Expression<'source>>,
+        rhs: Node<Expression<'source>>,
     },
     /// 'a as string'
     Cast {
-        lhs: Node<Expression<'a>>,
-        rhs: Node<TypeName<'a>>,
+        lhs: Node<Expression<'source>>,
+        rhs: Node<TypeName<'source>>,
     },
     /// 'a is string'
     TypeCheck {
-        lhs: Node<Expression<'a>>,
-        rhs: Node<TypeName<'a>>,
+        lhs: Node<Expression<'source>>,
+        rhs: Node<TypeName<'source>>,
     },
     /// 'new int[10 * count]'
     NewArray {
-        element_type: Node<TypeName<'a>>,
-        size: Node<Expression<'a>>,
+        element_type: Node<TypeName<'source>>,
+        size: Node<Expression<'source>>,
     },
     /// 'new Point'
-    NewStructure(Node<TypeName<'a>>),
+    NewStructure(Node<TypeName<'source>>),
     /// 'DoSomething(a, b, 1, 3, "Hello World")'
     FunctionCall {
-        name: Node<Expression<'a>>,
-        arguments: Option<Vec<Node<FunctionArgument<'a>>>>,
+        name: Node<Expression<'source>>,
+        arguments: Option<Vec<Node<FunctionArgument<'source>>>>,
     },
     /// '1', '"Hello World"', '1.0', 'false', 'none'
-    Literal(Node<Literal<'a>>),
-    Identifier(Node<Identifier<'a>>),
+    Literal(Node<Literal<'source>>),
+    Identifier(Node<Identifier<'source>>),
     Self_,
     Parent,
 }
 
-impl<'a> Display for Expression<'a> {
+impl<'source> Display for Expression<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Expression::LogicalOperation { lhs, kind, rhs } => {
@@ -120,15 +119,15 @@ impl<'a> Display for Expression<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum FunctionArgument<'a> {
-    Positional(Node<Expression<'a>>),
+pub enum FunctionArgument<'source> {
+    Positional(Node<Expression<'source>>),
     Named {
-        name: Node<Identifier<'a>>,
-        value: Node<Expression<'a>>,
+        name: Node<Identifier<'source>>,
+        value: Node<Expression<'source>>,
     },
 }
 
-impl<'a> Display for FunctionArgument<'a> {
+impl<'source> Display for FunctionArgument<'source> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             FunctionArgument::Positional(expr) => write!(f, "{}", expr),
@@ -229,295 +228,409 @@ impl Display for BinaryKind {
     }
 }
 
-/// ```ebnf
-/// <expression>       ::= <and expression> ('||' <and expression>)*
-/// <and expression>   ::= <bool expression> ('&&' <bool expression>)*
-/// <bool expression>  ::= <add expression> (<comparison operator> <add expression>)*
-/// <add expression>   ::= <mult expression> (('+' | '-') <mult expression>)*
-/// <mult expression>  ::= <unary expression> (('*' | '/' | '%') <unary expression>)*
-/// <unary expression> ::= ['-' | '!'] <cast atom>
-/// <cast atom>        ::= <dot atom> ['as' <type>]
-/// <dot atom>         ::= (<array atom> ('.' <array func or id>)*) | <constant>
-/// <array atom>       ::= <atom> ['[' <expression> ']']
-/// <atom>             ::= ('(' <expression> ')') | ('new' <type> '[' <expression> ']') | <func or id>
-/// <array func or id> ::= <func or id> ['[' <expression> ']']
-/// <func or id>       ::= <function call> | 'self' | 'parent'
-/// ```
-pub fn expression_parser<'a>() -> impl TokenParser<'a, Expression<'a>> {
-    recursive(|expr| {
-        let literal = literal_parser()
-            .map_with_span(Node::new)
-            .map(Expression::Literal);
+impl<'source> Parse<'source> for FunctionArgument<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        let argument_name = parser.optional(|parser| {
+            let identifier = parser.parse_node::<Identifier>()?;
+            parser.expect_operator(OperatorKind::Assignment)?;
 
-        let identifier = identifier_parser()
-            .map_with_span(Node::new)
-            .map(Expression::Identifier);
+            Ok(identifier)
+        });
 
-        let func_or_id = select! {
-            Token::Keyword(KeywordKind::Parent) => Expression::Parent,
-            Token::Keyword(KeywordKind::Self_) => Expression::Self_
+        let value = parser.parse_node::<Expression>()?;
+
+        match argument_name {
+            Some(name) => Ok(FunctionArgument::Named { name, value }),
+            None => Ok(FunctionArgument::Positional(value)),
         }
-        .or(identifier
-            .clone()
-            .map_with_span(Node::new)
-            .then(
-                just(Token::Operator(OperatorKind::ParenthesisOpen))
-                    .ignore_then(
-                        identifier_parser()
-                            .map_with_span(Node::new)
-                            .then_ignore(just(Token::Operator(OperatorKind::Assignment)))
-                            .or_not()
-                            .then(expr.clone().map_with_span(Node::new))
-                            .map(|(name, value)| match name {
-                                Some(name) => FunctionArgument::Named { name, value },
-                                None => FunctionArgument::Positional(value),
-                            })
-                            .map_with_span(Node::new)
-                            .separated_by(just(Token::Operator(OperatorKind::Comma))),
-                    )
-                    .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
-                    .or_not(),
-            )
-            .map(|output| {
-                let (identifier, function_call_arguments) = output;
-                match function_call_arguments {
-                    Some(function_call_arguments) => {
-                        if function_call_arguments.is_empty() {
-                            Expression::FunctionCall {
-                                name: identifier,
-                                arguments: None,
-                            }
-                        } else {
-                            Expression::FunctionCall {
-                                name: identifier,
-                                arguments: Some(function_call_arguments),
-                            }
-                        }
-                    }
-                    None => identifier.into_inner(),
-                }
-            }));
+    }
+}
 
-        let array_func_or_id = func_or_id
-            .clone()
-            .map_with_span(Node::new)
-            .then(
-                just(Token::Operator(OperatorKind::SquareBracketsOpen))
-                    .ignore_then(expr.clone().map_with_span(Node::new))
-                    .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsClose)))
-                    .or_not(),
-            )
-            .map(|output| {
-                let (lhs, array_index) = output;
-                match array_index {
-                    Some(array_index) => Expression::ArrayAccess {
-                        array: lhs,
-                        index: array_index,
+/// ```ebnf
+/// <func or id> ::= <function call> | 'self' | 'parent'
+/// ```
+fn parse_func_or_id_expression<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Expression<'source>> {
+    let parent_or_self_expression = parser.optional(|parser| {
+        let token = parser.consume()?;
+        match token {
+            Token::Keyword(KeywordKind::Parent) => Ok(Expression::Parent),
+            Token::Keyword(KeywordKind::Self_) => Ok(Expression::Self_),
+            _ => Err(ParserError::ExpectedOneOf {
+                found: *token,
+                expected: vec![
+                    Token::Keyword(KeywordKind::Parent),
+                    Token::Keyword(KeywordKind::Self_),
+                ],
+            }),
+        }
+    });
+
+    match parent_or_self_expression {
+        Some(expression) => return Ok(expression),
+        None => {}
+    }
+
+    let identifier = parser
+        .with_node(|parser| Ok(Expression::Identifier(parser.parse_node::<Identifier>()?)))?;
+
+    let function_call_arguments = parser.optional(|parser| {
+        parser.expect_operator(OperatorKind::ParenthesisOpen)?;
+        let arguments = parser.optional_separated(
+            |parser| parser.parse_node::<FunctionArgument>(),
+            OperatorKind::Comma,
+        );
+        parser.expect_operator(OperatorKind::ParenthesisClose)?;
+
+        Ok(arguments)
+    });
+
+    match function_call_arguments {
+        Some(arguments) => Ok(Expression::FunctionCall {
+            name: identifier,
+            arguments,
+        }),
+        None => Ok(identifier.into_inner()),
+    }
+}
+
+fn parse_array_index<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Node<Expression<'source>>> {
+    parser.expect_operator(OperatorKind::SquareBracketsOpen)?;
+    let array_index = parser.parse_node::<Expression>()?;
+    parser.expect_operator(OperatorKind::SquareBracketsClose)?;
+
+    Ok(array_index)
+}
+
+/// ```ebnf
+/// <array func or id> ::= <func or id> ['[' <expression> ']']
+/// ```
+fn parse_array_func_or_id_expression<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Expression<'source>> {
+    let func_or_id = parser.with_node(parse_func_or_id_expression)?;
+
+    let array_index = parser.optional(parse_array_index);
+
+    match array_index {
+        Some(array_index) => Ok(Expression::ArrayAccess {
+            array: func_or_id,
+            index: array_index,
+        }),
+        None => Ok(func_or_id.into_inner()),
+    }
+}
+
+/// ```ebnf
+/// <atom> ::= ('(' <expression> ')') | ('new' <type> '[' <expression> ']') | <func or id>
+/// ```
+fn parse_atom_expression<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Expression<'source>> {
+    let token = parser.peek();
+    match token {
+        Some(Token::Operator(OperatorKind::ParenthesisOpen)) => {
+            parser.consume()?;
+            let nested_expression = Expression::parse(parser)?;
+            parser.expect_operator(OperatorKind::ParenthesisClose)?;
+
+            Ok(nested_expression)
+        }
+        Some(Token::Keyword(KeywordKind::New)) => {
+            parser.consume()?;
+            let type_name = parser.parse_node::<TypeName>()?;
+            let array_size = parser.optional(parse_array_index);
+
+            match array_size {
+                Some(array_size) => Ok(Expression::NewArray {
+                    element_type: type_name,
+                    size: array_size,
+                }),
+                None => Ok(Expression::NewStructure(type_name)),
+            }
+        }
+        _ => parse_func_or_id_expression(parser),
+    }
+}
+
+/// ```ebnf
+/// <array atom> ::= <atom> ['[' <expression> ']']
+/// ```
+fn parse_array_atom_expression<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Expression<'source>> {
+    let atom = parser.with_node(parse_atom_expression)?;
+    let array_index = parser.optional(parse_array_index);
+
+    match array_index {
+        Some(array_index) => Ok(Expression::ArrayAccess {
+            array: atom,
+            index: array_index,
+        }),
+        None => Ok(atom.into_inner()),
+    }
+}
+
+/// ```ebnf
+/// <dot atom> ::= (<array atom> ('.' <array func or id>)*) | <constant>
+/// ```
+fn parse_dot_atom_expression<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Expression<'source>> {
+    let literal = parser.parse_node_optional::<Literal>();
+    match literal {
+        Some(literal) => return Ok(Expression::Literal(literal)),
+        None => {}
+    }
+
+    let mut expression = parser.with_node(parse_array_atom_expression)?;
+    while parser.peek() == Some(&Token::Operator(OperatorKind::Access)) {
+        parser.consume()?;
+        let rhs = parser.with_node(parse_array_func_or_id_expression)?;
+        let range = expression.range_union(&rhs);
+
+        expression = Node::new(
+            Expression::MemberAccess {
+                lhs: expression,
+                rhs,
+            },
+            range,
+        )
+    }
+
+    Ok(expression.into_inner())
+}
+
+/// ```ebnf
+/// <cast atom> ::= <dot atom> [ ( 'as' | 'is' ) <type>]
+/// ```
+fn parse_cast_atom_expression<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Expression<'source>> {
+    let expr = parser.with_node(parse_dot_atom_expression)?;
+
+    match parser.peek() {
+        Some(Token::Operator(OperatorKind::CastAs)) => {
+            parser.consume()?;
+            let rhs = parser.parse_node::<TypeName>()?;
+            Ok(Expression::Cast { lhs: expr, rhs })
+        }
+        Some(Token::Operator(OperatorKind::CastIs)) => {
+            parser.consume()?;
+            let rhs = parser.parse_node::<TypeName>()?;
+            Ok(Expression::TypeCheck { lhs: expr, rhs })
+        }
+        _ => Ok(expr.into_inner()),
+    }
+}
+
+/// ```ebnf
+/// <unary expression> ::= ['-' | '!'] <cast atom>
+/// ```
+fn parse_unary_expression<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Expression<'source>> {
+    match parser.peek() {
+        Some(Token::Operator(OperatorKind::Subtraction)) => {
+            parser.consume()?;
+            Ok(Expression::Unary {
+                kind: UnaryKind::Negative,
+                rhs: parser.with_node(parse_cast_atom_expression)?,
+            })
+        }
+        Some(Token::Operator(OperatorKind::LogicalNot)) => {
+            parser.consume()?;
+            Ok(Expression::Unary {
+                kind: UnaryKind::LogicalNot,
+                rhs: parser.with_node(parse_cast_atom_expression)?,
+            })
+        }
+        _ => parse_cast_atom_expression(parser),
+    }
+}
+
+/// ```ebnf
+/// <mult expression>  ::= <unary expression> (('*' | '/' | '%') <unary expression>)*
+/// ```
+fn parse_mult_expression<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Expression<'source>> {
+    let mut expr = parser.with_node(parse_unary_expression)?;
+
+    loop {
+        let kind = match parser.peek() {
+            Some(Token::Operator(OperatorKind::Multiplication)) => Some(BinaryKind::Multiplication),
+            Some(Token::Operator(OperatorKind::Division)) => Some(BinaryKind::Division),
+            Some(Token::Operator(OperatorKind::Modulus)) => Some(BinaryKind::Modulus),
+            _ => None,
+        };
+
+        match kind {
+            Some(kind) => {
+                parser.consume()?;
+                let rhs = parser.with_node(parse_unary_expression)?;
+                let range = expr.range_union(&rhs);
+
+                expr = Node::new(
+                    Expression::Binary {
+                        lhs: expr,
+                        kind,
+                        rhs,
                     },
-                    None => lhs.into_inner(),
-                }
-            });
+                    range,
+                );
+            }
+            None => break,
+        }
+    }
 
-        let atom = just(Token::Operator(OperatorKind::ParenthesisOpen))
-            .ignore_then(expr.clone())
-            .then_ignore(just(Token::Operator(OperatorKind::ParenthesisClose)))
-            .or(just(Token::Keyword(KeywordKind::New))
-                .ignore_then(
-                    type_name_parser().map_with_span(Node::new).then(
-                        just(Token::Operator(OperatorKind::SquareBracketsOpen))
-                            .ignore_then(expr.clone().map_with_span(Node::new))
-                            .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsClose)))
-                            .or_not(),
-                    ),
-                )
-                .map(|output| {
-                    let (type_name, array_length) = output;
-                    match array_length {
-                        Some(array_length) => Expression::NewArray {
-                            element_type: type_name,
-                            size: array_length,
-                        },
-                        None => Expression::NewStructure(type_name),
-                    }
-                }))
-            .or(func_or_id.clone());
+    Ok(expr.into_inner())
+}
 
-        let array_atom = atom
-            .map_with_span(Node::new)
-            .then(
-                just(Token::Operator(OperatorKind::SquareBracketsOpen))
-                    .ignore_then(expr.clone().map_with_span(Node::new))
-                    .then_ignore(just(Token::Operator(OperatorKind::SquareBracketsClose)))
-                    .or_not(),
-            )
-            .map(|output| {
-                let (lhs, array_index) = output;
-                match array_index {
-                    Some(array_index) => Expression::ArrayAccess {
-                        array: lhs,
-                        index: array_index,
+/// ```ebnf
+/// <add expression>   ::= <mult expression> (('+' | '-') <mult expression>)*
+/// ```
+fn parse_add_expression<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Expression<'source>> {
+    let mut expr = parser.with_node(parse_mult_expression)?;
+
+    loop {
+        let kind = match parser.peek() {
+            Some(Token::Operator(OperatorKind::Addition)) => Some(BinaryKind::Addition),
+            Some(Token::Operator(OperatorKind::Subtraction)) => Some(BinaryKind::Subtraction),
+            _ => None,
+        };
+
+        match kind {
+            Some(kind) => {
+                parser.consume()?;
+                let rhs = parser.with_node(parse_mult_expression)?;
+                let range = expr.range_union(&rhs);
+
+                expr = Node::new(
+                    Expression::Binary {
+                        lhs: expr,
+                        kind,
+                        rhs,
                     },
-                    None => lhs.into_inner(),
-                }
-            })
-            .boxed();
+                    range,
+                );
+            }
+            None => break,
+        }
+    }
 
-        let dot_atom = literal.or(array_atom
-            .map_with_span(Node::new)
-            .then(
-                just(Token::Operator(OperatorKind::Access))
-                    .ignore_then(array_func_or_id.map_with_span(Node::new))
-                    .repeated(),
+    Ok(expr.into_inner())
+}
+
+/// ```ebnf
+/// <bool expression>  ::= <add expression> (<comparison operator> <add expression>)*
+/// ```
+fn parse_bool_expression<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Expression<'source>> {
+    let mut expr = parser.with_node(parse_add_expression)?;
+
+    loop {
+        let kind = match parser.peek() {
+            Some(Token::Operator(OperatorKind::EqualTo)) => Some(ComparisonKind::EqualTo),
+            Some(Token::Operator(OperatorKind::NotEqualTo)) => Some(ComparisonKind::NotEqualTo),
+            Some(Token::Operator(OperatorKind::GreaterThan)) => Some(ComparisonKind::GreaterThan),
+            Some(Token::Operator(OperatorKind::LessThan)) => Some(ComparisonKind::LessThan),
+            Some(Token::Operator(OperatorKind::GreaterThanOrEqualTo)) => {
+                Some(ComparisonKind::GreaterThanOrEqualTo)
+            }
+            Some(Token::Operator(OperatorKind::LessThanOrEqualTo)) => {
+                Some(ComparisonKind::LessThanOrEqualTo)
+            }
+            _ => None,
+        };
+
+        match kind {
+            Some(kind) => {
+                parser.consume()?;
+                let rhs = parser.with_node(parse_add_expression)?;
+                let range = expr.range_union(&rhs);
+
+                expr = Node::new(
+                    Expression::Comparison {
+                        lhs: expr,
+                        kind,
+                        rhs,
+                    },
+                    range,
+                );
+            }
+            None => break,
+        }
+    }
+
+    Ok(expr.into_inner())
+}
+
+/// ```ebnf
+/// <and expression> ::= <bool expression> ('&&' <bool expression>)*
+/// ```
+fn parse_and_expression<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, Expression<'source>> {
+    let mut expression = parser.with_node(parse_bool_expression)?;
+    while parser.peek() == Some(&Token::Operator(OperatorKind::LogicalAnd)) {
+        parser.consume()?;
+        let rhs = parser.with_node(parse_bool_expression)?;
+        let range = expression.range_union(&rhs);
+
+        expression = Node::new(
+            Expression::LogicalOperation {
+                lhs: expression,
+                kind: LogicalKind::And,
+                rhs,
+            },
+            range,
+        )
+    }
+
+    Ok(expression.into_inner())
+}
+
+/// ```ebnf
+/// <expression> ::= <and expression> ('||' <and expression>)*
+/// ```
+impl<'source> Parse<'source> for Expression<'source> {
+    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
+        let mut expression = parser.with_node(parse_and_expression)?;
+        while parser.peek() == Some(&Token::Operator(OperatorKind::LogicalOr)) {
+            parser.consume()?;
+            let rhs = parser.with_node(parse_and_expression)?;
+            let range = expression.range_union(&rhs);
+
+            expression = Node::new(
+                Expression::LogicalOperation {
+                    lhs: expression,
+                    kind: LogicalKind::Or,
+                    rhs,
+                },
+                range,
             )
-            .foldl(|lhs, rhs| {
-                let span = lhs.range_union(&rhs);
-                Node::new(Expression::MemberAccess { lhs, rhs }, span)
-            })
-            .map(|x| x.into_inner()));
+        }
 
-        let cast_atom = dot_atom
-            .map_with_span(Node::new)
-            .then(
-                just(Token::Operator(OperatorKind::CastAs))
-                    .to(true)
-                    .or(just(Token::Operator(OperatorKind::CastIs)).to(false))
-                    .then(type_name_parser().map_with_span(Node::new))
-                    .or_not(),
-            )
-            .map(|(lhs, rhs)| match rhs {
-                Some((is_cast_as, type_name)) => {
-                    if is_cast_as {
-                        Expression::Cast {
-                            lhs,
-                            rhs: type_name,
-                        }
-                    } else {
-                        Expression::TypeCheck {
-                            lhs,
-                            rhs: type_name,
-                        }
-                    }
-                }
-                None => lhs.into_inner(),
-            })
-            .boxed();
-
-        let unary_expression = just(Token::Operator(OperatorKind::Subtraction))
-            .to(UnaryKind::Negative)
-            .or(just(Token::Operator(OperatorKind::LogicalNot)).to(UnaryKind::LogicalNot))
-            .map_with_span(Node::new)
-            .or_not()
-            .then(cast_atom.map_with_span(Node::new))
-            .map(|(kind, rhs)| match kind {
-                Some(kind) => Expression::Unary { kind, rhs },
-                None => rhs.into_inner(),
-            });
-
-        let mult_expression = unary_expression
-            .clone()
-            .map_with_span(Node::new)
-            .then(
-                select! {
-                    Token::Operator(OperatorKind::Multiplication) => BinaryKind::Multiplication,
-                    Token::Operator(OperatorKind::Division) => BinaryKind::Division,
-                    Token::Operator(OperatorKind::Modulus) => BinaryKind::Modulus,
-                }
-                .map_with_span(Node::new)
-                .then(unary_expression.clone().map_with_span(Node::new))
-                .repeated(),
-            )
-            .foldl(|lhs, (kind, rhs)| {
-                let span = lhs.range_union(&rhs);
-                Node::new(Expression::Binary { lhs, kind, rhs }, span)
-            })
-            .map(|x| x.into_inner());
-
-        let add_expression = mult_expression
-            .clone()
-            .map_with_span(Node::new)
-            .then(
-                select! {
-                    Token::Operator(OperatorKind::Addition) => BinaryKind::Addition,
-                    Token::Operator(OperatorKind::Subtraction) => BinaryKind::Subtraction,
-                }
-                .map_with_span(Node::new)
-                .then(mult_expression.clone().map_with_span(Node::new))
-                .repeated(),
-            )
-            .foldl(|lhs, (kind, rhs)| {
-                let span = lhs.range_union(&rhs);
-                Node::new(Expression::Binary { lhs, kind, rhs }, span)
-            })
-            .map(|x| x.into_inner());
-
-        let comparison_expression = add_expression
-            .clone()
-            .map_with_span(Node::new)
-            .then(
-                select! {
-                    Token::Operator(OperatorKind::EqualTo) => ComparisonKind::EqualTo,
-                    Token::Operator(OperatorKind::NotEqualTo) => ComparisonKind::NotEqualTo,
-                    Token::Operator(OperatorKind::GreaterThan) => ComparisonKind::GreaterThan,
-                    Token::Operator(OperatorKind::LessThan) => ComparisonKind::LessThan,
-                    Token::Operator(OperatorKind::GreaterThanOrEqualTo) => ComparisonKind::GreaterThanOrEqualTo,
-                    Token::Operator(OperatorKind::LessThanOrEqualTo) => ComparisonKind::LessThanOrEqualTo,
-                }
-                    .map_with_span(Node::new)
-                    .then(add_expression.clone().map_with_span(Node::new))
-                    .repeated(),
-            )
-            .foldl(|lhs, (kind, rhs)| {
-                let span = lhs.range_union(&rhs);
-                Node::new(Expression::Comparison { lhs, kind, rhs }, span)
-            })
-            .map(|x| x.into_inner()).boxed();
-
-        let and_expression = comparison_expression
-            .clone()
-            .map_with_span(Node::new)
-            .then(
-                just(Token::Operator(OperatorKind::LogicalAnd))
-                    .to(LogicalKind::And)
-                    .map_with_span(Node::new)
-                    .then(comparison_expression.clone().map_with_span(Node::new))
-                    .repeated(),
-            )
-            .foldl(|lhs, (kind, rhs)| {
-                let span = lhs.range_union(&rhs);
-                Node::new(Expression::LogicalOperation { lhs, kind, rhs }, span)
-            })
-            .map(|x| x.into_inner());
-
-        let or_expression = and_expression
-            .clone()
-            .map_with_span(Node::new)
-            .then(
-                just(Token::Operator(OperatorKind::LogicalOr))
-                    .to(LogicalKind::Or)
-                    .map_with_span(Node::new)
-                    .then(and_expression.clone().map_with_span(Node::new))
-                    .repeated(),
-            )
-            .foldl(|lhs, (kind, rhs)| {
-                let span = lhs.range_union(&rhs);
-                Node::new(Expression::LogicalOperation { lhs, kind, rhs }, span)
-            })
-            .map(|x| x.into_inner());
-
-        or_expression
-    })
+        Ok(expression.into_inner())
+    }
 }
 
 #[cfg(test)]
 mod test {
     use crate::ast::expression::{
-        expression_parser, BinaryKind, ComparisonKind, Expression, FunctionArgument, LogicalKind,
-        UnaryKind,
+        BinaryKind, ComparisonKind, Expression, FunctionArgument, LogicalKind, UnaryKind,
     };
     use crate::ast::literal::Literal;
     use crate::ast::node::Node;
     use crate::ast::types::{BaseType, TypeName};
-    use crate::parse::test_utils::{run_test, run_tests};
+    use crate::parser::test_utils::{run_test, run_tests};
 
     #[test]
     fn test_literal_expression() {
@@ -541,14 +654,14 @@ mod test {
             ),
         ];
 
-        run_tests(data, expression_parser);
+        run_tests(data);
     }
 
     #[test]
     fn test_self_parent_expression() {
         let data = vec![("self", Expression::Self_), ("parent", Expression::Parent)];
 
-        run_tests(data, expression_parser);
+        run_tests(data);
     }
 
     #[test]
@@ -623,7 +736,7 @@ mod test {
             ),
         ];
 
-        run_tests(data, expression_parser);
+        run_tests(data);
     }
 
     #[test]
@@ -631,7 +744,7 @@ mod test {
         let src = r#"(((((((((("Help I'm Stuck!"))))))))))"#;
         let expected = Expression::Literal(Node::new(Literal::String("Help I'm Stuck!"), 10..27));
 
-        run_test(src, expected, expression_parser);
+        run_test(src, expected);
     }
 
     #[test]
@@ -645,7 +758,7 @@ mod test {
             ),
         };
 
-        run_test(src, expected, expression_parser);
+        run_test(src, expected);
     }
 
     #[test]
@@ -654,7 +767,7 @@ mod test {
         let expected =
             Expression::NewStructure(Node::new(TypeName::Identifier("CoolStruct"), 4..14));
 
-        run_test(src, expected, expression_parser);
+        run_test(src, expected);
     }
 
     #[test]
@@ -671,7 +784,7 @@ mod test {
             ),
         };
 
-        run_test(src, expected, expression_parser);
+        run_test(src, expected);
     }
 
     #[test]
@@ -711,7 +824,7 @@ mod test {
             ),
         ];
 
-        run_tests(data, expression_parser);
+        run_tests(data);
     }
 
     #[test]
@@ -722,7 +835,7 @@ mod test {
             rhs: Node::new(TypeName::BaseType(BaseType::Int), 5..8),
         };
 
-        run_test(src, expected, expression_parser);
+        run_test(src, expected);
     }
 
     #[test]
@@ -733,7 +846,7 @@ mod test {
             rhs: Node::new(TypeName::BaseType(BaseType::Int), 5..8),
         };
 
-        run_test(src, expected, expression_parser);
+        run_test(src, expected);
     }
 
     #[test]
@@ -742,20 +855,20 @@ mod test {
             (
                 "!x",
                 Expression::Unary {
-                    kind: Node::new(UnaryKind::LogicalNot, 0..1),
+                    kind: UnaryKind::LogicalNot,
                     rhs: Node::new(Expression::Identifier(Node::new("x", 1..2)), 1..2),
                 },
             ),
             (
                 "-x",
                 Expression::Unary {
-                    kind: Node::new(UnaryKind::Negative, 0..1),
+                    kind: UnaryKind::Negative,
                     rhs: Node::new(Expression::Identifier(Node::new("x", 1..2)), 1..2),
                 },
             ),
         ];
 
-        run_tests(data, expression_parser);
+        run_tests(data);
     }
 
     #[test]
@@ -768,7 +881,7 @@ mod test {
                 "x * y",
                 Expression::Binary {
                     lhs: lhs.clone(),
-                    kind: Node::new(BinaryKind::Multiplication, 2..3),
+                    kind: BinaryKind::Multiplication,
                     rhs: rhs.clone(),
                 },
             ),
@@ -776,7 +889,7 @@ mod test {
                 "x / y",
                 Expression::Binary {
                     lhs: lhs.clone(),
-                    kind: Node::new(BinaryKind::Division, 2..3),
+                    kind: BinaryKind::Division,
                     rhs: rhs.clone(),
                 },
             ),
@@ -784,7 +897,7 @@ mod test {
                 "x % y",
                 Expression::Binary {
                     lhs: lhs.clone(),
-                    kind: Node::new(BinaryKind::Modulus, 2..3),
+                    kind: BinaryKind::Modulus,
                     rhs: rhs.clone(),
                 },
             ),
@@ -792,7 +905,7 @@ mod test {
                 "x + y",
                 Expression::Binary {
                     lhs: lhs.clone(),
-                    kind: Node::new(BinaryKind::Addition, 2..3),
+                    kind: BinaryKind::Addition,
                     rhs: rhs.clone(),
                 },
             ),
@@ -800,13 +913,13 @@ mod test {
                 "x - y",
                 Expression::Binary {
                     lhs: lhs.clone(),
-                    kind: Node::new(BinaryKind::Subtraction, 2..3),
+                    kind: BinaryKind::Subtraction,
                     rhs: rhs.clone(),
                 },
             ),
         ];
 
-        run_tests(data, expression_parser);
+        run_tests(data);
     }
 
     #[test]
@@ -822,7 +935,7 @@ mod test {
                 "x == y",
                 Expression::Comparison {
                     lhs: lhs.clone(),
-                    kind: Node::new(ComparisonKind::EqualTo, 2..4),
+                    kind: ComparisonKind::EqualTo,
                     rhs: double_rhs.clone(),
                 },
             ),
@@ -830,7 +943,7 @@ mod test {
                 "x != y",
                 Expression::Comparison {
                     lhs: lhs.clone(),
-                    kind: Node::new(ComparisonKind::NotEqualTo, 2..4),
+                    kind: ComparisonKind::NotEqualTo,
                     rhs: double_rhs.clone(),
                 },
             ),
@@ -838,7 +951,7 @@ mod test {
                 "x > y",
                 Expression::Comparison {
                     lhs: lhs.clone(),
-                    kind: Node::new(ComparisonKind::GreaterThan, 2..3),
+                    kind: ComparisonKind::GreaterThan,
                     rhs: single_rhs.clone(),
                 },
             ),
@@ -846,7 +959,7 @@ mod test {
                 "x < y",
                 Expression::Comparison {
                     lhs: lhs.clone(),
-                    kind: Node::new(ComparisonKind::LessThan, 2..3),
+                    kind: ComparisonKind::LessThan,
                     rhs: single_rhs.clone(),
                 },
             ),
@@ -854,7 +967,7 @@ mod test {
                 "x >= y",
                 Expression::Comparison {
                     lhs: lhs.clone(),
-                    kind: Node::new(ComparisonKind::GreaterThanOrEqualTo, 2..4),
+                    kind: ComparisonKind::GreaterThanOrEqualTo,
                     rhs: double_rhs.clone(),
                 },
             ),
@@ -862,13 +975,13 @@ mod test {
                 "x <= y",
                 Expression::Comparison {
                     lhs: lhs.clone(),
-                    kind: Node::new(ComparisonKind::LessThanOrEqualTo, 2..4),
+                    kind: ComparisonKind::LessThanOrEqualTo,
                     rhs: double_rhs.clone(),
                 },
             ),
         ];
 
-        run_tests(data, expression_parser);
+        run_tests(data);
     }
 
     #[test]
@@ -881,7 +994,7 @@ mod test {
                 "x && y",
                 Expression::LogicalOperation {
                     lhs: lhs.clone(),
-                    kind: Node::new(LogicalKind::And, 2..4),
+                    kind: LogicalKind::And,
                     rhs: rhs.clone(),
                 },
             ),
@@ -889,12 +1002,12 @@ mod test {
                 "x || y",
                 Expression::LogicalOperation {
                     lhs: lhs.clone(),
-                    kind: Node::new(LogicalKind::Or, 2..4),
+                    kind: LogicalKind::Or,
                     rhs: rhs.clone(),
                 },
             ),
         ];
 
-        run_tests(data, expression_parser);
+        run_tests(data);
     }
 }
