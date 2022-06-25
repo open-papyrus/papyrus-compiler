@@ -5,7 +5,6 @@ use crate::{choose_optional, select_tokens};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
-use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Type<'source> {
@@ -19,17 +18,6 @@ impl<'source> Type<'source> {
     }
 }
 
-impl<'source> Display for Type<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name)?;
-        if self.is_array {
-            write!(f, "[]")?;
-        }
-
-        Ok(())
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum TypeName<'source> {
     Var,
@@ -38,7 +26,7 @@ pub enum TypeName<'source> {
     ParameterType(ParameterType),
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, strum_macros::Display)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum BaseType {
     Bool,
     Int,
@@ -46,22 +34,11 @@ pub enum BaseType {
     String,
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, strum_macros::Display)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum ParameterType {
     ScriptEventName,
     CustomEventName,
     StructVarName,
-}
-
-impl<'source> Display for TypeName<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TypeName::Var => write!(f, "Var"),
-            TypeName::BaseType(base_type) => write!(f, "{}", base_type),
-            TypeName::Identifier(value) => write!(f, "{}", value),
-            TypeName::ParameterType(parameter_type) => write!(f, "{}", parameter_type),
-        }
-    }
 }
 
 pub(crate) fn type_with_identifier_parser<'source>(

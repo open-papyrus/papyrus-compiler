@@ -6,7 +6,6 @@ use crate::parser::{Parse, Parser, ParserError, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
-use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression<'source> {
@@ -72,52 +71,6 @@ pub enum Expression<'source> {
     Parent,
 }
 
-impl<'source> Display for Expression<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Expression::LogicalOperation { lhs, kind, rhs } => {
-                write!(f, "{} {} {}", lhs, kind, rhs)
-            }
-            Expression::Comparison { lhs, kind, rhs } => write!(f, "{} {} {}", lhs, kind, rhs),
-            Expression::Unary { kind, rhs } => write!(f, "{}{}", kind, rhs),
-            Expression::Binary { lhs, kind, rhs } => write!(f, "{} {} {}", lhs, kind, rhs),
-            Expression::ArrayAccess { array, index } => write!(f, "{}[{}]", array, index),
-            Expression::MemberAccess { lhs, rhs } => write!(f, "{}.{}", lhs, rhs),
-            Expression::Cast { lhs, rhs } => write!(f, "{} as {}", lhs, rhs),
-            Expression::TypeCheck { lhs, rhs } => write!(f, "{} is {}", lhs, rhs),
-            Expression::NewArray { element_type, size } => {
-                write!(f, "new {}[{}]", element_type, size)
-            }
-            Expression::NewStructure(type_name) => write!(f, "new {}", type_name),
-            Expression::FunctionCall { name, arguments } => {
-                write!(f, "{} (", name)?;
-
-                match arguments.as_ref() {
-                    Some(arguments) => {
-                        for i in 0..arguments.len() {
-                            let argument = arguments.get(i).unwrap();
-                            if i == arguments.len() - 1 {
-                                write!(f, "{}", argument)?;
-                            } else {
-                                write!(f, "{}, ", argument)?;
-                            }
-                        }
-                    }
-                    None => {}
-                }
-
-                write!(f, ")")?;
-
-                Ok(())
-            }
-            Expression::Literal(value) => write!(f, "{}", value),
-            Expression::Identifier(value) => write!(f, "{}", value),
-            Expression::Parent => write!(f, "Parent"),
-            Expression::Self_ => write!(f, "Self"),
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum FunctionArgument<'source> {
     Positional(Node<Expression<'source>>),
@@ -127,33 +80,12 @@ pub enum FunctionArgument<'source> {
     },
 }
 
-impl<'source> Display for FunctionArgument<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FunctionArgument::Positional(expr) => write!(f, "{}", expr),
-            FunctionArgument::Named {
-                name,
-                value: expression,
-            } => write!(f, "{} = {}", name, expression),
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum LogicalKind {
     /// '&&'
     And,
     /// '||'
     Or,
-}
-
-impl Display for LogicalKind {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LogicalKind::And => write!(f, "&&"),
-            LogicalKind::Or => write!(f, "||"),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -172,34 +104,12 @@ pub enum ComparisonKind {
     LessThanOrEqualTo,
 }
 
-impl Display for ComparisonKind {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ComparisonKind::EqualTo => write!(f, "=="),
-            ComparisonKind::NotEqualTo => write!(f, "!="),
-            ComparisonKind::GreaterThan => write!(f, ">"),
-            ComparisonKind::LessThan => write!(f, "<"),
-            ComparisonKind::GreaterThanOrEqualTo => write!(f, ">="),
-            ComparisonKind::LessThanOrEqualTo => write!(f, "<="),
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum UnaryKind {
     /// '!'
     LogicalNot,
     /// '-'
     Negative,
-}
-
-impl Display for UnaryKind {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            UnaryKind::LogicalNot => write!(f, "!"),
-            UnaryKind::Negative => write!(f, "-"),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -214,18 +124,6 @@ pub enum BinaryKind {
     Division,
     /// '%'
     Modulus,
-}
-
-impl Display for BinaryKind {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BinaryKind::Addition => write!(f, "+"),
-            BinaryKind::Subtraction => write!(f, "-"),
-            BinaryKind::Multiplication => write!(f, "*"),
-            BinaryKind::Division => write!(f, "/"),
-            BinaryKind::Modulus => write!(f, "%"),
-        }
-    }
 }
 
 impl<'source> Parse<'source> for FunctionArgument<'source> {

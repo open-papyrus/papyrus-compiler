@@ -1,11 +1,10 @@
 use crate::ast::event::Event;
 use crate::ast::function::Function;
 use crate::ast::identifier::Identifier;
-use crate::ast::node::{display_optional_nodes, Node};
+use crate::ast::node::Node;
 use crate::choose_optional;
 use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
-use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct State<'source> {
@@ -28,35 +27,10 @@ impl<'source> State<'source> {
     }
 }
 
-impl<'source> Display for State<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if self.is_auto {
-            write!(f, "Auto ")?;
-        }
-
-        write!(f, "State {}", self.name)?;
-
-        display_optional_nodes(&self.contents, "\n", f)?;
-
-        write!(f, "\nEndState")?;
-
-        Ok(())
-    }
-}
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum StateContent<'source> {
     Function(Function<'source>),
     Event(Event<'source>),
-}
-
-impl<'source> Display for StateContent<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            StateContent::Function(function) => write!(f, "{}", function),
-            StateContent::Event(event) => write!(f, "{}", event),
-        }
-    }
 }
 
 /// ```ebnf

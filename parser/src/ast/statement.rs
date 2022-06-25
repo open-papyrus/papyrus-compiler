@@ -1,13 +1,12 @@
 use crate::ast::expression::Expression;
 use crate::ast::identifier::Identifier;
-use crate::ast::node::{display_nodes, display_optional_nodes, Node};
+use crate::ast::node::Node;
 use crate::ast::types::{type_with_identifier_parser, Type};
 use crate::parser::{Parse, Parser, ParserResult};
 use crate::{choose_optional, select_tokens};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
-use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement<'source> {
@@ -34,65 +33,6 @@ pub enum Statement<'source> {
     Expression(Node<Expression<'source>>),
 }
 
-pub fn display_statements<'source>(
-    statements: &Option<Vec<Node<Statement<'source>>>>,
-    f: &mut Formatter<'_>,
-) -> std::fmt::Result {
-    match statements.as_ref() {
-        Some(statements) => {
-            for statement in statements {
-                write!(f, "\n{}", statement)?;
-            }
-        }
-        None => {}
-    };
-
-    Ok(())
-}
-
-impl<'source> Display for Statement<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Statement::VariableDefinition {
-                type_node,
-                name,
-                initial_value: expression,
-            } => match expression.as_ref() {
-                Some(expression) => write!(f, "{} {} = {}", type_node, name, expression),
-                None => write!(f, "{} {}", type_node, name),
-            },
-            Statement::Return(expression) => match expression.as_ref() {
-                Some(expression) => write!(f, "Return {}", expression),
-                None => write!(f, "Return"),
-            },
-            Statement::Assignment { lhs, kind, rhs } => write!(f, "{} {} {}", lhs, kind, rhs),
-            Statement::If {
-                if_path,
-                other_paths,
-                else_path,
-            } => {
-                write!(f, "If {}", if_path)?;
-
-                display_optional_nodes(other_paths, "\nElseIf ", f)?;
-
-                match else_path.as_ref() {
-                    Some(else_path) => {
-                        write!(f, "\nElse")?;
-                        display_nodes(else_path, "\n", f)?;
-                    }
-                    None => {}
-                }
-
-                write!(f, "\nEndIf")?;
-
-                Ok(())
-            }
-            Statement::While(path) => write!(f, "While {}\nEndWhile", path),
-            Statement::Expression(expression) => write!(f, "{}", expression),
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct ConditionalPath<'source> {
     pub condition: Node<Expression<'source>>,
@@ -111,16 +51,6 @@ impl<'source> ConditionalPath<'source> {
     }
 }
 
-impl<'source> Display for ConditionalPath<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.condition)?;
-
-        display_optional_nodes(&self.statements, "\n", f)?;
-
-        Ok(())
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum AssignmentKind {
     /// '='
@@ -135,19 +65,6 @@ pub enum AssignmentKind {
     Division,
     /// '%='
     Modulus,
-}
-
-impl Display for AssignmentKind {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AssignmentKind::Normal => write!(f, "="),
-            AssignmentKind::Addition => write!(f, "+="),
-            AssignmentKind::Subtraction => write!(f, "-="),
-            AssignmentKind::Multiplication => write!(f, "*="),
-            AssignmentKind::Division => write!(f, "/="),
-            AssignmentKind::Modulus => write!(f, "%="),
-        }
-    }
 }
 
 impl<'source> Parse<'source> for AssignmentKind {

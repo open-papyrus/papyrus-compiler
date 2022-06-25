@@ -1,13 +1,12 @@
-use crate::ast::flags::{display_flags, FunctionFlag};
+use crate::ast::flags::FunctionFlag;
 use crate::ast::identifier::Identifier;
 use crate::ast::literal::Literal;
 use crate::ast::node::Node;
-use crate::ast::statement::{display_statements, Statement};
+use crate::ast::statement::Statement;
 use crate::ast::types::{type_with_identifier_parser, Type};
 use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
-use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionParameter<'source> {
@@ -27,18 +26,6 @@ impl<'source> FunctionParameter<'source> {
             name,
             default_value,
         }
-    }
-}
-
-impl<'source> Display for FunctionParameter<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}", self.type_node, self.name)?;
-        match self.default_value.as_ref() {
-            Some(default_value) => write!(f, " = {}", default_value)?,
-            None => {}
-        }
-
-        Ok(())
     }
 }
 
@@ -66,40 +53,6 @@ impl<'source> Function<'source> {
             flags,
             statements,
         }
-    }
-}
-
-impl<'source> Display for Function<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self.return_type.as_ref() {
-            Some(return_type) => write!(f, "{} ", return_type)?,
-            None => {}
-        }
-
-        write!(f, "Function {} (", self.name)?;
-
-        match self.parameters.as_ref() {
-            Some(parameters) => {
-                for i in 0..parameters.len() {
-                    let parameter = parameters.get(i).unwrap();
-                    if i == parameters.len() - 1 {
-                        write!(f, "{}", parameter)?;
-                    } else {
-                        write!(f, "{}, ", parameter)?;
-                    }
-                }
-            }
-            None => {}
-        }
-
-        write!(f, ")")?;
-
-        display_flags(&self.flags, f)?;
-        display_statements(&self.statements, f)?;
-
-        write!(f, "\nEndFunction")?;
-
-        Ok(())
     }
 }
 

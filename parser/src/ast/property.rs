@@ -1,15 +1,14 @@
-use crate::ast::flags::{display_flags, GroupFlag, PropertyFlag};
+use crate::ast::flags::{GroupFlag, PropertyFlag};
 use crate::ast::function::Function;
 use crate::ast::identifier::Identifier;
 use crate::ast::literal::Literal;
-use crate::ast::node::{display_nodes, Node};
+use crate::ast::node::Node;
 use crate::ast::types::Type;
 use crate::choose_optional;
 use crate::parser::{Parse, Parser, ParserError, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
-use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct PropertyGroup<'source> {
@@ -32,32 +31,10 @@ impl<'source> PropertyGroup<'source> {
     }
 }
 
-impl<'source> Display for PropertyGroup<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Group {}", self.name)?;
-
-        display_flags(&self.flags, f)?;
-        display_nodes(&self.properties, "\n", f)?;
-
-        write!(f, "\nEndGroup")?;
-
-        Ok(())
-    }
-}
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum Property<'source> {
     AutoProperty(AutoProperty<'source>),
     FullProperty(FullProperty<'source>),
-}
-
-impl<'source> Display for Property<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Property::AutoProperty(property) => write!(f, "{}", property),
-            Property::FullProperty(property) => write!(f, "{}", property),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -87,26 +64,6 @@ impl<'source> AutoProperty<'source> {
     }
 }
 
-impl<'source> Display for AutoProperty<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} Property {}", self.type_node, self.name)?;
-        match self.initial_value.as_ref() {
-            Some(value) => write!(f, " = {}", value)?,
-            None => {}
-        }
-
-        if self.is_read_only {
-            write!(f, " AutoReadOnly")?;
-        } else {
-            write!(f, " Auto")?;
-        }
-
-        display_flags(&self.flags, f)?;
-
-        Ok(())
-    }
-}
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct FullProperty<'source> {
     pub type_node: Node<Type<'source>>,
@@ -128,17 +85,6 @@ impl<'source> FullProperty<'source> {
             flags,
             functions,
         }
-    }
-}
-
-impl<'source> Display for FullProperty<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} Property {}", self.type_node, self.name)?;
-
-        display_flags(&self.flags, f)?;
-        display_nodes(&self.functions, "\n", f)?;
-
-        Ok(())
     }
 }
 

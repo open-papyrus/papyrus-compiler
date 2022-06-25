@@ -456,7 +456,6 @@ dependencies = [
  "papyrus_compiler_diagnostics",
  "papyrus_compiler_lexer",
  "smallbox",
- "strum_macros",
 ]
 
 [[package]]

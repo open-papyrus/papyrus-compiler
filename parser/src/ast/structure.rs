@@ -1,9 +1,8 @@
 use crate::ast::identifier::Identifier;
-use crate::ast::node::{display_nodes, Node};
+use crate::ast::node::Node;
 use crate::ast::variable::ScriptVariable;
 use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
-use std::fmt::{Display, Formatter};
 
 pub type StructureField<'source> = ScriptVariable<'source>;
 
@@ -20,26 +19,6 @@ impl<'source> Structure<'source> {
     ) -> Self {
         Self { name, fields }
     }
-}
-
-impl<'source> Display for Structure<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Struct {}", self.name)?;
-
-        display_nodes(&self.fields, "\n", f)?;
-
-        write!(f, "\nEndStruct")?;
-
-        Ok(())
-    }
-}
-
-/// ```ebnf
-/// <variable definition> ::= <type> <identifier> ['=' <constant>] (<flags>)* (<terminator> <docstring>)?
-/// ```
-#[cfg(feature = "chumsky")]
-pub fn struct_field_parser<'a>() -> impl TokenParser<'a, StructureField<'a>> {
-    script_variable_parser()
 }
 
 /// ```ebnf

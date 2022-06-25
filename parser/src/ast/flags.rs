@@ -1,6 +1,4 @@
-use crate::ast::node::{display_optional_nodes, Node};
 use crate::parser::{Parse, Parser, ParserResult};
-use std::fmt::{Display, Formatter};
 
 macro_rules! case_ignore_identifier {
     ( $parser:ident, $name:literal, $( $flag_bytes:ident => $out:expr ),+ $(,)? ) => {{
@@ -27,7 +25,7 @@ macro_rules! case_ignore_identifier {
     }}
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, strum_macros::Display)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum ScriptFlag {
     Conditional,
     Const,
@@ -60,7 +58,7 @@ impl<'source> Parse<'source> for ScriptFlag {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, strum_macros::Display)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum PropertyFlag {
     Conditional,
     Const,
@@ -81,7 +79,7 @@ impl<'source> Parse<'source> for PropertyFlag {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, strum_macros::Display)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum VariableFlag {
     Conditional,
     Const,
@@ -98,7 +96,7 @@ impl<'source> Parse<'source> for VariableFlag {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, strum_macros::Display)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum GroupFlag {
     CollapsedOnRef,
     CollapsedOnBase,
@@ -119,7 +117,7 @@ impl<'source> Parse<'source> for GroupFlag {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, strum_macros::Display)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum FunctionFlag {
     Global,
     Native,
@@ -138,12 +136,4 @@ impl<'source> Parse<'source> for FunctionFlag {
             BETA_ONLY => FunctionFlag::BetaOnly,
         )
     }
-}
-
-pub fn display_flags<Flag: Display>(
-    flags: &Option<Vec<Node<Flag>>>,
-    f: &mut Formatter<'_>,
-) -> std::fmt::Result {
-    display_optional_nodes(flags, " ", f)?;
-    Ok(())
 }

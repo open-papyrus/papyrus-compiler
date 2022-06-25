@@ -1,8 +1,8 @@
 use crate::ast::event::{CustomEvent, Event};
-use crate::ast::flags::{display_flags, ScriptFlag};
+use crate::ast::flags::ScriptFlag;
 use crate::ast::function::Function;
 use crate::ast::identifier::Identifier;
-use crate::ast::node::{display_optional_nodes, Node};
+use crate::ast::node::Node;
 use crate::ast::property::{Property, PropertyGroup};
 use crate::ast::state::State;
 use crate::ast::structure::Structure;
@@ -10,7 +10,6 @@ use crate::ast::variable::ScriptVariable;
 use crate::choose_optional;
 use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
-use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ScriptContent<'source> {
@@ -23,22 +22,6 @@ pub enum ScriptContent<'source> {
     State(State<'source>),
     Function(Function<'source>),
     Event(Event<'source>),
-}
-
-impl<'source> Display for ScriptContent<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ScriptContent::Import(content) => write!(f, "Import {}", content),
-            ScriptContent::Variable(content) => write!(f, "{}", content),
-            ScriptContent::Structure(content) => write!(f, "{}", content),
-            ScriptContent::CustomEvent(content) => write!(f, "{}", content),
-            ScriptContent::Property(content) => write!(f, "{}", content),
-            ScriptContent::PropertyGroup(content) => write!(f, "{}", content),
-            ScriptContent::State(state) => write!(f, "{}", state),
-            ScriptContent::Function(content) => write!(f, "{}", content),
-            ScriptContent::Event(content) => write!(f, "{}", content),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -65,23 +48,7 @@ impl<'source> Script<'source> {
     }
 }
 
-impl<'source> Display for Script<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ScriptName {}", self.name)?;
-
-        match self.extends.as_ref() {
-            Some(extends) => write!(f, "Extends {}", extends)?,
-            None => {}
-        }
-
-        display_flags(&self.flags, f)?;
-        display_optional_nodes(&self.contents, "\n", f)?;
-
-        Ok(())
-    }
-}
-
-pub(crate) fn import_parser<'source>(
+fn import_parser<'source>(
     parser: &mut Parser<'source>,
 ) -> ParserResult<'source, Identifier<'source>> {
     parser.expect_keyword(KeywordKind::Import)?;

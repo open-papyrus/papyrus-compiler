@@ -1,13 +1,12 @@
-use crate::ast::flags::{display_flags, FunctionFlag};
+use crate::ast::flags::FunctionFlag;
 use crate::ast::identifier::Identifier;
-use crate::ast::node::{display_optional_nodes, range_union, Node};
-use crate::ast::statement::{display_statements, Statement};
+use crate::ast::node::{range_union, Node};
+use crate::ast::statement::Statement;
 use crate::ast::types::{type_with_identifier_parser, Type, TypeName};
 use crate::choose_optional;
 use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
-use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CustomEvent<'source> {
@@ -127,107 +126,6 @@ impl<'source> RemoteEventHeader<'source> {
             parameters,
             flags,
         }
-    }
-}
-
-impl<'source> Display for CustomEvent<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CustomEvent {}", self.name)
-    }
-}
-
-impl<'source> Display for Event<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.header)?;
-
-        display_statements(&self.statements, f)?;
-
-        write!(f, "\nEndEvent")?;
-
-        Ok(())
-    }
-}
-
-impl<'source> Display for EventHeaderKind<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            EventHeaderKind::EventHeader(header) => write!(f, "{}", header),
-            EventHeaderKind::RemoteEvent(header) => write!(f, "{}", header),
-            EventHeaderKind::CustomEvent(header) => write!(f, "{}", header),
-        }
-    }
-}
-
-impl<'source> Display for EventParameter<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}", self.type_node, self.name)
-    }
-}
-
-impl<'source> Display for EventHeader<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Event {} (", self.name)?;
-
-        match self.parameters.as_ref() {
-            Some(parameters) => {
-                for i in 0..parameters.len() {
-                    let parameter = parameters.get(i).unwrap();
-                    if i == parameters.len() - 1 {
-                        write!(f, "{}", parameter)?;
-                    } else {
-                        write!(f, "{}, ", parameter)?;
-                    }
-                }
-            }
-            None => {}
-        }
-
-        write!(f, ")")?;
-
-        if self.flags.is_some() {
-            write!(f, " ")?;
-            display_flags(&self.flags, f)?;
-        }
-
-        Ok(())
-    }
-}
-
-impl<'source> Display for RemoteEventHeader<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Event {}.{} ({}",
-            self.object_type, self.name, self.sender_parameter
-        )?;
-
-        display_optional_nodes(&self.parameters, ", ", f)?;
-
-        write!(f, ")")?;
-
-        if self.flags.is_some() {
-            write!(f, " ")?;
-            display_flags(&self.flags, f)?;
-        }
-
-        Ok(())
-    }
-}
-
-impl<'source> Display for CustomEventHeader<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Event {}.{} ({}, {})",
-            self.object_type, self.name, self.sender_parameter, self.args_parameter
-        )?;
-
-        if self.flags.is_some() {
-            write!(f, " ")?;
-            display_flags(&self.flags, f)?;
-        }
-
-        Ok(())
     }
 }
 

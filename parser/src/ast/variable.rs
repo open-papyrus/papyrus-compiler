@@ -1,11 +1,10 @@
-use crate::ast::flags::{display_flags, VariableFlag};
+use crate::ast::flags::VariableFlag;
 use crate::ast::identifier::Identifier;
 use crate::ast::literal::Literal;
 use crate::ast::node::Node;
 use crate::ast::types::{type_with_identifier_parser, Type};
 use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
-use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScriptVariable<'source> {
@@ -28,21 +27,6 @@ impl<'source> ScriptVariable<'source> {
             initial_value,
             flags,
         }
-    }
-}
-
-impl<'source> Display for ScriptVariable<'source> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}", self.type_node, self.name)?;
-
-        match self.initial_value.as_ref() {
-            Some(value) => write!(f, " = {}", value)?,
-            None => {}
-        };
-
-        display_flags(&self.flags, f)?;
-
-        Ok(())
     }
 }
 
