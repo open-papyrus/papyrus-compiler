@@ -4,11 +4,12 @@ use crate::ast::identifier::Identifier;
 use crate::ast::literal::Literal;
 use crate::ast::node::Node;
 use crate::ast::types::Type;
-use crate::choose_optional;
+use crate::choose_result;
 use crate::parser::{Parse, Parser, ParserError, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
+use std::collections::HashSet;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct PropertyGroup<'source> {
@@ -113,18 +114,23 @@ impl<'source> Parse<'source> for AutoProperty<'source> {
                 false
             }
             Some(_) => {
-                let token = parser.consume()?;
+                let (token, range) = parser.consume()?;
                 match token {
-                    Token::Keyword(KeywordKind::Auto) => Ok(false),
-                    Token::Keyword(KeywordKind::AutoReadOnly) => Ok(true),
-                    _ => Err(ParserError::ExpectedOneOf {
-                        found: *token,
-                        expected: vec![
-                            Token::Keyword(KeywordKind::Auto),
-                            Token::Keyword(KeywordKind::AutoReadOnly),
-                        ],
-                    }),
-                }?
+                    Token::Keyword(KeywordKind::Auto) => false,
+                    Token::Keyword(KeywordKind::AutoReadOnly) => true,
+                    _ => {
+                        return Err(ParserError::AggregatedErrors(HashSet::from([
+                            ParserError::ExpectedToken {
+                                expected: Token::Keyword(KeywordKind::Auto),
+                                found: (*token, range.clone()),
+                            },
+                            ParserError::ExpectedToken {
+                                expected: Token::Keyword(KeywordKind::AutoReadOnly),
+                                found: (*token, range.clone()),
+                            },
+                        ])))
+                    }
+                }
             }
         };
 
@@ -153,15 +159,7 @@ impl<'source> Parse<'source> for FullProperty<'source> {
 
         let flags = parser.parse_node_optional_repeated::<PropertyFlag>();
 
-        // a property must have at least one function: a 'Get' or 'Set' function
         let functions = parser.parse_node_repeated::<Function>()?;
-        if functions.len() > 2 {
-            return Err(ParserError::ExpectedAmount {
-                name: "Function(s)",
-                expected_amount: 2,
-                actual_amount: functions.len(),
-            });
-        }
 
         parser.expect_keyword(KeywordKind::EndProperty)?;
 
@@ -176,15 +174,11 @@ impl<'source> Parse<'source> for FullProperty<'source> {
 
 impl<'source> Parse<'source> for Property<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        choose_optional!(
-            parser,
-            "Property",
+        choose_result!(
             parser
-                .parse_optional::<AutoProperty>()
-                .map(Property::AutoProperty),
+                .optional_result(|parser| AutoProperty::parse(parser).map(Property::AutoProperty)),
             parser
-                .parse_optional::<FullProperty>()
-                .map(Property::FullProperty)
+                .optional_result(|parser| FullProperty::parse(parser).map(Property::FullProperty))
         )
     }
 }

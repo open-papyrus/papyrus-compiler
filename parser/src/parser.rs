@@ -3,31 +3,23 @@ use papyrus_compiler_diagnostics::SourceRange;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
+use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
+use std::hash::{Hash, Hasher};
 
-#[derive(Debug, PartialEq)]
+type TokenWithRange<'source> = (Token<'source>, SourceRange);
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum ParserError<'source> {
-    ExpectedNodeWithName {
-        name: &'static str,
-        found: Token<'source>,
-    },
-    ExpectedOne {
+    ExpectedToken {
         expected: Token<'static>,
-        found: Token<'source>,
+        found: TokenWithRange<'source>,
     },
-    ExpectedOneOf {
-        expected: Vec<Token<'static>>,
-        found: Token<'source>,
-    },
+    UnexpectedEOI,
+    AggregatedErrors(HashSet<ParserError<'source>>),
     ExpectedEOI {
-        found: Token<'source>,
+        found: TokenWithRange<'source>,
     },
-    ExpectedAmount {
-        name: &'static str,
-        expected_amount: usize,
-        actual_amount: usize,
-    },
-    EOI,
 }
 
 impl<'source> Display for ParserError<'source> {
@@ -38,9 +30,61 @@ impl<'source> Display for ParserError<'source> {
 
 impl<'source> std::error::Error for ParserError<'source> {}
 
-pub(crate) type ParserResult<'source, TOk> = Result<TOk, ParserError<'source>>;
+impl<'source> Hash for ParserError<'source> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            ParserError::ExpectedToken { expected, found } => {
+                state.write_i8(1);
+                expected.hash(state);
+                found.hash(state)
+            }
+            ParserError::UnexpectedEOI => state.write_i8(2),
+            ParserError::AggregatedErrors(_) => state.write_i8(3),
+            ParserError::ExpectedEOI { .. } => state.write_i8(4),
+        }
+    }
+}
 
-pub(crate) struct Parser<'source> {
+impl<'source> Eq for ParserError<'source> {}
+
+pub type ParserResult<'source, TOk> = Result<TOk, ParserError<'source>>;
+
+fn flatten_error<'source>(error: ParserError<'source>) -> ParserError<'source> {
+    match error {
+        ParserError::AggregatedErrors(errors) => {
+            let res =
+                errors
+                    .into_iter()
+                    .fold(HashSet::<ParserError<'source>>::new(), |mut set, err| {
+                        let err = flatten_error(err);
+                        match err {
+                            ParserError::AggregatedErrors(errors) => set.extend(errors),
+                            _ => {
+                                let _ = set.insert(err);
+                            }
+                        };
+
+                        set
+                    });
+
+            if res.len() == 1 {
+                res.into_iter().next().unwrap()
+            } else {
+                ParserError::AggregatedErrors(res)
+            }
+        }
+        _ => error,
+    }
+}
+
+pub fn flatten_result<TOk>(result: ParserResult<TOk>) -> ParserResult<TOk> {
+    match result {
+        Ok(value) => Ok(value),
+        Err(err) => Err(flatten_error(err)),
+    }
+}
+
+pub struct Parser<'source> {
     tokens: Vec<(Token<'source>, SourceRange)>,
     position: usize,
     eoi_range: Option<SourceRange>,
@@ -65,52 +109,55 @@ impl<'source> Parser<'source> {
         if position >= self.tokens.len() {
             match self.eoi_range.as_ref() {
                 Some(range) => Ok(range.clone()),
-                None => Err(ParserError::EOI),
+                None => Err(ParserError::UnexpectedEOI),
             }
         } else {
             match self.tokens.get(position) {
                 Some((_, range)) => Ok(range.clone()),
-                None => Err(ParserError::EOI),
+                None => Err(ParserError::UnexpectedEOI),
             }
         }
     }
 
-    /// Peek at the next available Token, this function does not consume.
-    pub fn peek(&self) -> Option<&Token<'source>> {
+    /// Peek at the next available Token, this function does not consume and also returns the
+    /// [`SourceRange`] of the Token.
+    pub fn peek(&self) -> Option<&TokenWithRange<'source>> {
         if self.position < self.tokens.len() {
-            self.tokens.get(self.position).map(|(token, _)| token)
+            self.tokens.get(self.position)
         } else {
             None
         }
     }
 
-    pub fn peek_result(&self) -> ParserResult<'source, &Token<'source>> {
-        self.peek().ok_or(ParserError::EOI)
+    /// Peek at the next available Token, this function does not consume and is a wrapper around
+    /// [`Parser::peek`].
+    pub fn peek_token(&self) -> Option<&Token<'source>> {
+        self.peek().map(|(token, _)| token)
     }
 
     /// Consume the next Token.
-    pub fn consume(&mut self) -> ParserResult<'source, &Token<'source>> {
+    pub fn consume(&mut self) -> ParserResult<'source, &TokenWithRange<'source>> {
         if self.position < self.tokens.len() {
             let element = self.tokens.get(self.position);
             self.position += 1;
             match element {
-                Some((token, _)) => Ok(token),
-                None => Err(ParserError::EOI),
+                Some(element) => Ok(element),
+                None => Err(ParserError::UnexpectedEOI),
             }
         } else {
-            Err(ParserError::EOI)
+            Err(ParserError::UnexpectedEOI)
         }
     }
 
     /// Consume the next Token and compare it with the expected Token,
     /// returns a [`ParserError`] if it does not match.
     pub fn expect(&mut self, expected: Token<'static>) -> ParserResult<'source, ()> {
-        let found = self.consume()?;
-        if found == &expected {
+        let (token, range) = self.consume()?;
+        if token == &expected {
             Ok(())
         } else {
-            Err(ParserError::ExpectedOne {
-                found: *found,
+            Err(ParserError::ExpectedToken {
+                found: (*token, range.clone()),
                 expected,
             })
         }
@@ -126,10 +173,12 @@ impl<'source> Parser<'source> {
         self.expect(Token::Operator(operator))
     }
 
-    /// Expect the EOI, returns a [`ParserError::ExpectedEOI`] if it's not the end.
+    /// Expect the EOI, returns a [`ParserError`] if it's not the end.
     pub fn expect_eoi(&self) -> ParserResult<()> {
         match self.peek() {
-            Some(found) => Err(ParserError::ExpectedEOI { found: *found }),
+            Some((token, range)) => Err(ParserError::ExpectedEOI {
+                found: (*token, range.clone()),
+            }),
             None => Ok(()),
         }
     }
@@ -205,14 +254,22 @@ impl<'source> Parser<'source> {
     where
         F: FnOnce(&mut Self) -> ParserResult<'source, O>,
     {
+        self.optional_result(f).ok()
+    }
+
+    /// Calls the provided function and resets the position if the function was not successful.
+    pub fn optional_result<O, F>(&mut self, f: F) -> ParserResult<'source, O>
+    where
+        F: FnOnce(&mut Self) -> ParserResult<'source, O>,
+    {
         let start_position = self.position;
         let res = f(self);
 
         match res {
-            Ok(value) => Some(value),
-            Err(_) => {
+            Ok(value) => Ok(value),
+            Err(err) => {
                 self.position = start_position;
-                None
+                Err(err)
             }
         }
     }
@@ -277,63 +334,57 @@ impl<'source> Parser<'source> {
     }
 }
 
-pub(crate) trait Parse<'source>
+pub trait Parse<'source>
 where
     Self: Sized,
 {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self>;
 }
 
+/// Chooses the first result that is Ok or returns a [`ParserError::AggregatedErrors`].
 #[macro_export]
-macro_rules! select_tokens {
-    ($parser:ident, $name:literal, $( $pattern:pat_param => $out:expr ),+ $(,)?) => {{
-        let token = $parser.consume()?;
+macro_rules! choose_result {
+    ($( $item:expr ),+ $(,)? ) => {{
+        // TODO: https://github.com/rust-lang/lang-team/blob/master/projects/declarative-macro-repetition-counts/charter.md
+        let mut errors = ::std::collections::HashSet::<$crate::parser::ParserError>::with_capacity(${count(item)});
 
-        match token {
-            $( $pattern => ::core::result::Result::Ok($out) ),+,
-            _ => ::core::result::Result::Err($crate::parser::ParserError::ExpectedNodeWithName {
-                name: $name,
-                found: *token
-            }),
+        $(
+            let res = $item;
+            match res {
+                ::core::result::Result::Ok(res) => return ::core::result::Result::Ok(res),
+                ::core::result::Result::Err(err) => errors.insert(err),
+            };
+        )*
+
+        if errors.len() == 1 {
+            ::core::result::Result::Err(errors.into_iter().next().unwrap())
+        } else {
+            ::core::result::Result::Err($crate::parser::ParserError::AggregatedErrors(errors))
         }
     }}
 }
 
-#[macro_export]
-macro_rules! choose_optional {
-    ($parser: ident, $name:literal, $( $item:expr ),+ $(,)? ) => {{
-        $( if let Some(res) = $item {
-            return ::core::result::Result::Ok(res);
-        } )*
-
-        ::core::result::Result::Err($crate::parser::ParserError::ExpectedNodeWithName {
-            name: $name,
-            found: *$parser.peek_result()?
-        })
-    }}
-}
-
 #[cfg(test)]
-pub(crate) mod test_utils {
-    use crate::parser::{Parse, Parser};
+pub mod test_utils {
+    use crate::parser::{flatten_result, Parse, Parser};
     use std::fmt::Debug;
 
-    pub(crate) fn run_test<'source, O>(src: &'source str, expected: O)
+    pub fn run_test<'source, O>(src: &'source str, expected: O)
     where
         O: Parse<'source> + PartialEq + Debug,
     {
         let tokens = papyrus_compiler_lexer::run_lexer(src);
         let mut parser = Parser::new(tokens);
 
-        let res = O::parse(&mut parser);
-        assert!(res.is_ok(), "{} {:?}", src, res);
+        let res = flatten_result(O::parse(&mut parser));
+        assert!(res.is_ok(), "{}\n{:#?}", src, res);
         let res = res.unwrap();
 
-        assert!(parser.expect_eoi().is_ok(), "{} {:?}", src, res);
+        assert!(parser.expect_eoi().is_ok(), "{}\n{:#?}", src, res);
         assert_eq!(res, expected, "{}", src);
     }
 
-    pub(crate) fn run_tests<'source, O>(data: Vec<(&'static str, O)>)
+    pub fn run_tests<'source, O>(data: Vec<(&'static str, O)>)
     where
         O: Parse<'source> + PartialEq + Debug,
     {

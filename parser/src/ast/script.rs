@@ -7,7 +7,7 @@ use crate::ast::property::{Property, PropertyGroup};
 use crate::ast::state::State;
 use crate::ast::structure::Structure;
 use crate::ast::variable::ScriptVariable;
-use crate::choose_optional;
+use crate::choose_result;
 use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 
@@ -57,30 +57,22 @@ fn import_parser<'source>(
 
 impl<'source> Parse<'source> for ScriptContent<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        choose_optional!(
-            parser,
-            "Script Content",
-            parser.optional(import_parser).map(ScriptContent::Import),
-            parser
-                .parse_optional::<ScriptVariable>()
-                .map(ScriptContent::Variable),
-            parser
-                .parse_optional::<Structure>()
-                .map(ScriptContent::Structure),
-            parser
-                .parse_optional::<CustomEvent>()
-                .map(ScriptContent::CustomEvent),
-            parser
-                .parse_optional::<Property>()
-                .map(ScriptContent::Property),
-            parser
-                .parse_optional::<PropertyGroup>()
-                .map(ScriptContent::PropertyGroup),
-            parser.parse_optional::<State>().map(ScriptContent::State),
-            parser
-                .parse_optional::<Function>()
-                .map(ScriptContent::Function),
-            parser.parse_optional::<Event>().map(ScriptContent::Event)
+        choose_result!(
+            parser.optional_result(|parser| import_parser(parser).map(ScriptContent::Import)),
+            parser.optional_result(
+                |parser| ScriptVariable::parse(parser).map(ScriptContent::Variable)
+            ),
+            parser.optional_result(|parser| Structure::parse(parser).map(ScriptContent::Structure)),
+            parser.optional_result(
+                |parser| CustomEvent::parse(parser).map(ScriptContent::CustomEvent)
+            ),
+            parser.optional_result(|parser| Property::parse(parser).map(ScriptContent::Property)),
+            parser.optional_result(
+                |parser| PropertyGroup::parse(parser).map(ScriptContent::PropertyGroup)
+            ),
+            parser.optional_result(|parser| State::parse(parser).map(ScriptContent::State)),
+            parser.optional_result(|parser| Function::parse(parser).map(ScriptContent::Function)),
+            parser.optional_result(|parser| Event::parse(parser).map(ScriptContent::Event))
         )
     }
 }

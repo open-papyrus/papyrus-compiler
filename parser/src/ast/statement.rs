@@ -2,11 +2,10 @@ use crate::ast::expression::Expression;
 use crate::ast::identifier::Identifier;
 use crate::ast::node::Node;
 use crate::ast::types::{type_with_identifier_parser, Type};
+use crate::choose_result;
 use crate::parser::{Parse, Parser, ParserResult};
-use crate::{choose_optional, select_tokens};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
-use papyrus_compiler_lexer::syntax::token::Token;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement<'source> {
@@ -69,28 +68,38 @@ pub enum AssignmentKind {
 
 impl<'source> Parse<'source> for AssignmentKind {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        select_tokens!(parser, "Assignment Kind",
-            Token::Operator(OperatorKind::Assignment) => AssignmentKind::Normal,
-            Token::Operator(OperatorKind::AdditionAssignment) => AssignmentKind::Addition,
-            Token::Operator(OperatorKind::SubtractionAssignment) => AssignmentKind::Subtraction,
-            Token::Operator(OperatorKind::MultiplicationAssignment) => AssignmentKind::Multiplication,
-            Token::Operator(OperatorKind::DivisionAssignment) => AssignmentKind::Division,
-            Token::Operator(OperatorKind::ModulusAssignment) => AssignmentKind::Modulus,
+        choose_result!(
+            parser.optional_result(|parser| parser
+                .expect_operator(OperatorKind::Assignment)
+                .map(|_| AssignmentKind::Normal)),
+            parser.optional_result(|parser| parser
+                .expect_operator(OperatorKind::AdditionAssignment)
+                .map(|_| AssignmentKind::Addition)),
+            parser.optional_result(|parser| parser
+                .expect_operator(OperatorKind::SubtractionAssignment)
+                .map(|_| AssignmentKind::Subtraction)),
+            parser.optional_result(|parser| parser
+                .expect_operator(OperatorKind::MultiplicationAssignment)
+                .map(|_| AssignmentKind::Multiplication)),
+            parser.optional_result(|parser| parser
+                .expect_operator(OperatorKind::DivisionAssignment)
+                .map(|_| AssignmentKind::Division)),
+            parser.optional_result(|parser| parser
+                .expect_operator(OperatorKind::ModulusAssignment)
+                .map(|_| AssignmentKind::Modulus)),
         )
     }
 }
 
 impl<'source> Parse<'source> for Statement<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        choose_optional!(
-            parser,
-            "Statement",
-            parser.optional(parse_return_statement),
-            parser.optional(parse_if_statement),
-            parser.optional(parse_while_statement),
-            parser.optional(parse_define_statement),
-            parser.optional(parse_assign_statement),
-            parser.optional(parse_expression_statement)
+        choose_result!(
+            parser.optional_result(|parser| parse_return_statement(parser)),
+            parser.optional_result(|parser| parse_if_statement(parser)),
+            parser.optional_result(|parser| parse_while_statement(parser)),
+            parser.optional_result(|parser| parse_define_statement(parser)),
+            parser.optional_result(|parser| parse_assign_statement(parser)),
+            parser.optional_result(|parser| parse_expression_statement(parser))
         )
     }
 }

@@ -1,26 +1,19 @@
 #![feature(trait_alias)]
+#![feature(macro_metavar_expr)]
 
-extern crate core;
+use crate::ast::script::Script;
+use crate::parser::{Parse, Parser};
+use papyrus_compiler_diagnostics::{SourceId, SourceRange};
+use papyrus_compiler_lexer::syntax::token::Token;
 
 pub mod ast;
-pub mod error;
-pub mod parser;
-pub mod parser_diagnostics;
+pub(crate) mod parser;
 
-// pub fn parse_script(
-//     id: SourceId,
-//     tokens: Vec<(Token, SourceRange)>,
-// ) -> Result<Script, Vec<ParserDiagnostics>> {
-//     let token_stream = parse::create_token_stream(tokens);
-//     ast::script::script_parser()
-//         .parse(token_stream)
-//         .map_err(|errors| {
-//             errors
-//                 .into_iter()
-//                 .map(|error| error.to_diagnostics(id))
-//                 .collect()
-//         })
-// }
+pub fn parse_script(_id: SourceId, tokens: Vec<(Token, SourceRange)>) -> Option<Script> {
+    let mut parser = Parser::new(tokens);
+    let res = Script::parse(&mut parser);
+    res.ok()
+}
 
 #[cfg(test)]
 #[cfg(feature = "test-external-scripts")]

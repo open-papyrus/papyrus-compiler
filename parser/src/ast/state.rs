@@ -2,7 +2,7 @@ use crate::ast::event::Event;
 use crate::ast::function::Function;
 use crate::ast::identifier::Identifier;
 use crate::ast::node::Node;
-use crate::choose_optional;
+use crate::choose_result;
 use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 
@@ -38,13 +38,9 @@ pub enum StateContent<'source> {
 /// ```
 impl<'source> Parse<'source> for StateContent<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        choose_optional!(
-            parser,
-            "State Contents",
-            parser.parse_optional::<Event>().map(StateContent::Event),
-            parser
-                .parse_optional::<Function>()
-                .map(StateContent::Function)
+        choose_result!(
+            parser.optional_result(|parser| Event::parse(parser).map(StateContent::Event)),
+            parser.optional_result(|parser| Function::parse(parser).map(StateContent::Function))
         )
     }
 }

@@ -1,5 +1,5 @@
-use crate::parser::{Parse, Parser, ParserResult};
-use crate::select_tokens;
+use crate::choose_result;
+use crate::parser::{Parse, Parser, ParserError, ParserResult};
 use papyrus_compiler_lexer::syntax::token::Token;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -13,12 +13,44 @@ pub enum Literal<'source> {
 
 impl<'source> Parse<'source> for Literal<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        select_tokens!(parser, "Literal",
-            Token::BooleanLiteral(value) => Literal::Boolean(*value),
-            Token::IntegerLiteral(value) => Literal::Integer(*value),
-            Token::FloatLiteral(value) => Literal::Float(*value),
-            Token::StringLiteral(value) => Literal::String(*value),
-            Token::NoneLiteral => Literal::None
+        let (token, range) = parser.consume()?;
+
+        choose_result!(
+            match token {
+                Token::BooleanLiteral(value) => Ok(Literal::Boolean(*value)),
+                _ => Err(ParserError::ExpectedToken {
+                    expected: Token::BooleanLiteral(false),
+                    found: (*token, range.clone())
+                }),
+            },
+            match token {
+                Token::IntegerLiteral(value) => Ok(Literal::Integer(*value)),
+                _ => Err(ParserError::ExpectedToken {
+                    expected: Token::BooleanLiteral(false),
+                    found: (*token, range.clone())
+                }),
+            },
+            match token {
+                Token::FloatLiteral(value) => Ok(Literal::Float(*value)),
+                _ => Err(ParserError::ExpectedToken {
+                    expected: Token::BooleanLiteral(false),
+                    found: (*token, range.clone())
+                }),
+            },
+            match token {
+                Token::StringLiteral(value) => Ok(Literal::String(*value)),
+                _ => Err(ParserError::ExpectedToken {
+                    expected: Token::BooleanLiteral(false),
+                    found: (*token, range.clone())
+                }),
+            },
+            match token {
+                Token::NoneLiteral => Ok(Literal::None),
+                _ => Err(ParserError::ExpectedToken {
+                    expected: Token::BooleanLiteral(false),
+                    found: (*token, range.clone())
+                }),
+            },
         )
     }
 }

@@ -1,7 +1,7 @@
 use crate::ast::identifier::Identifier;
 use crate::ast::node::Node;
-use crate::parser::{Parse, Parser, ParserResult};
-use crate::{choose_optional, select_tokens};
+use crate::choose_result;
+use crate::parser::{Parse, Parser, ParserError, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
@@ -53,7 +53,7 @@ impl<'source> Parse<'source> for Type<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
         let type_name = parser.parse_node::<TypeName>()?;
 
-        let is_array = match parser.peek() {
+        let is_array = match parser.peek_token() {
             Some(Token::Operator(OperatorKind::SquareBracketsOpen)) => {
                 parser.consume()?;
                 parser.expect_operator(OperatorKind::SquareBracketsClose)?;
@@ -69,49 +69,66 @@ impl<'source> Parse<'source> for Type<'source> {
 fn type_name_var_parser<'source>(
     parser: &mut Parser<'source>,
 ) -> ParserResult<'source, TypeName<'source>> {
-    select_tokens!(parser, "Type Var",
-        Token::Keyword(KeywordKind::Var) => TypeName::Var
-    )
+    parser
+        .expect_keyword(KeywordKind::Var)
+        .map(|_| TypeName::Var)
 }
 
 fn type_name_identifier_parser<'source>(
     parser: &mut Parser<'source>,
 ) -> ParserResult<'source, TypeName<'source>> {
-    select_tokens!(parser, "Type Identifier",
-        Token::Identifier(value) => TypeName::Identifier(*value)
-    )
+    let (token, range) = parser.consume()?;
+    match token {
+        Token::Identifier(value) => Ok(TypeName::Identifier(*value)),
+        _ => Err(ParserError::ExpectedToken {
+            expected: Token::Identifier(""),
+            found: (*token, range.clone()),
+        }),
+    }
 }
 
 fn base_type_parser<'source>(parser: &mut Parser<'source>) -> ParserResult<'source, BaseType> {
-    select_tokens!(parser, "Base Type",
-        Token::Keyword(KeywordKind::Bool) => BaseType::Bool,
-        Token::Keyword(KeywordKind::Int) => BaseType::Int,
-        Token::Keyword(KeywordKind::Float) => BaseType::Float,
-        Token::Keyword(KeywordKind::String) => BaseType::String,
+    choose_result!(
+        parser.optional_result(|parser| parser
+            .expect_keyword(KeywordKind::Bool)
+            .map(|_| BaseType::Bool)),
+        parser.optional_result(|parser| parser
+            .expect_keyword(KeywordKind::Int)
+            .map(|_| BaseType::Int)),
+        parser.optional_result(|parser| parser
+            .expect_keyword(KeywordKind::Float)
+            .map(|_| BaseType::Float)),
+        parser.optional_result(|parser| parser
+            .expect_keyword(KeywordKind::String)
+            .map(|_| BaseType::String)),
     )
 }
 
 fn parameter_type_parser<'source>(
     parser: &mut Parser<'source>,
 ) -> ParserResult<'source, ParameterType> {
-    select_tokens!(parser, "Parameter Type",
-        Token::Keyword(KeywordKind::ScriptEventName) => ParameterType::ScriptEventName,
-        Token::Keyword(KeywordKind::CustomEventName) => ParameterType::CustomEventName,
-        Token::Keyword(KeywordKind::StructVarName) => ParameterType::StructVarName,
+    choose_result!(
+        parser.optional_result(|parser| parser
+            .expect_keyword(KeywordKind::ScriptEventName)
+            .map(|_| ParameterType::ScriptEventName)),
+        parser.optional_result(|parser| parser
+            .expect_keyword(KeywordKind::CustomEventName)
+            .map(|_| ParameterType::CustomEventName)),
+        parser.optional_result(|parser| parser
+            .expect_keyword(KeywordKind::StructVarName)
+            .map(|_| ParameterType::StructVarName)),
     )
 }
 
 impl<'source> Parse<'source> for TypeName<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        choose_optional!(
-            parser,
-            "Type Name",
-            parser.optional(type_name_var_parser),
-            parser.optional(type_name_identifier_parser),
-            parser.optional(base_type_parser).map(TypeName::BaseType),
-            parser
-                .optional(parameter_type_parser)
-                .map(TypeName::ParameterType),
+        choose_result!(
+            parser.optional_result(|parser| type_name_var_parser(parser)),
+            parser.optional_result(|parser| type_name_identifier_parser(parser)),
+            parser.optional_result(|parser| base_type_parser(parser).map(TypeName::BaseType)),
+            parser.optional_result(
+                |parser| parameter_type_parser(parser).map(TypeName::ParameterType)
+            ),
         )
     }
 }

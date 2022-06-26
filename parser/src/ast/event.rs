@@ -3,7 +3,7 @@ use crate::ast::identifier::Identifier;
 use crate::ast::node::{range_union, Node};
 use crate::ast::statement::Statement;
 use crate::ast::types::{type_with_identifier_parser, Type, TypeName};
-use crate::choose_optional;
+use crate::choose_result;
 use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
@@ -271,18 +271,16 @@ impl<'source> Parse<'source> for CustomEventHeader<'source> {
 /// ```
 impl<'source> Parse<'source> for EventHeaderKind<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        choose_optional!(
-            parser,
-            "Event Header",
-            parser
-                .parse_optional::<EventHeader>()
-                .map(EventHeaderKind::EventHeader),
-            parser
-                .parse_optional::<CustomEventHeader>()
-                .map(EventHeaderKind::CustomEvent),
-            parser
-                .parse_optional::<RemoteEventHeader>()
-                .map(EventHeaderKind::RemoteEvent),
+        choose_result!(
+            parser.optional_result(
+                |parser| EventHeader::parse(parser).map(EventHeaderKind::EventHeader)
+            ),
+            parser.optional_result(
+                |parser| CustomEventHeader::parse(parser).map(EventHeaderKind::CustomEvent)
+            ),
+            parser.optional_result(
+                |parser| RemoteEventHeader::parse(parser).map(EventHeaderKind::RemoteEvent)
+            ),
         )
     }
 }

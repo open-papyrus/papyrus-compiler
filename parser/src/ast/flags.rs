@@ -1,26 +1,31 @@
 use crate::parser::{Parse, Parser, ParserResult};
 
 macro_rules! case_ignore_identifier {
-    ( $parser:ident, $name:literal, $( $flag_bytes:ident => $out:expr ),+ $(,)? ) => {{
-        let token = $parser.consume()?;
-
+    ( $parser:ident, $( $flag_bytes:ident, $flag_name:literal => $out:expr ),+ $(,)? ) => {{
+        let (token, range) = $parser.consume()?;
         match token {
             papyrus_compiler_lexer::syntax::token::Token::Identifier(value) => {
                 let bytes = value.as_bytes();
 
-                $( if bytes.eq_ignore_ascii_case( $flag_bytes ) {
-                    return Ok($out);
-                } )*
+                $(
+                    if bytes.eq_ignore_ascii_case($flag_bytes) {
+                        return Ok($out);
+                    }
+                )*
 
-                ::core::result::Result::Err($crate::parser::ParserError::ExpectedNodeWithName {
-                name: $name,
-                found: *token,
-            })
+                ::core::result::Result::Err($crate::parser::ParserError::AggregatedErrors(::std::collections::HashSet::from([
+                    $(
+                        $crate::parser::ParserError::ExpectedToken {
+                            expected: papyrus_compiler_lexer::syntax::token::Token::Identifier($flag_name),
+                            found: (*token, range.clone())
+                        }
+                    ),*
+                ])))
             },
-            _ => ::core::result::Result::Err($crate::parser::ParserError::ExpectedNodeWithName {
-                name: $name,
-                found: *token,
-            }),
+            _ => ::core::result::Result::Err($crate::parser::ParserError::ExpectedToken {
+                expected: papyrus_compiler_lexer::syntax::token::Token::Identifier(""),
+                found: (*token, range.clone())
+            })
         }
     }}
 }
@@ -46,14 +51,14 @@ const DEFAULT: &[u8] = "Default".as_bytes();
 
 impl<'source> Parse<'source> for ScriptFlag {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        case_ignore_identifier!(parser, "Script Flag",
-            CONDITIONAL => ScriptFlag::Conditional,
-            CONST => ScriptFlag::Const,
-            DEBUG_ONLY => ScriptFlag::DebugOnly,
-            BETA_ONLY => ScriptFlag::BetaOnly,
-            HIDDEN => ScriptFlag::Hidden,
-            NATIVE => ScriptFlag::Native,
-            DEFAULT => ScriptFlag::Default
+        case_ignore_identifier!(parser,
+            CONDITIONAL, "Conditional" => ScriptFlag::Conditional,
+            CONST, "Const" => ScriptFlag::Const,
+            DEBUG_ONLY, "DebugOnly" => ScriptFlag::DebugOnly,
+            BETA_ONLY, "BetaOnly" => ScriptFlag::BetaOnly,
+            HIDDEN, "Hidden" => ScriptFlag::Hidden,
+            NATIVE, "Native" => ScriptFlag::Native,
+            DEFAULT, "Default" => ScriptFlag::Default
         )
     }
 }
@@ -70,11 +75,11 @@ const MANDATORY: &[u8] = "Mandatory".as_bytes();
 
 impl<'source> Parse<'source> for PropertyFlag {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        case_ignore_identifier!(parser, "Property Flag",
-            CONDITIONAL => PropertyFlag::Conditional,
-            CONST => PropertyFlag::Const,
-            HIDDEN => PropertyFlag::Hidden,
-            MANDATORY => PropertyFlag::Mandatory
+        case_ignore_identifier!(parser,
+            CONDITIONAL, "Conditional" => PropertyFlag::Conditional,
+            CONST, "Const" => PropertyFlag::Const,
+            HIDDEN, "Hidden" => PropertyFlag::Hidden,
+            MANDATORY, "Mandatory" => PropertyFlag::Mandatory
         )
     }
 }
@@ -88,10 +93,10 @@ pub enum VariableFlag {
 
 impl<'source> Parse<'source> for VariableFlag {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        case_ignore_identifier!(parser, "Variable Flag",
-            CONDITIONAL => VariableFlag::Conditional,
-            CONST => VariableFlag::Const,
-            HIDDEN => VariableFlag::Hidden,
+        case_ignore_identifier!(parser,
+            CONDITIONAL, "Conditional" => VariableFlag::Conditional,
+            CONST, "Const" => VariableFlag::Const,
+            HIDDEN, "Hidden" => VariableFlag::Hidden,
         )
     }
 }
@@ -109,10 +114,10 @@ const COLLAPSED: &[u8] = "Collapsed".as_bytes();
 
 impl<'source> Parse<'source> for GroupFlag {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        case_ignore_identifier!(parser, "Group Flag",
-            COLLAPSED_ON_REF => GroupFlag::CollapsedOnRef,
-            COLLAPSED_ON_BASE => GroupFlag::CollapsedOnBase,
-            COLLAPSED => GroupFlag::Collapsed,
+        case_ignore_identifier!(parser,
+            COLLAPSED_ON_REF, "CollapsedOnRef" => GroupFlag::CollapsedOnRef,
+            COLLAPSED_ON_BASE, "CollapsedOnBase" => GroupFlag::CollapsedOnBase,
+            COLLAPSED, "Collapsed" => GroupFlag::Collapsed,
         )
     }
 }
@@ -129,11 +134,11 @@ const GLOBAL: &[u8] = "Global".as_bytes();
 
 impl<'source> Parse<'source> for FunctionFlag {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        case_ignore_identifier!(parser, "Function Flag",
-            GLOBAL => FunctionFlag::Global,
-            NATIVE => FunctionFlag::Native,
-            DEBUG_ONLY => FunctionFlag::DebugOnly,
-            BETA_ONLY => FunctionFlag::BetaOnly,
+        case_ignore_identifier!(parser,
+            GLOBAL, "Global" => FunctionFlag::Global,
+            NATIVE, "Native" => FunctionFlag::Native,
+            DEBUG_ONLY, "DebugOnly" => FunctionFlag::DebugOnly,
+            BETA_ONLY, "BetaOnly" => FunctionFlag::BetaOnly,
         )
     }
 }

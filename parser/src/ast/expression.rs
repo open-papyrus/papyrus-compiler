@@ -2,7 +2,8 @@ use crate::ast::identifier::Identifier;
 use crate::ast::literal::Literal;
 use crate::ast::node::Node;
 use crate::ast::types::TypeName;
-use crate::parser::{Parse, Parser, ParserError, ParserResult};
+use crate::choose_result;
+use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
@@ -151,18 +152,14 @@ fn parse_func_or_id_expression<'source>(
     parser: &mut Parser<'source>,
 ) -> ParserResult<'source, Expression<'source>> {
     let parent_or_self_expression = parser.optional(|parser| {
-        let token = parser.consume()?;
-        match token {
-            Token::Keyword(KeywordKind::Parent) => Ok(Expression::Parent),
-            Token::Keyword(KeywordKind::Self_) => Ok(Expression::Self_),
-            _ => Err(ParserError::ExpectedOneOf {
-                found: *token,
-                expected: vec![
-                    Token::Keyword(KeywordKind::Parent),
-                    Token::Keyword(KeywordKind::Self_),
-                ],
-            }),
-        }
+        choose_result!(
+            parser.optional_result(|parser| parser
+                .expect_keyword(KeywordKind::Parent)
+                .map(|_| Expression::Parent)),
+            parser.optional_result(|parser| parser
+                .expect_keyword(KeywordKind::Self_)
+                .map(|_| Expression::Self_)),
+        )
     });
 
     match parent_or_self_expression {
@@ -228,7 +225,7 @@ fn parse_array_func_or_id_expression<'source>(
 fn parse_atom_expression<'source>(
     parser: &mut Parser<'source>,
 ) -> ParserResult<'source, Expression<'source>> {
-    let token = parser.peek();
+    let token = parser.peek_token();
     match token {
         Some(Token::Operator(OperatorKind::ParenthesisOpen)) => {
             parser.consume()?;
@@ -285,7 +282,7 @@ fn parse_dot_atom_expression<'source>(
     }
 
     let mut expression = parser.with_node(parse_array_atom_expression)?;
-    while parser.peek() == Some(&Token::Operator(OperatorKind::Access)) {
+    while parser.peek_token() == Some(&Token::Operator(OperatorKind::Access)) {
         parser.consume()?;
         let rhs = parser.with_node(parse_array_func_or_id_expression)?;
         let range = expression.range_union(&rhs);
@@ -310,7 +307,7 @@ fn parse_cast_atom_expression<'source>(
 ) -> ParserResult<'source, Expression<'source>> {
     let expr = parser.with_node(parse_dot_atom_expression)?;
 
-    match parser.peek() {
+    match parser.peek_token() {
         Some(Token::Operator(OperatorKind::CastAs)) => {
             parser.consume()?;
             let rhs = parser.parse_node::<TypeName>()?;
@@ -331,7 +328,7 @@ fn parse_cast_atom_expression<'source>(
 fn parse_unary_expression<'source>(
     parser: &mut Parser<'source>,
 ) -> ParserResult<'source, Expression<'source>> {
-    match parser.peek() {
+    match parser.peek_token() {
         Some(Token::Operator(OperatorKind::Subtraction)) => {
             parser.consume()?;
             Ok(Expression::Unary {
@@ -359,7 +356,7 @@ fn parse_mult_expression<'source>(
     let mut expr = parser.with_node(parse_unary_expression)?;
 
     loop {
-        let kind = match parser.peek() {
+        let kind = match parser.peek_token() {
             Some(Token::Operator(OperatorKind::Multiplication)) => Some(BinaryKind::Multiplication),
             Some(Token::Operator(OperatorKind::Division)) => Some(BinaryKind::Division),
             Some(Token::Operator(OperatorKind::Modulus)) => Some(BinaryKind::Modulus),
@@ -397,7 +394,7 @@ fn parse_add_expression<'source>(
     let mut expr = parser.with_node(parse_mult_expression)?;
 
     loop {
-        let kind = match parser.peek() {
+        let kind = match parser.peek_token() {
             Some(Token::Operator(OperatorKind::Addition)) => Some(BinaryKind::Addition),
             Some(Token::Operator(OperatorKind::Subtraction)) => Some(BinaryKind::Subtraction),
             _ => None,
@@ -434,7 +431,7 @@ fn parse_bool_expression<'source>(
     let mut expr = parser.with_node(parse_add_expression)?;
 
     loop {
-        let kind = match parser.peek() {
+        let kind = match parser.peek_token() {
             Some(Token::Operator(OperatorKind::EqualTo)) => Some(ComparisonKind::EqualTo),
             Some(Token::Operator(OperatorKind::NotEqualTo)) => Some(ComparisonKind::NotEqualTo),
             Some(Token::Operator(OperatorKind::GreaterThan)) => Some(ComparisonKind::GreaterThan),
@@ -477,7 +474,7 @@ fn parse_and_expression<'source>(
     parser: &mut Parser<'source>,
 ) -> ParserResult<'source, Expression<'source>> {
     let mut expression = parser.with_node(parse_bool_expression)?;
-    while parser.peek() == Some(&Token::Operator(OperatorKind::LogicalAnd)) {
+    while parser.peek_token() == Some(&Token::Operator(OperatorKind::LogicalAnd)) {
         parser.consume()?;
         let rhs = parser.with_node(parse_bool_expression)?;
         let range = expression.range_union(&rhs);
@@ -501,7 +498,7 @@ fn parse_and_expression<'source>(
 impl<'source> Parse<'source> for Expression<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
         let mut expression = parser.with_node(parse_and_expression)?;
-        while parser.peek() == Some(&Token::Operator(OperatorKind::LogicalOr)) {
+        while parser.peek_token() == Some(&Token::Operator(OperatorKind::LogicalOr)) {
             parser.consume()?;
             let rhs = parser.with_node(parse_and_expression)?;
             let range = expression.range_union(&rhs);
