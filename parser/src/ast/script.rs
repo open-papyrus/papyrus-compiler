@@ -91,6 +91,8 @@ impl<'source> Parse<'source> for Script<'source> {
 
         let contents = parser.parse_node_optional_repeated::<ScriptContent>();
 
+        parser.expect_eoi()?;
+
         Ok(Script::new(name, extends, flags, contents))
     }
 }

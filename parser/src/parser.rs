@@ -226,7 +226,7 @@ impl<'source> Parser<'source> {
     }
 
     /// Expect the EOI, returns a [`ParserError`] if it's not the end.
-    pub fn expect_eoi(&self) -> ParserResult<()> {
+    pub fn expect_eoi(&self) -> ParserResult<'source, ()> {
         match self.peek() {
             Some((token, range)) => Err(ParserError::ExpectedEOI {
                 found: (*token, range.clone()),
@@ -418,6 +418,7 @@ macro_rules! choose_result {
 
 #[cfg(test)]
 pub mod test_utils {
+    use crate::filter_tokens;
     use crate::parser::{flatten_result, Parse, Parser};
     use std::fmt::Debug;
 
@@ -425,7 +426,7 @@ pub mod test_utils {
     where
         O: Parse<'source> + PartialEq + Debug,
     {
-        let tokens = papyrus_compiler_lexer::run_lexer(src);
+        let tokens = filter_tokens(papyrus_compiler_lexer::run_lexer(src));
         let mut parser = Parser::new(tokens);
 
         let res = flatten_result(O::parse(&mut parser));

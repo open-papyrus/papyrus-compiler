@@ -9,6 +9,20 @@ use papyrus_compiler_lexer::syntax::token::Token;
 pub mod ast;
 pub(crate) mod parser;
 
+pub(crate) fn filter_tokens(tokens: Vec<(Token, SourceRange)>) -> Vec<(Token, SourceRange)> {
+    tokens
+        .into_iter()
+        .filter(|(token, _)| {
+            !matches!(
+                token,
+                Token::SingleLineComment(_)
+                    | Token::MultiLineComment(_)
+                    | Token::DocumentationComment(_)
+            )
+        })
+        .collect::<Vec<_>>()
+}
+
 pub fn parse_script(_id: SourceId, tokens: Vec<(Token, SourceRange)>) -> Option<Script> {
     let mut parser = Parser::new(tokens);
     let res = Script::parse(&mut parser);
@@ -19,6 +33,7 @@ pub fn parse_script(_id: SourceId, tokens: Vec<(Token, SourceRange)>) -> Option<
 #[cfg(feature = "test-external-scripts")]
 mod tests {
     use crate::ast::script::Script;
+    use crate::filter_tokens;
     use crate::parser::{Parse, Parser};
 
     #[test]
@@ -51,14 +66,11 @@ mod tests {
             assert!(path.exists(), "{}", script_path);
 
             let script = std::fs::read_to_string(path).unwrap();
-            let tokens = papyrus_compiler_lexer::run_lexer(script.as_str());
+            let tokens = filter_tokens(papyrus_compiler_lexer::run_lexer(script.as_str()));
             let mut parser = Parser::new(tokens);
 
             let res = Script::parse(&mut parser);
-            assert!(res.is_ok(), "{} {:?}", script_path, res);
-            let res = res.unwrap();
-
-            assert!(parser.expect_eoi().is_ok(), "{} {:?}", script_path, res);
+            assert!(res.is_ok(), "{} {:#?}", script_path, res);
         }
     }
 }
