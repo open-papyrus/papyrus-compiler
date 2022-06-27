@@ -3,9 +3,10 @@ use crate::ast::identifier::Identifier;
 use crate::ast::node::Node;
 use crate::ast::types::{type_with_identifier_parser, Type};
 use crate::choose_result;
-use crate::parser::{Parse, Parser, ParserResult};
+use crate::parser::{Parse, Parser, ParserError, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
+use papyrus_compiler_lexer::syntax::token::Token;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement<'source> {
@@ -94,12 +95,12 @@ impl<'source> Parse<'source> for AssignmentKind {
 impl<'source> Parse<'source> for Statement<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
         choose_result!(
-            parser.optional_result(|parser| parse_return_statement(parser)),
-            parser.optional_result(|parser| parse_if_statement(parser)),
-            parser.optional_result(|parser| parse_while_statement(parser)),
-            parser.optional_result(|parser| parse_define_statement(parser)),
-            parser.optional_result(|parser| parse_assign_statement(parser)),
-            parser.optional_result(|parser| parse_expression_statement(parser))
+            parser.optional_result(parse_return_statement),
+            parser.optional_result(parse_if_statement),
+            parser.optional_result(parse_while_statement),
+            parser.optional_result(parse_define_statement),
+            parser.optional_result(parse_assign_statement),
+            parser.optional_result(parse_expression_statement)
         )
     }
 }
@@ -372,23 +373,23 @@ mod test {
     #[test]
     fn test_if_statement() {
         let data = vec![
-            // (
-            //     "If (true) EndIf",
-            //     Statement::If {
-            //         if_path: Node::new(
-            //             ConditionalPath {
-            //                 condition: Node::new(
-            //                     Expression::Literal(Node::new(Literal::Boolean(true), 4..8)),
-            //                     3..9,
-            //                 ),
-            //                 statements: None,
-            //             },
-            //             3..9,
-            //         ),
-            //         other_paths: None,
-            //         else_path: None,
-            //     },
-            // ),
+            (
+                "If (true) EndIf",
+                Statement::If {
+                    if_path: Node::new(
+                        ConditionalPath {
+                            condition: Node::new(
+                                Expression::Literal(Node::new(Literal::Boolean(true), 4..8)),
+                                3..9,
+                            ),
+                            statements: None,
+                        },
+                        3..9,
+                    ),
+                    other_paths: None,
+                    else_path: None,
+                },
+            ),
             (
                 "If (true) ElseIf (true) ElseIf (false) Else EndIf",
                 Statement::If {

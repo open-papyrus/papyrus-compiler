@@ -123,8 +123,8 @@ fn parameter_type_parser<'source>(
 impl<'source> Parse<'source> for TypeName<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
         choose_result!(
-            parser.optional_result(|parser| type_name_var_parser(parser)),
-            parser.optional_result(|parser| type_name_identifier_parser(parser)),
+            parser.optional_result(type_name_var_parser),
+            parser.optional_result(type_name_identifier_parser),
             parser.optional_result(|parser| base_type_parser(parser).map(TypeName::BaseType)),
             parser.optional_result(
                 |parser| parameter_type_parser(parser).map(TypeName::ParameterType)
