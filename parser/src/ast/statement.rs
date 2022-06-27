@@ -200,10 +200,13 @@ fn parse_if_statement<'source>(
         parser.parse_node::<ConditionalPath>()
     });
 
-    let else_path = parser.optional(|parser| {
-        parser.expect_keyword(KeywordKind::Else)?;
-        parser.parse_node_repeated::<Statement>()
-    });
+    let else_path = match parser.peek() {
+        Some((Token::Keyword(KeywordKind::Else), _)) => {
+            parser.consume()?;
+            parser.parse_node_optional_repeated::<Statement>()
+        }
+        _ => None,
+    };
 
     parser.expect_keyword(KeywordKind::EndIf)?;
 
