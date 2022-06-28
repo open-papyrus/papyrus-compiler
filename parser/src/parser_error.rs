@@ -74,7 +74,7 @@ fn flatten_error<'source>(error: ParserError<'source>) -> ParserError<'source> {
     }
 }
 
-fn extract_best_error<'source>(error: ParserError<'source>) -> ParserError<'source> {
+fn extract_best_error(error: ParserError) -> ParserError {
     match error {
         ParserError::AggregatedErrors(errors) => {
             let mut best_errors = errors

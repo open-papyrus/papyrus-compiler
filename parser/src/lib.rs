@@ -7,12 +7,14 @@ static ALLOC: dhat::Alloc = dhat::Alloc;
 
 use crate::ast::script::Script;
 use crate::parser::{Parse, Parser};
+use crate::parser_diagnostics::ParserDiagnostic;
 use crate::parser_error::*;
 use papyrus_compiler_diagnostics::{SourceId, SourceRange};
 use papyrus_compiler_lexer::syntax::token::Token;
 
 pub mod ast;
 pub(crate) mod parser;
+mod parser_diagnostics;
 pub mod parser_error;
 
 pub(crate) fn filter_tokens(tokens: Vec<(Token, SourceRange)>) -> Vec<(Token, SourceRange)> {
@@ -29,11 +31,24 @@ pub(crate) fn filter_tokens(tokens: Vec<(Token, SourceRange)>) -> Vec<(Token, So
         .collect::<Vec<_>>()
 }
 
-pub fn parse_script(_id: SourceId, tokens: Vec<(Token, SourceRange)>) -> ParserResult<Script> {
+pub fn parse_script(
+    id: SourceId,
+    tokens: Vec<(Token, SourceRange)>,
+) -> Result<Script, Vec<ParserDiagnostic>> {
     let tokens = filter_tokens(tokens);
     let mut parser = Parser::new(tokens);
     let res = flatten_result(Script::parse(&mut parser));
-    res
+
+    match res {
+        Ok(res) => Ok(res),
+        Err(parser_error) => match parser_error {
+            ParserError::AggregatedErrors(errors) => Err(errors
+                .into_iter()
+                .map(|err| ParserDiagnostic::new(id, err))
+                .collect::<Vec<_>>()),
+            _ => Err(vec![ParserDiagnostic::new(id, parser_error)]),
+        },
+    }
 }
 
 #[cfg(test)]
