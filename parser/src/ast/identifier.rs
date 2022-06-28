@@ -1,4 +1,5 @@
-use crate::parser::{Parse, Parser, ParserError, ParserResult};
+use crate::parser::{Parse, Parser};
+use crate::parser_error::*;
 use papyrus_compiler_lexer::syntax::token::Token;
 
 pub type Identifier<'source> = &'source str;

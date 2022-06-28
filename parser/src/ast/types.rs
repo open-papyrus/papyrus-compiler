@@ -1,7 +1,8 @@
 use crate::ast::identifier::Identifier;
 use crate::ast::node::Node;
 use crate::choose_result;
-use crate::parser::{Parse, Parser, ParserError, ParserResult};
+use crate::parser::{Parse, Parser};
+use crate::parser_error::*;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;

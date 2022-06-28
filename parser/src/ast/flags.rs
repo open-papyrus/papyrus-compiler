@@ -1,4 +1,5 @@
-use crate::parser::{Parse, Parser, ParserResult};
+use crate::parser::{Parse, Parser};
+use crate::parser_error::*;
 
 macro_rules! case_ignore_identifier {
     ( $parser:ident, $( $flag_bytes:ident, $flag_name:literal => $out:expr ),+ $(,)? ) => {{
@@ -13,16 +14,16 @@ macro_rules! case_ignore_identifier {
                     }
                 )*
 
-                ::core::result::Result::Err($crate::parser::ParserError::AggregatedErrors(::std::collections::HashSet::from([
+                ::core::result::Result::Err($crate::parser_error::ParserError::AggregatedErrors(::std::collections::HashSet::from([
                     $(
-                        $crate::parser::ParserError::ExpectedToken {
+                        $crate::parser_error::ParserError::ExpectedToken {
                             expected: papyrus_compiler_lexer::syntax::token::Token::Identifier($flag_name),
                             found: (*token, range.clone())
                         }
                     ),*
                 ])))
             },
-            _ => ::core::result::Result::Err($crate::parser::ParserError::ExpectedToken {
+            _ => ::core::result::Result::Err($crate::parser_error::ParserError::ExpectedToken {
                 expected: papyrus_compiler_lexer::syntax::token::Token::Identifier(""),
                 found: (*token, range.clone())
             })

@@ -1,13 +1,14 @@
-#![feature(trait_alias)]
 #![feature(macro_metavar_expr)]
 
 use crate::ast::script::Script;
 use crate::parser::{Parse, Parser};
+use crate::parser_error::*;
 use papyrus_compiler_diagnostics::{SourceId, SourceRange};
 use papyrus_compiler_lexer::syntax::token::Token;
 
 pub mod ast;
 pub(crate) mod parser;
+pub mod parser_error;
 
 pub(crate) fn filter_tokens(tokens: Vec<(Token, SourceRange)>) -> Vec<(Token, SourceRange)> {
     tokens
@@ -23,10 +24,11 @@ pub(crate) fn filter_tokens(tokens: Vec<(Token, SourceRange)>) -> Vec<(Token, So
         .collect::<Vec<_>>()
 }
 
-pub fn parse_script(_id: SourceId, tokens: Vec<(Token, SourceRange)>) -> Option<Script> {
+pub fn parse_script(_id: SourceId, tokens: Vec<(Token, SourceRange)>) -> ParserResult<Script> {
+    let tokens = filter_tokens(tokens);
     let mut parser = Parser::new(tokens);
-    let res = Script::parse(&mut parser);
-    res.ok()
+    let res = flatten_result(Script::parse(&mut parser));
+    res
 }
 
 #[cfg(test)]
@@ -34,7 +36,8 @@ pub fn parse_script(_id: SourceId, tokens: Vec<(Token, SourceRange)>) -> Option<
 mod tests {
     use crate::ast::script::Script;
     use crate::filter_tokens;
-    use crate::parser::{flatten_result, Parse, Parser};
+    use crate::parser::{Parse, Parser};
+    use crate::parser_error::*;
 
     #[test]
     fn test_external_scripts() {

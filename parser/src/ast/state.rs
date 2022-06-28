@@ -3,7 +3,8 @@ use crate::ast::function::Function;
 use crate::ast::identifier::Identifier;
 use crate::ast::node::Node;
 use crate::choose_result;
-use crate::parser::{Parse, Parser, ParserResult};
+use crate::parser::{Parse, Parser};
+use crate::parser_error::*;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 
 #[derive(Debug, PartialEq, Clone)]

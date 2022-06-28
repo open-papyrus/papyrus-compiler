@@ -1,140 +1,9 @@
 use crate::ast::node::{range_union, Node};
+use crate::parser_error::*;
 use papyrus_compiler_diagnostics::SourceRange;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
-use std::collections::HashSet;
-use std::fmt::{Display, Formatter};
-use std::hash::{Hash, Hasher};
-
-type TokenWithRange<'source> = (Token<'source>, SourceRange);
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum ParserError<'source> {
-    ExpectedToken {
-        expected: Token<'static>,
-        found: TokenWithRange<'source>,
-    },
-    UnexpectedEOI,
-    AggregatedErrors(HashSet<ParserError<'source>>),
-    ExpectedEOI {
-        found: TokenWithRange<'source>,
-    },
-}
-
-impl<'source> Display for ParserError<'source> {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
-}
-
-impl<'source> std::error::Error for ParserError<'source> {}
-
-impl<'source> Hash for ParserError<'source> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            ParserError::ExpectedToken { expected, found } => {
-                state.write_i8(1);
-                expected.hash(state);
-                found.hash(state)
-            }
-            ParserError::UnexpectedEOI => state.write_i8(2),
-            ParserError::AggregatedErrors(_) => state.write_i8(3),
-            ParserError::ExpectedEOI { .. } => state.write_i8(4),
-        }
-    }
-}
-
-impl<'source> Eq for ParserError<'source> {}
-
-pub type ParserResult<'source, TOk> = Result<TOk, ParserError<'source>>;
-
-fn flatten_error<'source>(error: ParserError<'source>) -> ParserError<'source> {
-    match error {
-        ParserError::AggregatedErrors(errors) => {
-            let res =
-                errors
-                    .into_iter()
-                    .fold(HashSet::<ParserError<'source>>::new(), |mut set, err| {
-                        let err = flatten_error(err);
-                        match err {
-                            ParserError::AggregatedErrors(errors) => set.extend(errors),
-                            _ => {
-                                let _ = set.insert(err);
-                            }
-                        };
-
-                        set
-                    });
-
-            if res.len() == 1 {
-                res.into_iter().next().unwrap()
-            } else {
-                ParserError::AggregatedErrors(res)
-            }
-        }
-        _ => error,
-    }
-}
-
-fn extract_best_error<'source>(error: ParserError<'source>) -> ParserError<'source> {
-    match error {
-        ParserError::AggregatedErrors(errors) => {
-            let mut best_errors = errors
-                .into_iter()
-                .filter_map(|err| match err {
-                    ParserError::ExpectedToken { expected, found } => {
-                        let (token, range) = found;
-                        Some((range, (expected, token)))
-                    }
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-
-            best_errors.sort_by(|(range_a, _), (range_b, _)| {
-                let start_a = range_a.start;
-                let start_b = range_b.start;
-
-                start_a.cmp(&start_b)
-            });
-
-            let (last_range, _) = best_errors.last().unwrap();
-            let last_range = last_range.clone();
-
-            let best_errors = best_errors
-                .into_iter()
-                .filter(|(range, _)| last_range.start == range.start)
-                .collect::<Vec<_>>();
-
-            if best_errors.len() == 1 {
-                let (range, (expected, found)) = best_errors.into_iter().next().unwrap();
-
-                ParserError::ExpectedToken {
-                    expected,
-                    found: (found, range),
-                }
-            } else {
-                ParserError::AggregatedErrors(
-                    best_errors
-                        .into_iter()
-                        .map(|(range, (expected, found))| ParserError::ExpectedToken {
-                            expected,
-                            found: (found, range),
-                        })
-                        .collect(),
-                )
-            }
-        }
-        _ => error,
-    }
-}
-
-pub fn flatten_result<TOk>(result: ParserResult<TOk>) -> ParserResult<TOk> {
-    match result {
-        Ok(value) => Ok(value),
-        Err(err) => Err(extract_best_error(flatten_error(err))),
-    }
-}
 
 pub struct Parser<'source> {
     tokens: Vec<(Token<'source>, SourceRange)>,
@@ -173,6 +42,7 @@ impl<'source> Parser<'source> {
 
     /// Peek at the next available Token, this function does not consume and also returns the
     /// [`SourceRange`] of the Token.
+    #[inline(always)]
     pub fn peek(&self) -> Option<&TokenWithRange<'source>> {
         if self.position < self.tokens.len() {
             self.tokens.get(self.position)
@@ -183,6 +53,7 @@ impl<'source> Parser<'source> {
 
     /// Peek at the next available Token, this function does not consume and is a wrapper around
     /// [`Parser::peek`].
+    #[inline(always)]
     pub fn peek_token(&self) -> Option<&Token<'source>> {
         self.peek().map(|(token, _)| token)
     }
@@ -216,11 +87,13 @@ impl<'source> Parser<'source> {
     }
 
     /// Expect a Keyword. This is a wrapper around [`Parser::expect`].
+    #[inline(always)]
     pub fn expect_keyword(&mut self, keyword: KeywordKind) -> ParserResult<'source, ()> {
         self.expect(Token::Keyword(keyword))
     }
 
     /// Expect an Operator. This is a wrapper around [`Parser::expect`].
+    #[inline(always)]
     pub fn expect_operator(&mut self, operator: OperatorKind) -> ParserResult<'source, ()> {
         self.expect(Token::Operator(operator))
     }
@@ -236,6 +109,7 @@ impl<'source> Parser<'source> {
     }
 
     /// Repeatedly calls the provided function until it returns a [`ParserError`].
+    #[inline(always)]
     pub fn repeated<O, F>(&mut self, f: F) -> ParserResult<'source, Vec<O>>
     where
         F: FnMut(&mut Self) -> ParserResult<'source, O>,
@@ -316,6 +190,7 @@ impl<'source> Parser<'source> {
         Ok(results)
     }
 
+    #[inline(always)]
     pub fn until_keyword<O, F>(
         &mut self,
         keyword: KeywordKind,
@@ -327,6 +202,7 @@ impl<'source> Parser<'source> {
         self.until_token(Token::Keyword(keyword), f)
     }
 
+    #[inline(always)]
     pub fn parse_node_until_keyword<O>(
         &mut self,
         keyword: KeywordKind,
@@ -356,6 +232,7 @@ impl<'source> Parser<'source> {
     }
 
     /// Calls the provided function and puts the result in a [`Node`].
+    #[inline(always)]
     pub fn with_node<O, F>(&mut self, f: F) -> ParserResult<'source, Node<O>>
     where
         F: FnOnce(&mut Self) -> ParserResult<'source, O>,
@@ -368,6 +245,7 @@ impl<'source> Parser<'source> {
     }
 
     /// Calls the provided function and resets the position if the function was not successful.
+    #[inline(always)]
     pub fn optional<O, F>(&mut self, f: F) -> Option<O>
     where
         F: FnOnce(&mut Self) -> ParserResult<'source, O>,
@@ -392,15 +270,7 @@ impl<'source> Parser<'source> {
         }
     }
 
-    /// Repeatedly calls the provided function but resets the position if the call was not successful.
-    /// This is a combination of [`Parser::optional`] and [`Parser::repeated`].
-    pub fn optional_repeated<O, F>(&mut self, f: F) -> Option<Vec<O>>
-    where
-        F: FnMut(&mut Self) -> ParserResult<'source, O>,
-    {
-        self.optional(|parser| parser.repeated(f))
-    }
-
+    #[inline(always)]
     pub fn optional_separated<O, F>(&mut self, f: F, separator: OperatorKind) -> Option<Vec<O>>
     where
         F: FnMut(&mut Self) -> ParserResult<'source, O>,
@@ -409,6 +279,7 @@ impl<'source> Parser<'source> {
     }
 
     /// Parses `O` and puts the result in a [`Node`]. This is a wrapper around [`Parser::with_node`].
+    #[inline(always)]
     pub fn parse_node<O>(&mut self) -> ParserResult<'source, Node<O>>
     where
         O: Parse<'source>,
@@ -418,6 +289,7 @@ impl<'source> Parser<'source> {
 
     /// Repeatedly parses `O` and puts each result in a [`Node`]. This is a combination of
     /// [`Parser::repeated`] and [`Parser::parse_node`].
+    #[inline(always)]
     pub fn parse_node_repeated<O>(&mut self) -> ParserResult<'source, Vec<Node<O>>>
     where
         O: Parse<'source>,
@@ -425,16 +297,9 @@ impl<'source> Parser<'source> {
         self.repeated(|parser| parser.parse_node::<O>())
     }
 
-    /// Optional parses `O`. This is a combination of [`Parser::optional`] and [`Parse::parse`].
-    pub fn parse_optional<O>(&mut self) -> Option<O>
-    where
-        O: Parse<'source>,
-    {
-        self.optional(|parser| O::parse(parser))
-    }
-
     /// Optionally parses `O` and puts the result in a [`Node`]. This is a combination of
     /// [`Parser::optional`] and [`Parser::parse_node`].
+    #[inline(always)]
     pub fn parse_node_optional<O>(&mut self) -> Option<Node<O>>
     where
         O: Parse<'source>,
@@ -444,6 +309,7 @@ impl<'source> Parser<'source> {
 
     /// Optionally parses `O` repeatedly. This is a combination of [`Parser::optional`] and
     /// [`Parser::parse_node_repeated`].
+    #[inline(always)]
     pub fn parse_node_optional_repeated<O>(&mut self) -> Option<Vec<Node<O>>>
     where
         O: Parse<'source>,
@@ -464,7 +330,7 @@ where
 macro_rules! choose_result {
     ($( $item:expr ),+ $(,)? ) => {{
         // TODO: https://github.com/rust-lang/lang-team/blob/master/projects/declarative-macro-repetition-counts/charter.md
-        let mut errors = ::std::collections::HashSet::<$crate::parser::ParserError>::with_capacity(${count(item)});
+        let mut errors = ::std::collections::HashSet::<$crate::parser_error::ParserError>::with_capacity(${count(item)});
 
         $(
             let res = $item;
@@ -477,7 +343,7 @@ macro_rules! choose_result {
         if errors.len() == 1 {
             ::core::result::Result::Err(errors.into_iter().next().unwrap())
         } else {
-            ::core::result::Result::Err($crate::parser::ParserError::AggregatedErrors(errors))
+            ::core::result::Result::Err($crate::parser_error::ParserError::AggregatedErrors(errors))
         }
     }}
 }
