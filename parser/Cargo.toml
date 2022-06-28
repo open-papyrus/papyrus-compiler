@@ -10,6 +10,7 @@ homepage = "https://erri120.github.io/papyrus-compiler/"
 
 [features]
 test-external-scripts = []
+dhat-heap = []
 
 [dependencies.papyrus_compiler_lexer]
 path = "../lexer"
@@ -17,11 +18,9 @@ path = "../lexer"
 [dependencies.papyrus_compiler_diagnostics]
 path = "../diagnostics"
 
-[dependencies]
-smallbox = "0.8.1"
-
 [dev-dependencies]
 criterion = "0.3.5"
+dhat = "0.3.0"
 
 [[bench]]
 name = "parser_benchmark"

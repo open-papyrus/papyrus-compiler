@@ -1,10 +1,9 @@
 use papyrus_compiler_diagnostics::SourceRange;
-use smallbox::{space, SmallBox};
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone)]
 pub struct Node<T> {
-    inner: SmallBox<T, space::S4>,
+    inner: Box<T>,
     range: SourceRange,
 }
 
@@ -15,21 +14,13 @@ pub(crate) fn range_union(range_a: SourceRange, range_b: SourceRange) -> SourceR
 impl<T> Node<T> {
     pub fn new(inner: T, range: SourceRange) -> Self {
         Node {
-            inner: SmallBox::new(inner),
+            inner: Box::new(inner),
             range,
         }
     }
 
-    pub fn inner(&self) -> &T {
-        self.inner.deref()
-    }
-
-    pub fn inner_mut(&mut self) -> &mut T {
-        self.inner.deref_mut()
-    }
-
     pub fn into_inner(self) -> T {
-        self.inner.into_inner()
+        *self.inner
     }
 
     pub fn range(&self) -> SourceRange {
@@ -42,7 +33,7 @@ impl<T> Node<T> {
 
     pub fn map<Other, F: Fn(T) -> Other>(self, map_fn: F) -> Node<Other> {
         let range = self.range();
-        Node::new(map_fn(self.inner.into_inner()), range)
+        Node::new(map_fn(*self.inner), range)
     }
 }
 
@@ -50,13 +41,13 @@ impl<T> Deref for Node<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.inner()
+        self.inner.deref()
     }
 }
 
 impl<T> DerefMut for Node<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.inner_mut()
+        self.inner.deref_mut()
     }
 }
 

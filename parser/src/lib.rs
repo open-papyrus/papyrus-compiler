@@ -1,5 +1,10 @@
 #![feature(macro_metavar_expr)]
 
+#[cfg(test)]
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
+
 use crate::ast::script::Script;
 use crate::parser::{Parse, Parser};
 use crate::parser_error::*;
@@ -75,5 +80,22 @@ mod tests {
             let res = flatten_result(Script::parse(&mut parser));
             assert!(res.is_ok(), "{} {:#?}", script_path, res);
         }
+    }
+
+    #[cfg(feature = "dhat-heap")]
+    #[test]
+    fn heap_profiling() {
+        let _profiler = dhat::Profiler::builder().testing().build();
+
+        let script = include_str!("../../extern/MrOctopus/nl_mcm/main/source/nl_mcm.psc");
+        let tokens = filter_tokens(papyrus_compiler_lexer::run_lexer(script));
+        let mut parser = Parser::new(tokens);
+
+        let _res = flatten_result(Script::parse(&mut parser));
+
+        let stats = dhat::HeapStats::get();
+
+        dhat::assert_eq!(5_285_989, stats.total_bytes);
+        dhat::assert_eq!(34_303, stats.total_blocks);
     }
 }
