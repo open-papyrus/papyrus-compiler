@@ -110,7 +110,7 @@ mod tests {
 
         let stats = dhat::HeapStats::get();
 
-        dhat::assert_eq!(5_285_989, stats.total_bytes);
+        dhat::assert_eq!(6_414_949, stats.total_bytes);
         dhat::assert_eq!(34_303, stats.total_blocks);
     }
 }

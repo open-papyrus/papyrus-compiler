@@ -7,4 +7,7 @@ export default defineConfig({
     target: 'esnext',
     polyfillDynamicImport: false,
   },
+  server: {
+    port: 9999
+  }
 });

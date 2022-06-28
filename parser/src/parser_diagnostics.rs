@@ -3,6 +3,7 @@ use papyrus_compiler_diagnostics::{
     error_paint, good_paint, Diagnostic, SeverityLevel, SourceId, SourceRange,
 };
 
+#[derive(Debug, PartialEq)]
 pub struct ParserDiagnostic<'source> {
     source_id: SourceId,
     error: ParserError<'source>,
