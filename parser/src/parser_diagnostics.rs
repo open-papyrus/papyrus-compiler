@@ -26,6 +26,7 @@ impl<'source> Diagnostic for ParserDiagnostic<'source> {
     fn id(&self) -> u32 {
         match &self.error {
             ParserError::ExpectedToken { .. } => 1,
+            ParserError::ExpectedOneOf { .. } => 1,
             ParserError::UnexpectedEOI => 2,
             ParserError::ExpectedEOI { .. } => 3,
             _ => panic!(),
@@ -40,6 +41,42 @@ impl<'source> Diagnostic for ParserDiagnostic<'source> {
                     "Expected {} found {}",
                     good_paint(expected.error_display()),
                     error_paint(found.error_display())
+                )
+            }
+            ParserError::ExpectedOneOf {
+                expected,
+                found: (found, _),
+            } => {
+                let strings = expected
+                    .iter()
+                    .map(|token| format!("{}", good_paint(token.error_display())))
+                    .collect::<Vec<_>>();
+
+                let capacity = strings
+                    .iter()
+                    .map(|x| x.len())
+                    .reduce(|prev, cur| prev + cur)
+                    .unwrap_or(1)
+                    + (strings.len() - 1) * 2
+                    + 4;
+
+                let mut expected = String::with_capacity(capacity);
+                for (i, s) in strings.iter().enumerate() {
+                    if i == 0 {
+                        expected.push_str(s.as_str());
+                    } else if i == strings.len() - 1 {
+                        expected.push_str(" or ");
+                        expected.push_str(s.as_str());
+                    } else {
+                        expected.push_str(", ");
+                        expected.push_str(s.as_str());
+                    }
+                }
+
+                format!(
+                    "Unexpected Token, found {} expected {}",
+                    error_paint(found.error_display()),
+                    expected
                 )
             }
             ParserError::UnexpectedEOI => "Unexpected EOI".to_string(),
@@ -78,6 +115,10 @@ impl<'source> Diagnostic for ParserDiagnostic<'source> {
                 let (_, range) = found;
                 range.clone()
             }
+            ParserError::ExpectedOneOf {
+                expected: _,
+                found: (_, range),
+            } => range.clone(),
             _ => panic!(),
         }
     }

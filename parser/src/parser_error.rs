@@ -12,6 +12,10 @@ pub enum ParserError<'source> {
         expected: Token<'static>,
         found: TokenWithRange<'source>,
     },
+    ExpectedOneOf {
+        expected: HashSet<Token<'static>>,
+        found: TokenWithRange<'source>,
+    },
     UnexpectedEOI,
     AggregatedErrors(HashSet<ParserError<'source>>),
     ExpectedEOI {
@@ -35,9 +39,10 @@ impl<'source> Hash for ParserError<'source> {
                 expected.hash(state);
                 found.hash(state)
             }
-            ParserError::UnexpectedEOI => state.write_i8(2),
-            ParserError::AggregatedErrors(_) => state.write_i8(3),
-            ParserError::ExpectedEOI { .. } => state.write_i8(4),
+            ParserError::ExpectedOneOf { .. } => state.write_i8(2),
+            ParserError::UnexpectedEOI => state.write_i8(3),
+            ParserError::AggregatedErrors(_) => state.write_i8(4),
+            ParserError::ExpectedEOI { .. } => state.write_i8(5),
         }
     }
 }
@@ -111,15 +116,15 @@ fn extract_best_error(error: ParserError) -> ParserError {
                     found: (found, range),
                 }
             } else {
-                ParserError::AggregatedErrors(
-                    best_errors
+                let (range, (_, found)) = best_errors.get(0).unwrap().clone();
+
+                ParserError::ExpectedOneOf {
+                    expected: best_errors
                         .into_iter()
-                        .map(|(range, (expected, found))| ParserError::ExpectedToken {
-                            expected,
-                            found: (found, range),
-                        })
+                        .map(|(_, (expected, _))| expected)
                         .collect(),
-                )
+                    found: (found, range),
+                }
             }
         }
         _ => error,
