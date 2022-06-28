@@ -34,7 +34,7 @@ pub fn parse_script(_id: SourceId, tokens: Vec<(Token, SourceRange)>) -> Option<
 mod tests {
     use crate::ast::script::Script;
     use crate::filter_tokens;
-    use crate::parser::{Parse, Parser};
+    use crate::parser::{flatten_result, Parse, Parser};
 
     #[test]
     fn test_external_scripts() {
@@ -69,7 +69,7 @@ mod tests {
             let tokens = filter_tokens(papyrus_compiler_lexer::run_lexer(script.as_str()));
             let mut parser = Parser::new(tokens);
 
-            let res = Script::parse(&mut parser);
+            let res = flatten_result(Script::parse(&mut parser));
             assert!(res.is_ok(), "{} {:#?}", script_path, res);
         }
     }

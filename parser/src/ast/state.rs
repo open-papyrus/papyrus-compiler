@@ -58,7 +58,8 @@ impl<'source> Parse<'source> for State<'source> {
 
         let state_name = parser.parse_node::<Identifier>()?;
 
-        let state_content = parser.parse_node_optional_repeated::<StateContent>();
+        let state_content =
+            parser.optional_parse_node_until_keyword::<StateContent>(KeywordKind::EndState)?;
 
         parser.expect_keyword(KeywordKind::EndState)?;
 

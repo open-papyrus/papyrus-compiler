@@ -348,7 +348,7 @@ fn parse_unary_expression<'source>(
 }
 
 /// ```ebnf
-/// <mult expression>  ::= <unary expression> (('*' | '/' | '%') <unary expression>)*
+/// <mult expression> ::= <unary expression> (('*' | '/' | '%') <unary expression>)*
 /// ```
 fn parse_mult_expression<'source>(
     parser: &mut Parser<'source>,
@@ -386,7 +386,7 @@ fn parse_mult_expression<'source>(
 }
 
 /// ```ebnf
-/// <add expression>   ::= <mult expression> (('+' | '-') <mult expression>)*
+/// <add expression> ::= <mult expression> (('+' | '-') <mult expression>)*
 /// ```
 fn parse_add_expression<'source>(
     parser: &mut Parser<'source>,
@@ -423,7 +423,7 @@ fn parse_add_expression<'source>(
 }
 
 /// ```ebnf
-/// <bool expression>  ::= <add expression> (<comparison operator> <add expression>)*
+/// <bool expression> ::= <add expression> (<comparison operator> <add expression>)*
 /// ```
 fn parse_bool_expression<'source>(
     parser: &mut Parser<'source>,

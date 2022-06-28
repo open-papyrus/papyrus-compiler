@@ -29,7 +29,7 @@ impl<'source> Parse<'source> for Structure<'source> {
         parser.expect_keyword(KeywordKind::Struct)?;
         let struct_name = parser.parse_node::<Identifier>()?;
 
-        let fields = parser.parse_node_repeated::<StructureField>()?;
+        let fields = parser.parse_node_until_keyword::<StructureField>(KeywordKind::EndStruct)?;
         parser.expect_keyword(KeywordKind::EndStruct)?;
 
         Ok(Structure::new(struct_name, fields))

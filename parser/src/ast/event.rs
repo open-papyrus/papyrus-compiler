@@ -7,6 +7,7 @@ use crate::choose_result;
 use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
+use papyrus_compiler_lexer::syntax::token::Token;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CustomEvent<'source> {
@@ -294,8 +295,12 @@ impl<'source> Parse<'source> for Event<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
         let event_header_kind = parser.parse_node::<EventHeaderKind>()?;
 
-        let statements = parser.parse_node_optional_repeated::<Statement>();
-        if statements.is_some() {
+        let statements =
+            parser.optional_parse_node_until_keyword::<Statement>(KeywordKind::EndEvent)?;
+
+        if statements.is_some()
+            || parser.peek_token() == Some(&Token::Keyword(KeywordKind::EndEvent))
+        {
             parser.expect_keyword(KeywordKind::EndEvent)?;
         }
 

@@ -272,7 +272,17 @@ impl<'source> Parser<'source> {
                     // that the next element is valid. This is required to end the sequence because
                     // the first invalid element will mark the end of the sequence, it can't start
                     // with the separator
-                    separator_result?;
+                    match separator_result {
+                        Ok(_) => {}
+                        Err(err) => {
+                            return if results.is_empty() {
+                                Err(err)
+                            } else {
+                                self.position = last_valid_position;
+                                Ok(results)
+                            }
+                        }
+                    };
 
                     results.push(res);
                     last_valid_position = self.position;
@@ -287,6 +297,62 @@ impl<'source> Parser<'source> {
                 }
             };
         }
+    }
+
+    pub fn until_token<O, F>(
+        &mut self,
+        token: Token<'static>,
+        mut f: F,
+    ) -> ParserResult<'source, Vec<O>>
+    where
+        F: FnMut(&mut Self) -> ParserResult<'source, O>,
+    {
+        let mut results = Vec::<O>::new();
+
+        while self.peek_token() != Some(&token) {
+            results.push(f(self)?);
+        }
+
+        Ok(results)
+    }
+
+    pub fn until_keyword<O, F>(
+        &mut self,
+        keyword: KeywordKind,
+        f: F,
+    ) -> ParserResult<'source, Vec<O>>
+    where
+        F: FnMut(&mut Self) -> ParserResult<'source, O>,
+    {
+        self.until_token(Token::Keyword(keyword), f)
+    }
+
+    pub fn parse_node_until_keyword<O>(
+        &mut self,
+        keyword: KeywordKind,
+    ) -> ParserResult<'source, Vec<Node<O>>>
+    where
+        O: Parse<'source>,
+    {
+        self.until_keyword(keyword, |parser| parser.parse_node::<O>())
+    }
+
+    pub fn optional_parse_node_until_keyword<O>(
+        &mut self,
+        keyword: KeywordKind,
+    ) -> ParserResult<'source, Option<Vec<Node<O>>>>
+    where
+        O: Parse<'source>,
+    {
+        let first_element = self.parse_node_optional::<O>();
+        if first_element.is_none() {
+            return Ok(None);
+        }
+
+        let mut elements = self.parse_node_until_keyword::<O>(keyword)?;
+        elements.insert(0, first_element.unwrap());
+
+        Ok(Some(elements))
     }
 
     /// Calls the provided function and puts the result in a [`Node`].

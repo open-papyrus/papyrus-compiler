@@ -7,6 +7,7 @@ use crate::ast::types::{type_with_identifier_parser, Type};
 use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
+use papyrus_compiler_lexer::syntax::token::Token;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionParameter<'source> {
@@ -104,9 +105,12 @@ impl<'source> Parse<'source> for Function<'source> {
 
         let flags = parser.parse_node_optional_repeated::<FunctionFlag>();
 
-        // native functions don't have a function body, it's only a function declaration
-        let statements = parser.parse_node_optional_repeated::<Statement>();
-        if statements.is_some() {
+        let statements =
+            parser.optional_parse_node_until_keyword::<Statement>(KeywordKind::EndFunction)?;
+
+        if statements.is_some()
+            || parser.peek_token() == Some(&Token::Keyword(KeywordKind::EndFunction))
+        {
             parser.expect_keyword(KeywordKind::EndFunction)?;
         }
 
@@ -135,12 +139,41 @@ mod test {
     fn test_function_parser() {
         let data = vec![
             (
-                "Function MyNativeFunction() Native",
+                "Function MyNativeFunction(string name, int age) Native",
                 Function::new(
                     None,
                     Node::new("MyNativeFunction", 9..25),
-                    None,
-                    Some(vec![Node::new(FunctionFlag::Native, 28..34)]),
+                    Some(vec![
+                        Node::new(
+                            FunctionParameter::new(
+                                Node::new(
+                                    Type::new(
+                                        Node::new(TypeName::BaseType(BaseType::String), 26..32),
+                                        false,
+                                    ),
+                                    26..32,
+                                ),
+                                Node::new("name", 33..37),
+                                None,
+                            ),
+                            26..37,
+                        ),
+                        Node::new(
+                            FunctionParameter::new(
+                                Node::new(
+                                    Type::new(
+                                        Node::new(TypeName::BaseType(BaseType::Int), 39..42),
+                                        false,
+                                    ),
+                                    39..42,
+                                ),
+                                Node::new("age", 43..46),
+                                None,
+                            ),
+                            39..46,
+                        ),
+                    ]),
+                    Some(vec![Node::new(FunctionFlag::Native, 48..54)]),
                     None,
                 ),
             ),

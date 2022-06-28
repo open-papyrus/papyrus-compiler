@@ -89,11 +89,19 @@ impl<'source> Parse<'source> for Script<'source> {
 
         let flags = parser.parse_node_optional_repeated::<ScriptFlag>();
 
-        let contents = parser.parse_node_optional_repeated::<ScriptContent>();
+        let mut contents = Vec::<Node<ScriptContent>>::new();
+        while parser.peek_token().is_some() {
+            let content = parser.parse_node::<ScriptContent>()?;
+            contents.push(content);
+        }
 
         parser.expect_eoi()?;
 
-        Ok(Script::new(name, extends, flags, contents))
+        if contents.is_empty() {
+            Ok(Script::new(name, extends, flags, None))
+        } else {
+            Ok(Script::new(name, extends, flags, Some(contents)))
+        }
     }
 }
 

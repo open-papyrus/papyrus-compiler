@@ -159,7 +159,7 @@ impl<'source> Parse<'source> for FullProperty<'source> {
 
         let flags = parser.parse_node_optional_repeated::<PropertyFlag>();
 
-        let functions = parser.parse_node_repeated::<Function>()?;
+        let functions = parser.parse_node_until_keyword(KeywordKind::EndProperty)?;
 
         parser.expect_keyword(KeywordKind::EndProperty)?;
 
@@ -191,7 +191,7 @@ impl<'source> Parse<'source> for PropertyGroup<'source> {
 
         let flags = parser.parse_node_optional_repeated::<GroupFlag>();
 
-        let properties = parser.parse_node_repeated::<Property>()?;
+        let properties = parser.parse_node_until_keyword(KeywordKind::EndGroup)?;
 
         parser.expect_keyword(KeywordKind::EndGroup)?;
 

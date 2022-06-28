@@ -3,7 +3,7 @@ use crate::ast::identifier::Identifier;
 use crate::ast::node::Node;
 use crate::ast::types::{type_with_identifier_parser, Type};
 use crate::choose_result;
-use crate::parser::{Parse, Parser, ParserError, ParserResult};
+use crate::parser::{Parse, Parser, ParserResult};
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
@@ -172,15 +172,36 @@ fn parse_define_statement<'source>(
 /// ```ebnf
 /// <conditional path> ::= <expression> <statement>*
 /// ```
-impl<'source> Parse<'source> for ConditionalPath<'source> {
-    fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        let condition = parser.parse_node::<Expression>()?;
-        let statements = parser.parse_node_optional_repeated::<Statement>();
-        Ok(ConditionalPath {
-            condition,
-            statements,
-        })
+fn parse_conditional_path<'source>(
+    parser: &mut Parser<'source>,
+) -> ParserResult<'source, ConditionalPath<'source>> {
+    let condition = parser.parse_node::<Expression>()?;
+    let mut statements = Vec::<Node<Statement>>::new();
+
+    loop {
+        let next_token = parser.peek_token();
+
+        match next_token {
+            Some(Token::Keyword(KeywordKind::EndIf)) => break,
+            Some(Token::Keyword(KeywordKind::EndWhile)) => break,
+            Some(Token::Keyword(KeywordKind::ElseIf)) => break,
+            Some(Token::Keyword(KeywordKind::Else)) => break,
+            _ => statements.push(parser.parse_node::<Statement>()?),
+        }
     }
+
+    let statements = {
+        if statements.is_empty() {
+            None
+        } else {
+            Some(statements)
+        }
+    };
+
+    Ok(ConditionalPath {
+        condition,
+        statements,
+    })
 }
 
 /// ```ebnf
@@ -194,22 +215,36 @@ fn parse_if_statement<'source>(
 ) -> ParserResult<'source, Statement<'source>> {
     parser.expect_keyword(KeywordKind::If)?;
 
-    let if_path = parser.parse_node::<ConditionalPath>()?;
+    let if_path = parser.with_node(parse_conditional_path)?;
 
-    let other_paths = parser.optional_repeated(|parser| {
-        parser.expect_keyword(KeywordKind::ElseIf)?;
-        parser.parse_node::<ConditionalPath>()
-    });
+    let mut other_paths = Vec::<Node<ConditionalPath>>::new();
+    let mut else_path: Option<Vec<Node<Statement>>> = None;
 
-    let else_path = match parser.peek() {
-        Some((Token::Keyword(KeywordKind::Else), _)) => {
-            parser.consume()?;
-            parser.parse_node_optional_repeated::<Statement>()
+    while parser.peek_token() != Some(&Token::Keyword(KeywordKind::EndIf)) {
+        let next_token = parser.peek_token();
+        match next_token {
+            Some(Token::Keyword(KeywordKind::ElseIf)) => {
+                parser.expect_keyword(KeywordKind::ElseIf)?;
+                other_paths.push(parser.with_node(parse_conditional_path)?);
+            }
+            Some(Token::Keyword(KeywordKind::Else)) => {
+                parser.expect_keyword(KeywordKind::Else)?;
+                else_path = parser.optional_parse_node_until_keyword(KeywordKind::EndIf)?;
+                break;
+            }
+            _ => break,
         }
-        _ => None,
-    };
+    }
 
     parser.expect_keyword(KeywordKind::EndIf)?;
+
+    let other_paths = {
+        if other_paths.is_empty() {
+            None
+        } else {
+            Some(other_paths)
+        }
+    };
 
     Ok(Statement::If {
         if_path,
@@ -226,7 +261,7 @@ fn parse_while_statement<'source>(
     parser: &mut Parser<'source>,
 ) -> ParserResult<'source, Statement<'source>> {
     parser.expect_keyword(KeywordKind::While)?;
-    let conditional_path = parser.parse_node::<ConditionalPath>()?;
+    let conditional_path = parser.with_node(parse_conditional_path)?;
     parser.expect_keyword(KeywordKind::EndWhile)?;
 
     Ok(Statement::While(conditional_path))
