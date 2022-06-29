@@ -9,8 +9,11 @@ use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 struct Args {
-    #[clap(parse(from_os_str))]
+    #[clap(value_parser)]
     input_path: PathBuf,
+
+    #[clap(long)]
+    no_output: bool,
 }
 
 fn main() {
@@ -63,7 +66,11 @@ fn run(args: &Args) -> Result<(), anyhow::Error> {
         let res = papyrus_compiler_core::compile_string(id, &src);
 
         match res {
-            Ok(script) => println!("{:#?}", script),
+            Ok(script) => {
+                if !args.no_output {
+                    println!("{:#?}", script)
+                }
+            }
             Err(diagnostics) => {
                 for diagnostic in diagnostics {
                     convert_to_report(&diagnostic)
