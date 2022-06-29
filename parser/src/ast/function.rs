@@ -1,4 +1,4 @@
-use crate::ast::flags::FunctionFlag;
+use crate::ast::flags::{is_native_function, FunctionFlag};
 use crate::ast::identifier::Identifier;
 use crate::ast::literal::Literal;
 use crate::ast::node::Node;
@@ -8,7 +8,6 @@ use crate::parser::{Parse, Parser};
 use crate::parser_error::*;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
-use papyrus_compiler_lexer::syntax::token::Token;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionParameter<'source> {
@@ -106,14 +105,11 @@ impl<'source> Parse<'source> for Function<'source> {
 
         let flags = parser.parse_node_optional_repeated::<FunctionFlag>();
 
-        let statements =
-            parser.optional_parse_node_until_keyword::<Statement>(KeywordKind::EndFunction)?;
-
-        if statements.is_some()
-            || parser.peek_token() == Some(&Token::Keyword(KeywordKind::EndFunction))
-        {
-            parser.expect_keyword(KeywordKind::EndFunction)?;
-        }
+        let statements = parse_function_body(
+            parser,
+            !is_native_function(&flags),
+            KeywordKind::EndFunction,
+        )?;
 
         Ok(Function::new(
             return_type,
@@ -123,6 +119,23 @@ impl<'source> Parse<'source> for Function<'source> {
             statements,
         ))
     }
+}
+
+pub(crate) fn parse_function_body<'script>(
+    parser: &mut Parser<'script>,
+    requires_function_body: bool,
+    keyword: KeywordKind,
+) -> ParserResult<'script, Option<Vec<Node<Statement<'script>>>>> {
+    let statements = match requires_function_body {
+        true => parser.optional_parse_node_until_keyword::<Statement>(keyword)?,
+        false => None,
+    };
+
+    if requires_function_body {
+        parser.expect_keyword(keyword)?;
+    }
+
+    Ok(statements)
 }
 
 #[cfg(test)]
@@ -179,7 +192,7 @@ mod test {
                 ),
             ),
             (
-                "Function Set(int newValue)",
+                "Function Set(int newValue) EndFunction",
                 Function::new(
                     None,
                     Node::new("Set", 9..12),
@@ -202,7 +215,7 @@ mod test {
                 ),
             ),
             (
-                "int Function GetVersion(int version = 1)\nreturn version\nEndFunction",
+                "int Function GetVersion(int version = 1) return version EndFunction",
                 Function::new(
                     Some(Node::new(
                         Type::new(Node::new(TypeName::BaseType(BaseType::Int), 0..3), false),

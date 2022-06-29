@@ -1,5 +1,7 @@
+use crate::ast::node::Node;
 use crate::parser::{Parse, Parser};
 use crate::parser_error::*;
+use std::ops::Deref;
 
 macro_rules! case_ignore_identifier {
     ( $parser:ident, $( $flag_bytes:ident, $flag_name:literal => $out:expr ),+ $(,)? ) => {{
@@ -141,5 +143,15 @@ impl<'source> Parse<'source> for FunctionFlag {
             DEBUG_ONLY, "DebugOnly" => FunctionFlag::DebugOnly,
             BETA_ONLY, "BetaOnly" => FunctionFlag::BetaOnly,
         )
+    }
+}
+
+pub(crate) fn is_native_function(flags: &Option<Vec<Node<FunctionFlag>>>) -> bool {
+    match flags.as_ref() {
+        Some(flags) => flags.iter().any(|flag| {
+            let flag = flag.deref();
+            matches!(flag, FunctionFlag::Native)
+        }),
+        None => false,
     }
 }

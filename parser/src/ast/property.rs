@@ -253,8 +253,8 @@ mod test {
     fn test_full_property_parser() {
         let src = r#"
         int Property ValueProperty
-            Function Set(int newValue)
-            int Function Get()
+            Function Set(int newValue) EndFunction
+            int Function Get() EndFunction
         EndProperty
         "#;
 
@@ -287,20 +287,20 @@ mod test {
                         None,
                         None,
                     ),
-                    48..74,
+                    48..86,
                 ),
                 Node::new(
                     Function::new(
                         Some(Node::new(
-                            Type::new(Node::new(TypeName::BaseType(BaseType::Int), 87..90), false),
-                            87..90,
+                            Type::new(Node::new(TypeName::BaseType(BaseType::Int), 99..102), false),
+                            99..102,
                         )),
-                        Node::new("Get", 100..103),
+                        Node::new("Get", 112..115),
                         None,
                         None,
                         None,
                     ),
-                    87..105,
+                    99..129,
                 ),
             ],
         );
@@ -315,7 +315,7 @@ mod test {
             int Property FirstProperty auto
 
             float Property SecondProperty
-                float Function Get()
+                float Function Get() EndFunction
             EndProperty
         EndGroup
         "#;
@@ -366,10 +366,10 @@ mod test {
                                 None,
                                 None,
                             ),
-                            167..187,
+                            167..199,
                         )],
                     )),
-                    121..211,
+                    121..223,
                 ),
             ],
         );

@@ -1,4 +1,5 @@
-use crate::ast::flags::FunctionFlag;
+use crate::ast::flags::{is_native_function, FunctionFlag};
+use crate::ast::function::parse_function_body;
 use crate::ast::identifier::Identifier;
 use crate::ast::node::{range_union, Node};
 use crate::ast::statement::Statement;
@@ -8,7 +9,7 @@ use crate::parser::{Parse, Parser};
 use crate::parser_error::*;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
-use papyrus_compiler_lexer::syntax::token::Token;
+use std::ops::Deref;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CustomEvent<'source> {
@@ -296,14 +297,18 @@ impl<'source> Parse<'source> for Event<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
         let event_header_kind = parser.parse_node::<EventHeaderKind>()?;
 
-        let statements =
-            parser.optional_parse_node_until_keyword::<Statement>(KeywordKind::EndEvent)?;
+        let requires_function_body = {
+            let flags = match (&event_header_kind).deref() {
+                EventHeaderKind::EventHeader(header) => &header.flags,
+                EventHeaderKind::CustomEvent(header) => &header.flags,
+                EventHeaderKind::RemoteEvent(header) => &header.flags,
+            };
 
-        if statements.is_some()
-            || parser.peek_token() == Some(&Token::Keyword(KeywordKind::EndEvent))
-        {
-            parser.expect_keyword(KeywordKind::EndEvent)?;
-        }
+            !is_native_function(flags)
+        };
+
+        let statements =
+            parse_function_body(parser, requires_function_body, KeywordKind::EndEvent)?;
 
         Ok(Event::new(event_header_kind, statements))
     }

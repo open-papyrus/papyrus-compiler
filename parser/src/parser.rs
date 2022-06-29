@@ -220,6 +220,12 @@ impl<'source> Parser<'source> {
     where
         O: Parse<'source>,
     {
+        let next_token = self.peek_token();
+        match next_token {
+            Some(Token::Keyword(token_keyword)) if token_keyword == &keyword => return Ok(None),
+            _ => {}
+        }
+
         let first_element = self.parse_node_optional::<O>();
         if first_element.is_none() {
             return Ok(None);
