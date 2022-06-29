@@ -1,0 +1,8 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Compiler Explorer" type="CompoundRunConfigurationType">
+    <toRun name="Build WASM Project" type="ShConfigurationType" />
+    <toRun name="Generate WASM bindings" type="ShConfigurationType" />
+    <toRun name="Start Compiler Explorer" type="ShConfigurationType" />
+    <method v="2" />
+  </configuration>
+</component>

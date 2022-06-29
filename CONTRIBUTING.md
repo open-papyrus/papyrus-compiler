@@ -31,6 +31,8 @@ This project is almost exclusively written in Rust so here are some editors and 
 - Free: [Visual Studio Code](https://code.visualstudio.com/) + [rust-analyzer](https://github.com/rust-lang/rust-analyzer) extension
 - Paid: [CLion](https://www.jetbrains.com/clion/) + [Rust](https://plugins.jetbrains.com/plugin/8182-rust/docs) extension
 
+If you have CLion, you can use the pre-configured Run Configurations in [.run/](./.run).
+
 To get started, you first need the **nightly** toolchain to compile the code:
 
 ```bash
