@@ -81,6 +81,7 @@ mod tests {
             "schlangster/skyui/dist/Data/Scripts/Source/SKI_SettingsManager.psc",
             "schlangster/skyui/dist/Data/Scripts/Source/SKI_WidgetBase.psc",
             "schlangster/skyui/dist/Data/Scripts/Source/SKI_WidgetManager.psc",
+            "SSE/BYOHRelationshipAdoptionScript.psc",
         ];
 
         for script_path in files {
