@@ -105,10 +105,10 @@ pub enum Token<'a> {
     #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*", callback = |lex| lex.slice())]
     Identifier(&'a str),
 
-    #[regex(r";[^\n\r]*[\n\r]*", callback = |lex| lex.slice())]
+    #[regex(r";[^/][^\r\n]*[\r\n]*", callback = |lex| lex.slice())]
     SingleLineComment(&'a str),
 
-    #[regex(r";/(?:[^;]|;[^/])*;", callback = |lex| lex.slice())]
+    #[regex(r";/(?:[^/]|/[^;])*/;", callback = |lex| lex.slice())]
     MultiLineComment(&'a str),
 
     #[regex(r"\{[^\}]*\}", callback = |lex| lex.slice())]
@@ -116,7 +116,7 @@ pub enum Token<'a> {
 
     #[error]
     #[token(r"\", logos::skip)]
-    #[regex(r"[ \t\n\r]+", logos::skip)]
+    #[regex(r"[ \t\n\r\f]+", logos::skip)]
     Error,
 }
 
@@ -436,7 +436,7 @@ mod test {
     #[test]
     fn test_single_line_comments() {
         let data = vec![
-            (";", Token::SingleLineComment(";")),
+            ("; ", Token::SingleLineComment("; ")),
             (
                 "; This is a Single Line Comment!",
                 Token::SingleLineComment("; This is a Single Line Comment!"),
@@ -474,6 +474,8 @@ mod test {
                 ";/ Hello/World! /;",
                 Token::MultiLineComment(";/ Hello/World! /;"),
             ),
+            (";/ ; /;", Token::MultiLineComment(";/ ; /;")),
+            ("\r\n;/ \r\n /;\r\n", Token::MultiLineComment(";/ \r\n /;")),
         ];
 
         test_data(data, |x| x);
