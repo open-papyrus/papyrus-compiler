@@ -20,11 +20,11 @@ pub trait Diagnostic {
 
     fn id(&self) -> u32;
 
+    fn documentation_heading(&self) -> &'static str;
+
     fn message(&self) -> String;
 
     fn level(&self) -> SeverityLevel;
-
-    fn documentation_heading(&self) -> &'static str;
 
     fn source_id(&self) -> SourceId;
 

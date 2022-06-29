@@ -34,6 +34,16 @@ impl<'source> Diagnostic for ParserDiagnostic<'source> {
         }
     }
 
+    fn documentation_heading(&self) -> &'static str {
+        match &self.error {
+            ParserError::ExpectedToken { .. } => "p001-unexpected-token",
+            ParserError::ExpectedOneOf { .. } => "p001-unexpected-token",
+            ParserError::UnexpectedEOI => "p002-unexpected-eoi",
+            ParserError::ExpectedEOI { .. } => "p003-expected-eoi",
+            _ => panic!(),
+        }
+    }
+
     fn message(&self) -> String {
         match &self.error {
             ParserError::ExpectedToken { expected, found } => {
@@ -96,10 +106,6 @@ impl<'source> Diagnostic for ParserDiagnostic<'source> {
     fn level(&self) -> SeverityLevel {
         // parser errors are errors, duh
         SeverityLevel::Error
-    }
-
-    fn documentation_heading(&self) -> &'static str {
-        ""
     }
 
     fn source_id(&self) -> SourceId {

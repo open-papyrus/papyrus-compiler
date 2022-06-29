@@ -49,6 +49,15 @@ impl Diagnostic for LexerDiagnostics {
         }
     }
 
+    fn documentation_heading(&self) -> &'static str {
+        match &self.kind {
+            LexerDiagnosticsKind::UnknownToken => "l001-unknown-token",
+            LexerDiagnosticsKind::ParseIntError(_) => "l002-parseinterror",
+            LexerDiagnosticsKind::ParseFloatError(_) => "l003-parsefloaterror",
+            LexerDiagnosticsKind::FloatNotFinite => "l004-number-is-not-finite",
+        }
+    }
+
     fn message(&self) -> String {
         match &self.kind {
             LexerDiagnosticsKind::UnknownToken => format!("{}", error_paint("Unknown token")),
@@ -63,15 +72,6 @@ impl Diagnostic for LexerDiagnostics {
     fn level(&self) -> SeverityLevel {
         // all lexer diagnostics are errors
         SeverityLevel::Error
-    }
-
-    fn documentation_heading(&self) -> &'static str {
-        match &self.kind {
-            LexerDiagnosticsKind::UnknownToken => "l001-unknown-token",
-            LexerDiagnosticsKind::ParseIntError(_) => "l002-parseinterror",
-            LexerDiagnosticsKind::ParseFloatError(_) => "l003-parsefloaterror",
-            LexerDiagnosticsKind::FloatNotFinite => "l004-number-is-not-finite",
-        }
     }
 
     fn source_id(&self) -> SourceId {
