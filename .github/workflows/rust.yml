@@ -73,4 +73,10 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --all-features --locked
+        args: --features test-external-scripts --locked
+
+    - name: Run heap profiling
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --locked --features dhat-heap --features test-external-scripts --package papyrus_compiler_parser --lib tests::heap_profiling -- --exact
