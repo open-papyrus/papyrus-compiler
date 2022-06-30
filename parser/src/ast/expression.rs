@@ -869,6 +869,36 @@ mod test {
                     rhs: rhs.clone(),
                 },
             ),
+            (
+                "false || true && true",
+                Expression::LogicalOperation {
+                    lhs: Node::new(Expression::Literal(Literal::Boolean(false)), 0..5),
+                    kind: LogicalKind::Or,
+                    rhs: Node::new(
+                        Expression::LogicalOperation {
+                            lhs: Node::new(Expression::Literal(Literal::Boolean(true)), 9..13),
+                            kind: LogicalKind::And,
+                            rhs: Node::new(Expression::Literal(Literal::Boolean(true)), 17..21),
+                        },
+                        9..21,
+                    ),
+                },
+            ),
+            (
+                "true && true || false",
+                Expression::LogicalOperation {
+                    lhs: Node::new(
+                        Expression::LogicalOperation {
+                            lhs: Node::new(Expression::Literal(Literal::Boolean(true)), 0..4),
+                            kind: LogicalKind::And,
+                            rhs: Node::new(Expression::Literal(Literal::Boolean(true)), 8..12),
+                        },
+                        0..12,
+                    ),
+                    kind: LogicalKind::Or,
+                    rhs: Node::new(Expression::Literal(Literal::Boolean(false)), 16..21),
+                },
+            ),
         ];
 
         run_tests(data);
