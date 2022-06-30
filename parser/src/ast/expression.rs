@@ -132,18 +132,41 @@ pub enum BinaryKind {
 
 impl<'source> Parse<'source> for FunctionArgument<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        let argument_name = parser.optional(|parser| {
-            let identifier = parser.parse_node::<Identifier>()?;
-            parser.expect_operator(OperatorKind::Assignment)?;
+        let token = match parser.peek_token() {
+            Some(token) => Ok(token),
+            None => return Err(ParserError::UnexpectedEOI),
+        }?;
 
-            Ok(identifier)
-        });
+        match token {
+            Token::Identifier(_) => match parser.peek_token_ahead(1) {
+                Some(Token::Operator(OperatorKind::Assignment)) => {
+                    let identifier = parser.parse_node::<Identifier>()?;
+                    parser.consume()?;
 
-        let value = parser.parse_node::<Expression>()?;
+                    let value = parser.parse_node::<Expression>()?;
+                    Ok(FunctionArgument::Named {
+                        name: identifier,
+                        value,
+                    })
+                }
+                Some(Token::Operator(OperatorKind::Comma)) => {
+                    let identifier = parser.parse_node::<Identifier>()?;
 
-        match argument_name {
-            Some(name) => Ok(FunctionArgument::Named { name, value }),
-            None => Ok(FunctionArgument::Positional(value)),
+                    let range = identifier.range();
+                    Ok(FunctionArgument::Positional(Node::new(
+                        Expression::Identifier(identifier.into_inner()),
+                        range,
+                    )))
+                }
+                _ => {
+                    let value = parser.parse_node::<Expression>()?;
+                    Ok(FunctionArgument::Positional(value))
+                }
+            },
+            _ => {
+                let value = parser.parse_node::<Expression>()?;
+                Ok(FunctionArgument::Positional(value))
+            }
         }
     }
 }

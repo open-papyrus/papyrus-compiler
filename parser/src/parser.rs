@@ -44,18 +44,28 @@ impl<'source> Parser<'source> {
     /// [`SourceRange`] of the Token.
     #[inline(always)]
     pub fn peek(&self) -> Option<&TokenWithRange<'source>> {
-        if self.position < self.tokens.len() {
-            self.tokens.get(self.position)
-        } else {
-            None
-        }
+        self.peek_ahead(0)
     }
 
     /// Peek at the next available Token, this function does not consume and is a wrapper around
     /// [`Parser::peek`].
     #[inline(always)]
     pub fn peek_token(&self) -> Option<&Token<'source>> {
-        self.peek().map(|(token, _)| token)
+        self.peek_ahead(0).map(|(token, _)| token)
+    }
+
+    #[inline(always)]
+    pub fn peek_ahead(&self, offset: usize) -> Option<&TokenWithRange<'source>> {
+        if self.position + offset < self.tokens.len() {
+            self.tokens.get(self.position + offset)
+        } else {
+            None
+        }
+    }
+
+    #[inline(always)]
+    pub fn peek_token_ahead(&self, offset: usize) -> Option<&Token<'source>> {
+        self.peek_ahead(offset).map(|(token, _)| token)
     }
 
     /// Consume the next Token.
@@ -114,7 +124,7 @@ impl<'source> Parser<'source> {
     where
         F: FnMut(&mut Self) -> ParserResult<'source, O>,
     {
-        self.separated(f, None)
+        self.separated(f, None, None)
     }
 
     /// Similar to [`repeated`] except the parsed outputs must be seperated by an operator.
@@ -122,6 +132,7 @@ impl<'source> Parser<'source> {
         &mut self,
         mut f: F,
         separator: Option<OperatorKind>,
+        end: Option<OperatorKind>,
     ) -> ParserResult<'source, Vec<O>>
     where
         F: FnMut(&mut Self) -> ParserResult<'source, O>,
@@ -130,6 +141,20 @@ impl<'source> Parser<'source> {
         let mut last_valid_position = self.position;
 
         loop {
+            match end {
+                Some(end) => {
+                    if self.peek_token() == Some(&Token::Operator(end)) {
+                        return if results.is_empty() {
+                            Err(ParserError::UnexpectedEOI)
+                        } else {
+                            self.position = last_valid_position;
+                            Ok(results)
+                        };
+                    }
+                }
+                None => {}
+            }
+
             // only parse the separator after the first element, eg:
             // <elem_1> <sep> <elem_2>
             let separator_result = match separator {
@@ -290,7 +315,7 @@ impl<'source> Parser<'source> {
             return None;
         }
 
-        self.optional(|parser| parser.separated(f, Some(separator)))
+        self.optional(|parser| parser.separated(f, Some(separator), Some(end)))
     }
 
     /// Parses `O` and puts the result in a [`Node`]. This is a wrapper around [`Parser::with_node`].

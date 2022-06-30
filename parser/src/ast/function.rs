@@ -8,7 +8,6 @@ use crate::parser::{Parse, Parser};
 use crate::parser_error::*;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
-use papyrus_compiler_lexer::syntax::token::Token;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionParameter<'source> {
