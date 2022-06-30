@@ -286,10 +286,7 @@ mod test {
                 0..3,
             ),
             name: Node::new("x", 4..5),
-            initial_value: Some(Node::new(
-                Expression::Literal(Node::new(Literal::Integer(1), 8..9)),
-                8..9,
-            )),
+            initial_value: Some(Node::new(Expression::Literal(Literal::Integer(1)), 8..9)),
         };
 
         run_test(src, expected);
@@ -302,7 +299,7 @@ mod test {
             (
                 "Return 1",
                 Statement::Return(Some(Node::new(
-                    Expression::Literal(Node::new(Literal::Integer(1), 7..8)),
+                    Expression::Literal(Literal::Integer(1)),
                     7..8,
                 ))),
             ),
@@ -313,12 +310,9 @@ mod test {
 
     #[test]
     fn test_assignment_statement() {
-        let lhs = Node::new(Expression::Identifier(Node::new("x", 0..1)), 0..1);
+        let lhs = Node::new(Expression::Identifier("x"), 0..1);
 
-        let rhs = Node::new(
-            Expression::Literal(Node::new(Literal::Integer(1), 5..6)),
-            5..6,
-        );
+        let rhs = Node::new(Expression::Literal(Literal::Integer(1)), 5..6);
 
         let data = vec![
             (
@@ -326,10 +320,7 @@ mod test {
                 Statement::Assignment {
                     lhs: lhs.clone(),
                     kind: Node::new(AssignmentKind::Normal, 2..3),
-                    rhs: Node::new(
-                        Expression::Literal(Node::new(Literal::Integer(1), 4..5)),
-                        4..5,
-                    ),
+                    rhs: Node::new(Expression::Literal(Literal::Integer(1)), 4..5),
                 },
             ),
             (
@@ -377,25 +368,16 @@ mod test {
                 Statement::Assignment {
                     lhs: Node::new(
                         Expression::ArrayAccess {
-                            array: Node::new(
-                                Expression::Identifier(Node::new("Pages", 0..5)),
-                                0..5,
-                            ),
-                            index: Node::new(Expression::Identifier(Node::new("i", 6..7)), 6..7),
+                            array: Node::new(Expression::Identifier("Pages"), 0..5),
+                            index: Node::new(Expression::Identifier("i"), 6..7),
                         },
                         0..8,
                     ),
                     kind: Node::new(AssignmentKind::Normal, 9..10),
                     rhs: Node::new(
                         Expression::ArrayAccess {
-                            array: Node::new(
-                                Expression::Identifier(Node::new("Pages", 11..16)),
-                                11..16,
-                            ),
-                            index: Node::new(
-                                Expression::Identifier(Node::new("j", 17..18)),
-                                17..18,
-                            ),
+                            array: Node::new(Expression::Identifier("Pages"), 11..16),
+                            index: Node::new(Expression::Identifier("j"), 17..18),
                         },
                         11..19,
                     ),
@@ -414,10 +396,7 @@ mod test {
                 Statement::If {
                     if_path: Node::new(
                         ConditionalPath {
-                            condition: Node::new(
-                                Expression::Literal(Node::new(Literal::Boolean(true), 4..8)),
-                                3..9,
-                            ),
+                            condition: Node::new(Expression::Literal(Literal::Boolean(true)), 3..9),
                             statements: None,
                         },
                         3..9,
@@ -431,10 +410,7 @@ mod test {
                 Statement::If {
                     if_path: Node::new(
                         ConditionalPath {
-                            condition: Node::new(
-                                Expression::Literal(Node::new(Literal::Boolean(true), 4..8)),
-                                3..9,
-                            ),
+                            condition: Node::new(Expression::Literal(Literal::Boolean(true)), 3..9),
                             statements: None,
                         },
                         3..9,
@@ -443,7 +419,7 @@ mod test {
                         Node::new(
                             ConditionalPath {
                                 condition: Node::new(
-                                    Expression::Literal(Node::new(Literal::Boolean(true), 18..22)),
+                                    Expression::Literal(Literal::Boolean(true)),
                                     17..23,
                                 ),
                                 statements: None,
@@ -453,7 +429,7 @@ mod test {
                         Node::new(
                             ConditionalPath {
                                 condition: Node::new(
-                                    Expression::Literal(Node::new(Literal::Boolean(false), 32..37)),
+                                    Expression::Literal(Literal::Boolean(false)),
                                     31..38,
                                 ),
                                 statements: None,
@@ -477,21 +453,15 @@ endif"#,
                         ConditionalPath::new(
                             Node::new(
                                 Expression::Comparison {
-                                    lhs: Node::new(
-                                        Expression::Identifier(Node::new("x", 3..4)),
-                                        3..4,
-                                    ),
+                                    lhs: Node::new(Expression::Identifier("x"), 3..4),
                                     kind: ComparisonKind::EqualTo,
-                                    rhs: Node::new(
-                                        Expression::Literal(Node::new(Literal::Integer(0), 8..9)),
-                                        8..9,
-                                    ),
+                                    rhs: Node::new(Expression::Literal(Literal::Integer(0)), 8..9),
                                 },
                                 3..9,
                             ),
                             Some(vec![Node::new(
                                 Statement::Return(Some(Node::new(
-                                    Expression::Identifier(Node::new("y", 21..22)),
+                                    Expression::Identifier("y"),
                                     21..22,
                                 ))),
                                 14..22,
@@ -503,13 +473,10 @@ endif"#,
                         ConditionalPath::new(
                             Node::new(
                                 Expression::Comparison {
-                                    lhs: Node::new(
-                                        Expression::Identifier(Node::new("x", 30..31)),
-                                        30..31,
-                                    ),
+                                    lhs: Node::new(Expression::Identifier("x"), 30..31),
                                     kind: ComparisonKind::EqualTo,
                                     rhs: Node::new(
-                                        Expression::Literal(Node::new(Literal::Integer(1), 35..36)),
+                                        Expression::Literal(Literal::Integer(1)),
                                         35..36,
                                     ),
                                 },
@@ -517,7 +484,7 @@ endif"#,
                             ),
                             Some(vec![Node::new(
                                 Statement::Return(Some(Node::new(
-                                    Expression::Identifier(Node::new("y", 48..49)),
+                                    Expression::Identifier("y"),
                                     48..49,
                                 ))),
                                 41..49,
@@ -526,10 +493,7 @@ endif"#,
                         30..49,
                     )]),
                     else_path: Some(vec![Node::new(
-                        Statement::Return(Some(Node::new(
-                            Expression::Identifier(Node::new("y", 66..67)),
-                            66..67,
-                        ))),
+                        Statement::Return(Some(Node::new(Expression::Identifier("y"), 66..67))),
                         59..67,
                     )]),
                 },
@@ -544,10 +508,7 @@ endif"#,
         let src = "While (true) EndWhile";
         let expected = Statement::While(Node::new(
             ConditionalPath {
-                condition: Node::new(
-                    Expression::Literal(Node::new(Literal::Boolean(true), 7..11)),
-                    6..12,
-                ),
+                condition: Node::new(Expression::Literal(Literal::Boolean(true)), 6..12),
                 statements: None,
             },
             6..12,
@@ -561,13 +522,13 @@ endif"#,
         let src = "Debug.Trace(msg)";
         let expected = Statement::Expression(Node::new(
             Expression::MemberAccess {
-                lhs: Node::new(Expression::Identifier(Node::new("Debug", 0..5)), 0..5),
+                lhs: Node::new(Expression::Identifier("Debug"), 0..5),
                 rhs: Node::new(
                     Expression::FunctionCall {
-                        name: Node::new(Expression::Identifier(Node::new("Trace", 6..11)), 6..11),
+                        name: Node::new(Expression::Identifier("Trace"), 6..11),
                         arguments: Some(vec![Node::new(
                             FunctionArgument::Positional(Node::new(
-                                Expression::Identifier(Node::new("msg", 12..15)),
+                                Expression::Identifier("msg"),
                                 12..15,
                             )),
                             12..15,

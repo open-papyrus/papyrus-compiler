@@ -239,7 +239,7 @@ mod test {
                     None,
                     Some(vec![Node::new(
                         Statement::Return(Some(Node::new(
-                            Expression::Identifier(Node::new("version", 48..55)),
+                            Expression::Identifier("version"),
                             48..55,
                         ))),
                         41..55,
