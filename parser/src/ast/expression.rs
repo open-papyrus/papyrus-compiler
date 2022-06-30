@@ -8,6 +8,8 @@ use crate::parser_error::*;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
 use papyrus_compiler_lexer::syntax::token::Token;
+use std::cmp::Ordering;
+use std::collections::VecDeque;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression<'source> {
@@ -349,172 +351,178 @@ fn parse_unary_expression<'source>(
 }
 
 /// ```ebnf
-/// <mult expression> ::= <unary expression> (('*' | '/' | '%') <unary expression>)*
-/// ```
-fn parse_mult_expression<'source>(
-    parser: &mut Parser<'source>,
-) -> ParserResult<'source, Expression<'source>> {
-    let mut expr = parser.with_node(parse_unary_expression)?;
-
-    loop {
-        let kind = match parser.peek_token() {
-            Some(Token::Operator(OperatorKind::Multiplication)) => Some(BinaryKind::Multiplication),
-            Some(Token::Operator(OperatorKind::Division)) => Some(BinaryKind::Division),
-            Some(Token::Operator(OperatorKind::Modulus)) => Some(BinaryKind::Modulus),
-            _ => None,
-        };
-
-        match kind {
-            Some(kind) => {
-                parser.consume()?;
-                let rhs = parser.with_node(parse_unary_expression)?;
-                let range = expr.range_union(&rhs);
-
-                expr = Node::new(
-                    Expression::Binary {
-                        lhs: expr,
-                        kind,
-                        rhs,
-                    },
-                    range,
-                );
-            }
-            None => break,
-        }
-    }
-
-    Ok(expr.into_inner())
-}
-
-/// ```ebnf
-/// <add expression> ::= <mult expression> (('+' | '-') <mult expression>)*
-/// ```
-fn parse_add_expression<'source>(
-    parser: &mut Parser<'source>,
-) -> ParserResult<'source, Expression<'source>> {
-    let mut expr = parser.with_node(parse_mult_expression)?;
-
-    loop {
-        let kind = match parser.peek_token() {
-            Some(Token::Operator(OperatorKind::Addition)) => Some(BinaryKind::Addition),
-            Some(Token::Operator(OperatorKind::Subtraction)) => Some(BinaryKind::Subtraction),
-            _ => None,
-        };
-
-        match kind {
-            Some(kind) => {
-                parser.consume()?;
-                let rhs = parser.with_node(parse_mult_expression)?;
-                let range = expr.range_union(&rhs);
-
-                expr = Node::new(
-                    Expression::Binary {
-                        lhs: expr,
-                        kind,
-                        rhs,
-                    },
-                    range,
-                );
-            }
-            None => break,
-        }
-    }
-
-    Ok(expr.into_inner())
-}
-
-/// ```ebnf
-/// <bool expression> ::= <add expression> (<comparison operator> <add expression>)*
-/// ```
-fn parse_bool_expression<'source>(
-    parser: &mut Parser<'source>,
-) -> ParserResult<'source, Expression<'source>> {
-    let mut expr = parser.with_node(parse_add_expression)?;
-
-    loop {
-        let kind = match parser.peek_token() {
-            Some(Token::Operator(OperatorKind::EqualTo)) => Some(ComparisonKind::EqualTo),
-            Some(Token::Operator(OperatorKind::NotEqualTo)) => Some(ComparisonKind::NotEqualTo),
-            Some(Token::Operator(OperatorKind::GreaterThan)) => Some(ComparisonKind::GreaterThan),
-            Some(Token::Operator(OperatorKind::LessThan)) => Some(ComparisonKind::LessThan),
-            Some(Token::Operator(OperatorKind::GreaterThanOrEqualTo)) => {
-                Some(ComparisonKind::GreaterThanOrEqualTo)
-            }
-            Some(Token::Operator(OperatorKind::LessThanOrEqualTo)) => {
-                Some(ComparisonKind::LessThanOrEqualTo)
-            }
-            _ => None,
-        };
-
-        match kind {
-            Some(kind) => {
-                parser.consume()?;
-                let rhs = parser.with_node(parse_add_expression)?;
-                let range = expr.range_union(&rhs);
-
-                expr = Node::new(
-                    Expression::Comparison {
-                        lhs: expr,
-                        kind,
-                        rhs,
-                    },
-                    range,
-                );
-            }
-            None => break,
-        }
-    }
-
-    Ok(expr.into_inner())
-}
-
-/// ```ebnf
-/// <and expression> ::= <bool expression> ('&&' <bool expression>)*
-/// ```
-fn parse_and_expression<'source>(
-    parser: &mut Parser<'source>,
-) -> ParserResult<'source, Expression<'source>> {
-    let mut expression = parser.with_node(parse_bool_expression)?;
-    while parser.peek_token() == Some(&Token::Operator(OperatorKind::LogicalAnd)) {
-        parser.consume()?;
-        let rhs = parser.with_node(parse_bool_expression)?;
-        let range = expression.range_union(&rhs);
-
-        expression = Node::new(
-            Expression::LogicalOperation {
-                lhs: expression,
-                kind: LogicalKind::And,
-                rhs,
-            },
-            range,
-        )
-    }
-
-    Ok(expression.into_inner())
-}
-
-/// ```ebnf
 /// <expression> ::= <and expression> ('||' <and expression>)*
+/// <and expression> ::= <bool expression> ('&&' <bool expression>)*
+/// <bool expression> ::= <add expression> (<comparison operator> <add expression>)*
+/// <add expression> ::= <mult expression> (('+' | '-') <mult expression>)*
+/// <mult expression> ::= <unary expression> (('*' | '/' | '%') <unary expression>)*
 /// ```
 impl<'source> Parse<'source> for Expression<'source> {
     fn parse(parser: &mut Parser<'source>) -> ParserResult<'source, Self> {
-        let mut expression = parser.with_node(parse_and_expression)?;
-        while parser.peek_token() == Some(&Token::Operator(OperatorKind::LogicalOr)) {
-            parser.consume()?;
-            let rhs = parser.with_node(parse_and_expression)?;
-            let range = expression.range_union(&rhs);
+        let mut queue = VecDeque::<(Precedence, Node<Expression>)>::new();
+        let mut first_expression: Option<Node<Expression>> = None;
 
-            expression = Node::new(
-                Expression::LogicalOperation {
-                    lhs: expression,
-                    kind: LogicalKind::Or,
-                    rhs,
-                },
-                range,
-            )
+        loop {
+            if first_expression.is_none() {
+                let expression = parser.with_node(parse_unary_expression)?;
+                first_expression = Some(expression);
+                continue;
+            }
+
+            let next_token = parser.peek_token();
+            let precedence = match next_token {
+                Some(token) => Precedence::of(token),
+                None => None,
+            };
+
+            match precedence {
+                Some(precedence) => {
+                    // consume the previously peeked token
+                    parser.consume()?;
+
+                    let expression = parser.with_node(parse_unary_expression)?;
+                    queue.push_back((precedence, expression));
+                }
+                None => {
+                    if queue.is_empty() {
+                        return Ok(first_expression.unwrap().into_inner());
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        let mut expression = first_expression.unwrap();
+        let mut is_expression_lhs = true;
+        let mut aside_queue = VecDeque::<(Precedence, Node<Expression>)>::new();
+
+        while let Some((precedence, other_expression)) = queue.pop_front() {
+            let next_precedence = queue.front().map(|(precedence, _)| precedence);
+            let next_precedence_order =
+                next_precedence.map(|next_precedence| precedence.cmp(next_precedence));
+
+            let set_is_expression_lhs;
+
+            match next_precedence_order {
+                Some(Ordering::Less) => {
+                    // the current operator has a lesser precedence than the next
+                    // we "set aside" the current operator and expression and deal
+                    // with the more important one first
+
+                    aside_queue.push_back((precedence, expression));
+                    expression = other_expression;
+                    continue;
+                }
+                _ => {
+                    // when we pushed back the previous operator and expression into the
+                    // "aside queue", we also changed the position of the expressions which we need
+                    // to correct
+                    set_is_expression_lhs = aside_queue.is_empty();
+
+                    while let Some(tuple) = aside_queue.pop_front() {
+                        queue.push_front(tuple);
+                    }
+                }
+            };
+
+            let (lhs, rhs) = match is_expression_lhs {
+                true => (expression, other_expression),
+                false => (other_expression, expression),
+            };
+
+            let range = lhs.range_union(&rhs);
+
+            expression = match precedence {
+                Precedence::Or | Precedence::And => {
+                    let kind = match precedence {
+                        Precedence::Or => LogicalKind::Or,
+                        _ => LogicalKind::And,
+                    };
+
+                    Node::new(Expression::LogicalOperation { lhs, kind, rhs }, range)
+                }
+                Precedence::Comparison(kind) => {
+                    Node::new(Expression::Comparison { lhs, kind, rhs }, range)
+                }
+                Precedence::Addition(kind) | Precedence::Multiplication(kind) => {
+                    Node::new(Expression::Binary { lhs, kind, rhs }, range)
+                }
+            };
+
+            is_expression_lhs = set_is_expression_lhs;
         }
 
         Ok(expression.into_inner())
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum Precedence {
+    Or,
+    And,
+    Comparison(ComparisonKind),
+    Addition(BinaryKind),
+    Multiplication(BinaryKind),
+}
+
+impl Precedence {
+    fn of(token: &Token) -> Option<Precedence> {
+        match token {
+            Token::Operator(operator) => match operator {
+                OperatorKind::LogicalOr => Some(Precedence::Or),
+                OperatorKind::LogicalAnd => Some(Precedence::And),
+                OperatorKind::EqualTo => Some(Precedence::Comparison(ComparisonKind::EqualTo)),
+                OperatorKind::NotEqualTo => {
+                    Some(Precedence::Comparison(ComparisonKind::NotEqualTo))
+                }
+                OperatorKind::GreaterThan => {
+                    Some(Precedence::Comparison(ComparisonKind::GreaterThan))
+                }
+                OperatorKind::LessThan => Some(Precedence::Comparison(ComparisonKind::LessThan)),
+                OperatorKind::GreaterThanOrEqualTo => {
+                    Some(Precedence::Comparison(ComparisonKind::GreaterThanOrEqualTo))
+                }
+                OperatorKind::LessThanOrEqualTo => {
+                    Some(Precedence::Comparison(ComparisonKind::LessThanOrEqualTo))
+                }
+                OperatorKind::Addition => Some(Precedence::Addition(BinaryKind::Addition)),
+                OperatorKind::Subtraction => Some(Precedence::Addition(BinaryKind::Subtraction)),
+                OperatorKind::Multiplication => {
+                    Some(Precedence::Multiplication(BinaryKind::Multiplication))
+                }
+                OperatorKind::Division => Some(Precedence::Multiplication(BinaryKind::Division)),
+                OperatorKind::Modulus => Some(Precedence::Multiplication(BinaryKind::Modulus)),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn value(&self) -> u8 {
+        match self {
+            Precedence::Or => 0,
+            Precedence::And => 1,
+            Precedence::Comparison(_) => 2,
+            Precedence::Addition(_) => 3,
+            Precedence::Multiplication(_) => 4,
+        }
+    }
+}
+
+impl PartialOrd for Precedence {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let x = self.value();
+        let y = other.value();
+        Some(x.cmp(&y))
+    }
+}
+
+impl Ord for Precedence {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let x = self.value();
+        let y = other.value();
+        x.cmp(&y)
     }
 }
 
@@ -897,6 +905,47 @@ mod test {
                     ),
                     kind: LogicalKind::Or,
                     rhs: Node::new(Expression::Literal(Literal::Boolean(false)), 16..21),
+                },
+            ),
+            (
+                "true && true || false && true || false",
+                Expression::LogicalOperation {
+                    lhs: Node::new(
+                        Expression::LogicalOperation {
+                            lhs: Node::new(
+                                Expression::LogicalOperation {
+                                    lhs: Node::new(
+                                        Expression::Literal(Literal::Boolean(true)),
+                                        0..4,
+                                    ),
+                                    kind: LogicalKind::And,
+                                    rhs: Node::new(
+                                        Expression::Literal(Literal::Boolean(true)),
+                                        8..12,
+                                    ),
+                                },
+                                0..12,
+                            ),
+                            kind: LogicalKind::Or,
+                            rhs: Node::new(
+                                Expression::LogicalOperation {
+                                    lhs: Node::new(
+                                        Expression::Literal(Literal::Boolean(false)),
+                                        16..21,
+                                    ),
+                                    kind: LogicalKind::And,
+                                    rhs: Node::new(
+                                        Expression::Literal(Literal::Boolean(true)),
+                                        25..29,
+                                    ),
+                                },
+                                16..29,
+                            ),
+                        },
+                        0..29,
+                    ),
+                    kind: LogicalKind::Or,
+                    rhs: Node::new(Expression::Literal(Literal::Boolean(false)), 33..38),
                 },
             ),
         ];
