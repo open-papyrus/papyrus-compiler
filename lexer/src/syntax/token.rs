@@ -105,7 +105,7 @@ pub enum Token<'a> {
     #[regex(r"[a-zA-Z_][a-zA-Z_0-9]*", callback = |lex| lex.slice())]
     Identifier(&'a str),
 
-    #[regex(r";[^/][^\r\n]*[\r\n]*", callback = |lex| lex.slice())]
+    #[regex(r";[^\r\n]*[\r\n]*", callback = |lex| lex.slice())]
     SingleLineComment(&'a str),
 
     #[regex(r";/(?:[^/]|/[^;])*/;", callback = |lex| lex.slice())]
