@@ -9,6 +9,7 @@ use crate::parser::{Parse, Parser};
 use crate::parser_error::*;
 use papyrus_compiler_lexer::syntax::keyword_kind::KeywordKind;
 use papyrus_compiler_lexer::syntax::operator_kind::OperatorKind;
+use papyrus_compiler_lexer::syntax::token::Token;
 use std::ops::Deref;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -169,6 +170,7 @@ impl<'source> Parse<'source> for EventHeader<'source> {
         let parameters = parser.optional_separated(
             |parser| parser.parse_node::<EventParameter>(),
             OperatorKind::Comma,
+            OperatorKind::ParenthesisClose,
         );
 
         parser.expect_operator(OperatorKind::ParenthesisClose)?;
@@ -198,6 +200,7 @@ impl<'source> Parse<'source> for RemoteEventHeader<'source> {
         let parameters = parser.optional_separated(
             |parser| parser.parse_node::<EventParameter>(),
             OperatorKind::Comma,
+            OperatorKind::ParenthesisClose,
         );
 
         parser.expect_operator(OperatorKind::ParenthesisClose)?;

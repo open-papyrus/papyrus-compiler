@@ -277,10 +277,19 @@ impl<'source> Parser<'source> {
     }
 
     #[inline(always)]
-    pub fn optional_separated<O, F>(&mut self, f: F, separator: OperatorKind) -> Option<Vec<O>>
+    pub fn optional_separated<O, F>(
+        &mut self,
+        f: F,
+        separator: OperatorKind,
+        end: OperatorKind,
+    ) -> Option<Vec<O>>
     where
         F: FnMut(&mut Self) -> ParserResult<'source, O>,
     {
+        if self.peek_token() == Some(&Token::Operator(end)) {
+            return None;
+        }
+
         self.optional(|parser| parser.separated(f, Some(separator)))
     }
 

@@ -175,10 +175,13 @@ fn parse_func_or_id_expression<'source>(
 
     let function_call_arguments = parser.optional(|parser| {
         parser.expect_operator(OperatorKind::ParenthesisOpen)?;
+
         let arguments = parser.optional_separated(
             |parser| parser.parse_node::<FunctionArgument>(),
             OperatorKind::Comma,
+            OperatorKind::ParenthesisClose,
         );
+
         parser.expect_operator(OperatorKind::ParenthesisClose)?;
 
         Ok(arguments)
