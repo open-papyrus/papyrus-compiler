@@ -19,7 +19,7 @@ path = "../lexer"
 path = "../diagnostics"
 
 [dev-dependencies]
-criterion = "0.3.5"
+criterion = "0.3.6"
 dhat = "0.3.0"
 
 [[bench]]
