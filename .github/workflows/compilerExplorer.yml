@@ -44,9 +44,9 @@ jobs:
       - name: Install wasm-bindgen-cli
         run: |
           mkdir wasm-bindgen-cli
-          curl -sSL https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.81/wasm-bindgen-0.2.81-x86_64-unknown-linux-musl.tar.gz | tar -xz --directory=./wasm-bindgen-cli
-          mv wasm-bindgen-cli/wasm-bindgen-0.2.81-x86_64-unknown-linux-musl/* wasm-bindgen-cli
-          rm wasm-bindgen-cli/wasm-bindgen-0.2.81-x86_64-unknown-linux-musl -d
+          curl -sSL https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.82/wasm-bindgen-0.2.82-x86_64-unknown-linux-musl.tar.gz | tar -xz --directory=./wasm-bindgen-cli
+          mv wasm-bindgen-cli/wasm-bindgen-0.2.82-x86_64-unknown-linux-musl/* wasm-bindgen-cli
+          rm wasm-bindgen-cli/wasm-bindgen-0.2.82-x86_64-unknown-linux-musl -d
           echo `pwd`/wasm-bindgen-cli >> $GITHUB_PATH
 
       - name: Create WASM Bindings
