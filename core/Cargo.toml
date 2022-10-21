@@ -18,5 +18,5 @@ path = "../parser"
 path = "../diagnostics"
 
 [dependencies]
-anyhow = "1.0.62"
+anyhow = "1.0.66"
 ariadne = "0.1.5"
