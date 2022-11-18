@@ -1,10 +1,10 @@
 # Open Papyrus Compiler
 
-> This project is still **WORK IN PROGRESS**. If you have any feature requests, head over to the [Issues](https://github.com/erri120/papyrus-compiler) tab and describe your needs. You can try the current version of the compiler with the [Compiler Explorer](https://papyrus-compiler-explorer.herokuapp.com/) website however that is also still very much work in progress.
+> This project is still **WORK IN PROGRESS**. If you have any feature requests, head over to the [Issues tab](https://github.com/erri120/papyrus-compiler) and describe your needs.
 
 ## Documentation
 
-The entire documentation is available [here](https://erri120.github.io/papyrus-compiler/).
+The documentation for this project is hosted in another repository: [open-papyrus/docs](https://github.com/open-papyrus/docs) and can be viewed on the [website](https://open-papyrus.github.io/docs/).
 
 ## Contributing
 

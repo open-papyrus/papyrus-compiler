@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "EditorConfig.EditorConfig",
+        "tamasfe.even-better-toml",
+        "rust-lang.rust-analyzer",
+        "valentjn.vscode-ltex"
+    ]
+}

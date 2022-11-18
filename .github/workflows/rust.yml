@@ -1,82 +1,84 @@
 name: CI
 
 on:
-  push:
-    branches: [ master ]
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
-  pull_request:
-    branches: [ master ]
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
+    push:
+        branches: [master]
+        paths-ignore:
+            - "docs/**"
+            - "**.md"
+    pull_request:
+        branches: [master]
+        paths-ignore:
+            - "docs/**"
+            - "**.md"
 
 env:
-  CARGO_TERM_COLOR: always
+    CARGO_TERM_COLOR: always
 
 jobs:
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
+    clippy:
+        name: Clippy
+        runs-on: ubuntu-latest
 
-    - name: Install Toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-          components: clippy
+        steps:
+            - uses: actions/checkout@v3
 
-    - name: Cache cargo dependencies
-      uses: actions/cache@v2
-      with:
-        path: |
-          ~/.cargo/registry/index
-          ~/.cargo/registry/cache
-          ~/.cargo/git/db
-        key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
+            - name: Install Toolchain
+              uses: actions-rs/toolchain@v1
+              with:
+                  profile: minimal
+                  toolchain: nightly
+                  override: true
+                  components: clippy
 
-    - name: Run clippy
-      uses: actions-rs/clippy-check@v1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        args: --all-features --locked
+            - name: Cache cargo dependencies
+              uses: actions/cache@v2
+              with:
+                  path: |
+                      ~/.cargo/registry/index
+                      ~/.cargo/registry/cache
+                      ~/.cargo/git/db
+                  key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
 
-  test:
-    name: Test Suite
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
+            - name: Run clippy
+              uses: actions-rs/clippy-check@v1
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  args: --all-features --locked
 
-    - name: Install Toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: nightly
-        override: true
+    test:
+        name: Test Suite
+        runs-on: ubuntu-latest
 
-    - name: Cache cargo dependencies
-      uses: actions/cache@v2
-      with:
-        path: |
-          ~/.cargo/registry/index
-          ~/.cargo/registry/cache
-          ~/.cargo/git/db
-        key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                  submodules: true
 
-    - name: Run tests
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --features test-external-scripts --locked
+            - name: Install Toolchain
+              uses: actions-rs/toolchain@v1
+              with:
+                  profile: minimal
+                  toolchain: nightly
+                  override: true
 
-    - name: Run heap profiling
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --locked --features dhat-heap --features test-external-scripts --package papyrus_compiler_parser --lib tests::heap_profiling -- --exact
+            - name: Cache cargo dependencies
+              uses: actions/cache@v2
+              with:
+                  path: |
+                      ~/.cargo/registry/index
+                      ~/.cargo/registry/cache
+                      ~/.cargo/git/db
+                  key: cargo-deps-${{ hashFiles('**/Cargo.lock') }}
+
+            - name: Run tests
+              uses: actions-rs/cargo@v1
+              with:
+                  command: test
+                  args: --features test-external-scripts --locked
+
+            # - name: Run heap profiling
+            #   uses: actions-rs/cargo@v1
+            #   with:
+            #       command: test
+            #       args: --locked --features dhat-heap --features test-external-scripts --package papyrus_compiler_parser --lib tests::heap_profiling -- --exact
