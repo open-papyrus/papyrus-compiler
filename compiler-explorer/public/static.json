@@ -1,7 +1,0 @@
-{
-  "root": ".",
-  "error_page": "index.html",
-  "routes": {
-    "/**": "index.html"
-  }
-}
