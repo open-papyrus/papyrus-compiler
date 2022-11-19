@@ -20,7 +20,7 @@ path = "../diagnostics"
 
 [dev-dependencies]
 criterion = "0.3.6"
-dhat = "0.3.0"
+dhat = "0.3.2"
 
 [[bench]]
 name = "parser_benchmark"
