@@ -15,4 +15,4 @@ ariadne-support = ["dep:ariadne"]
 [dependencies]
 strum_macros = "0.24.3"
 yansi = "0.5.1"
-ariadne = { version = "0.1.5", optional = true }
+ariadne = { version = "0.3.0", optional = true }
