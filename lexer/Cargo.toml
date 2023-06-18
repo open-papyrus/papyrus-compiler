@@ -13,7 +13,7 @@ path = "../diagnostics"
 
 [dependencies]
 logos = "0.12.1"
-strum_macros = "0.24.3"
+strum_macros = "0.25.0"
 
 [features]
 test-external-scripts = []
