@@ -16,6 +16,6 @@ path = "../diagnostics"
 features = ["ariadne-support"]
 
 [dependencies]
-anyhow = "1.0.66"
+anyhow = "1.0.71"
 clap = { version = "3.2.12", features = ["derive"] }
 ariadne = "0.1.5"
