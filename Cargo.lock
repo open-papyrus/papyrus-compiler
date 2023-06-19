@@ -25,10 +25,11 @@ checksum = "216261ddc8289130e551ddcd5ce8a064710c0d064a4d2895c67151c92b5443f6"
 
 [[package]]
 name = "ariadne"
-version = "0.1.5"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1cb2a2046bea8ce5e875551f5772024882de0b540c7f93dfc5d6cf1ca8b030c"
+checksum = "72fe02fc62033df9ba41cba57ee19acf5e742511a140c7dbc3a873e19a19a1bd"
 dependencies = [
+ "unicode-width",
  "yansi",
 ]
 
