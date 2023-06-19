@@ -12,7 +12,7 @@ homepage = "https://erri120.github.io/papyrus-compiler/"
 path = "../diagnostics"
 
 [dependencies]
-logos = "0.12.1"
+logos = "0.13.0"
 strum_macros = "0.24.3"
 
 [features]
